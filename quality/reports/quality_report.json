@@ -1,0 +1,105 @@
+{
+  "project": "D:\\SOFTWARE\\LOCAL_APP\\TMTRADIO\\project",
+  "timestamp": "2026-01-05T18:24:25.830638",
+  "overall_score": 96.31212229006789,
+  "overall_status": "PASS",
+  "characteristics": {
+    "functional_suitability": {
+      "score": 94.09631019387118,
+      "status": "PASS",
+      "result": {
+        "test_pass_rate": 100.0,
+        "code_coverage": 85.24077548467793,
+        "tests_passed": 5,
+        "tests_failed": 0,
+        "tests_skipped": 0,
+        "total_tests": 5,
+        "score": 94.09631019387118
+      }
+    },
+    "performance_efficiency": {
+      "score": 100.0,
+      "status": "PASS",
+      "result": {
+        "import_time_ms": 351.18,
+        "memory_baseline_mb": 17.5,
+        "memory_peak_mb": 44.92,
+        "cpu_utilization": 18.8,
+        "score": 100.0
+      }
+    },
+    "compatibility": {
+      "score": 100.0,
+      "status": "PASS",
+      "result": {
+        "python_compatible": true,
+        "dependencies_resolved": true,
+        "platform_compatible": true,
+        "dependency_issues": [],
+        "score": 100.0
+      }
+    },
+    "usability": {
+      "score": 94.25373134328359,
+      "status": "PASS",
+      "result": {
+        "docstring_coverage": 98.50746268656717,
+        "readme_exists": true,
+        "error_handling_coverage": 100.0,
+        "score": 94.25373134328359
+      }
+    },
+    "reliability": {
+      "score": 100.0,
+      "status": "PASS",
+      "result": {
+        "exception_handling_ratio": 100.0,
+        "resource_cleanup_ratio": 5.970149253731343,
+        "error_logging_present": true,
+        "patterns_found": [
+          "Context managers used for resource management",
+          "Logging is implemented",
+          "No bare except clauses (good practice)",
+          "Finally blocks used for cleanup"
+        ],
+        "score": 100.0
+      }
+    },
+    "security": {
+      "score": 100.0,
+      "status": "PASS",
+      "result": {
+        "vulnerabilities_critical": 0,
+        "vulnerabilities_high": 0,
+        "vulnerabilities_medium": 0,
+        "vulnerabilities_low": 0,
+        "dependency_vulnerabilities": 0,
+        "hardcoded_secrets": 0,
+        "score": 100.0
+      }
+    },
+    "maintainability": {
+      "score": 82.14693678338838,
+      "status": "PASS",
+      "result": {
+        "avg_cyclomatic_complexity": 3.1066666666666665,
+        "maintainability_index": 77.11734195847097,
+        "code_duplication_percent": 0,
+        "lint_score": 71,
+        "loc": 2978,
+        "score": 82.14693678338838
+      }
+    },
+    "portability": {
+      "score": 100.0,
+      "status": "PASS",
+      "result": {
+        "hardcoded_paths": 0,
+        "platform_specific_imports": 2,
+        "has_requirements_file": true,
+        "has_setup_config": true,
+        "score": 100.0
+      }
+    }
+  }
+}
