@@ -30,7 +30,7 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          pyinstaller --onefile --windowed --name cleanbox --icon=src/assets/icon.ico src/main.py
+          pyinstaller --onefile --windowed --name cleanbox src/main.py
 
       - name: Create portable ZIP
         run: |
