@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.5] - 2026-01-06
+
+### Changed
+- New release build with icon improvements
+- Synced all pending changes
+
+---
+
 ## [1.0.3] - 2026-01-06
 
 ### Changed
