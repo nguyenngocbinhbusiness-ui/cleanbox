@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.2] - 2026-01-06
+
+### Changed
+- Cleaned up workflow configuration
+- Fixed import ordering in main module
+- Removed unused Dockerfile
+
+---
+
 ## [1.0.1] - 2026-01-05
 
 ### Changed
