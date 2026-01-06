@@ -1,12 +1,13 @@
 """CleanBox - Main entry point."""
-from shared.constants import APP_NAME, CONFIG_DIR
 import logging
 import sys
 from pathlib import Path
 
-# Add src to path for imports
+# Add src to path for imports - MUST be before local imports
 src_path = Path(__file__).parent
 sys.path.insert(0, str(src_path))
+
+from shared.constants import APP_NAME, CONFIG_DIR
 
 
 def setup_logging() -> None:
