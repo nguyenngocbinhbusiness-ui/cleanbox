@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.7] - 2026-01-08
+
+### Added
+- Multi-platform build support in GitHub Actions workflow
+- macOS DMG package build
+- Linux AppImage build
+- Windows portable ZIP package
+
+### Changed
+- Enhanced release workflow for cross-platform distribution
+
+---
+
 ## [1.0.6] - 2026-01-08
 
 ### Added
