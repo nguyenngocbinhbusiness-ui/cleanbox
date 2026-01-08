@@ -1,10 +1,14 @@
 # Changelog
 
-## [1.0.10] - 2026-01-08
+## [1.0.11] - 2026-01-08
 
-### Added
-- Added NSIS installer package for Windows
-- Now releasing both portable and installer versions
+### Fixed
+- Fixed runtime crash: added all hidden imports for PyInstaller bundling
+- Application now starts correctly from both portable and installer builds
+
+---
+
+## [1.0.10] - 2026-01-08
 
 ---
 
