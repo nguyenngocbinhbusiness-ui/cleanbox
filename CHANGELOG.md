@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.10] - 2026-01-08
+
+### Added
+- Added NSIS installer package for Windows
+- Now releasing both portable and installer versions
+
+---
+
 ## [1.0.9] - 2026-01-08
 
 ### Fixed

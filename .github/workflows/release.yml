@@ -28,7 +28,10 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build with PyInstaller
+      - name: Install NSIS
+        run: choco install nsis -y
+
+      - name: Build portable EXE
         run: |
           pyinstaller --onefile --windowed --name CleanBox --icon src/assets/icon.ico --add-data "src/assets;assets" --path src src/main.py
 
@@ -37,12 +40,57 @@ jobs:
           $version = "${{ github.ref_name }}"
           Compress-Archive -Path dist/CleanBox.exe -DestinationPath "CleanBox-$version-windows-x64-portable.zip"
 
+      - name: Build for NSIS installer
+        run: |
+          Remove-Item -Recurse -Force dist -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue
+          pyinstaller --onedir --windowed --name CleanBox --icon src/assets/icon.ico --add-data "src/assets;assets" --path src src/main.py
+
+      - name: Create NSIS installer script
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          @"
+          !include "MUI2.nsh"
+          
+          Name "CleanBox"
+          OutFile "CleanBox-v$version-windows-x64-setup.exe"
+          InstallDir "`$PROGRAMFILES\CleanBox"
+          RequestExecutionLevel admin
+          
+          !insertmacro MUI_PAGE_DIRECTORY
+          !insertmacro MUI_PAGE_INSTFILES
+          !insertmacro MUI_LANGUAGE "English"
+          
+          Section "Install"
+            SetOutPath "`$INSTDIR"
+            File /r "dist\CleanBox\*.*"
+            CreateShortcut "`$DESKTOP\CleanBox.lnk" "`$INSTDIR\CleanBox.exe"
+            CreateDirectory "`$SMPROGRAMS\CleanBox"
+            CreateShortcut "`$SMPROGRAMS\CleanBox\CleanBox.lnk" "`$INSTDIR\CleanBox.exe"
+            CreateShortcut "`$SMPROGRAMS\CleanBox\Uninstall.lnk" "`$INSTDIR\uninstall.exe"
+            WriteUninstaller "`$INSTDIR\uninstall.exe"
+            WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CleanBox" "DisplayName" "CleanBox"
+            WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CleanBox" "UninstallString" "`$INSTDIR\uninstall.exe"
+          SectionEnd
+          
+          Section "Uninstall"
+            Delete "`$DESKTOP\CleanBox.lnk"
+            RMDir /r "`$SMPROGRAMS\CleanBox"
+            RMDir /r "`$INSTDIR"
+            DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\CleanBox"
+          SectionEnd
+          "@ | Out-File -FilePath installer.nsi -Encoding ASCII
+
+      - name: Build NSIS installer
+        run: |
+          & "C:\Program Files (x86)\NSIS\makensis.exe" installer.nsi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            dist/CleanBox.exe
             CleanBox-${{ github.ref_name }}-windows-x64-portable.zip
+            CleanBox-${{ github.ref_name }}-windows-x64-setup.exe
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -52,7 +100,7 @@ jobs:
           echo "## 🎉 Release ${{ github.ref_name }} Complete!" >> $env:GITHUB_STEP_SUMMARY
           echo "" >> $env:GITHUB_STEP_SUMMARY
           echo "### Artifacts:" >> $env:GITHUB_STEP_SUMMARY
-          echo "- ``CleanBox.exe`` - Windows executable" >> $env:GITHUB_STEP_SUMMARY
           echo "- ``CleanBox-${{ github.ref_name }}-windows-x64-portable.zip`` - Portable package" >> $env:GITHUB_STEP_SUMMARY
+          echo "- ``CleanBox-${{ github.ref_name }}-windows-x64-setup.exe`` - NSIS Installer" >> $env:GITHUB_STEP_SUMMARY
           echo "" >> $env:GITHUB_STEP_SUMMARY
           echo "> **Note:** CleanBox is a Windows-only utility (uses Windows-specific APIs)." >> $env:GITHUB_STEP_SUMMARY
