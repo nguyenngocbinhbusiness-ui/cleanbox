@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.6] - 2026-01-08
+
+### Added
+- Added application icon (`icon.ico`)
+- New unit tests for constants module
+- Comprehensive registry tests
+
+### Changed
+- Improved app.py functionality
+- Enhanced constants configuration
+
+---
+
 ## [1.0.5] - 2026-01-06
 
 ### Changed
