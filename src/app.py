@@ -2,10 +2,13 @@
 import atexit
 import logging
 import sys
+import tempfile
+import os
 from typing import Optional
 
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import QObject, pyqtSlot, pyqtSignal
+from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 
 from shared.config import ConfigManager
 from shared.constants import APP_NAME
@@ -18,6 +21,9 @@ from ui.main_window import MainWindow
 from ui.tray_icon import TrayIcon
 
 logger = logging.getLogger(__name__)
+
+# Single instance server name
+SINGLE_INSTANCE_KEY = "CleanBox_SingleInstance_Lock"
 
 
 class App(QObject):
@@ -63,6 +69,11 @@ class App(QObject):
             self._qt_app.setQuitOnLastWindowClosed(
                 False)  # Keep running in tray
 
+            # Check for existing instance
+            if not self._acquire_single_instance():
+                logger.warning("Another instance is already running")
+                return 0
+
             # Handle first run - detect default directories
             if self._config.is_first_run:
                 self._handle_first_run()
@@ -82,8 +93,9 @@ class App(QObject):
                 self._on_low_space)
             self._storage_monitor.start()
 
-            # Initialize Main Window (Hidden by default)
+            # Initialize Main Window and show on startup
             self._main_window = MainWindow()
+            self._main_window.show()  # Show UI on startup
 
             # Connect MainWindow signals to App handlers
             self._main_window.directory_added.connect(self._on_directory_added)
@@ -123,10 +135,66 @@ class App(QObject):
             self._cleanup_on_exit()
             return 1
 
+    def _acquire_single_instance(self) -> bool:
+        """Check if this is the only instance running.
+        
+        Uses QLocalServer to ensure only one instance runs at a time.
+        If another instance exists, sends a 'show' command to it.
+        Returns True if this is the first instance, False otherwise.
+        """
+        try:
+            # Try to connect to existing server
+            socket = QLocalSocket()
+            socket.connectToServer(SINGLE_INSTANCE_KEY)
+            
+            if socket.waitForConnected(500):
+                # Another instance is running - send 'show' command
+                socket.write(b"show")
+                socket.waitForBytesWritten(1000)
+                socket.close()
+                logger.info("Sent 'show' command to existing instance")
+                return False
+            
+            # No other instance - create server
+            self._local_server = QLocalServer()
+            # Remove stale socket if exists
+            QLocalServer.removeServer(SINGLE_INSTANCE_KEY)
+            
+            if self._local_server.listen(SINGLE_INSTANCE_KEY):
+                logger.info("Single instance lock acquired")
+                # Connect to handle incoming connections
+                self._local_server.newConnection.connect(self._handle_new_connection)
+                return True
+            else:
+                logger.error("Failed to create local server: %s", 
+                           self._local_server.errorString())
+                return True  # Allow running anyway
+                
+        except Exception as e:
+            logger.error("Single instance check failed: %s", e)
+            return True  # Allow running on error
+
+    def _handle_new_connection(self) -> None:
+        """Handle incoming connection from another instance."""
+        try:
+            socket = self._local_server.nextPendingConnection()
+            if socket:
+                socket.waitForReadyRead(1000)
+                data = socket.readAll().data().decode()
+                socket.close()
+                
+                if data == "show":
+                    logger.info("Received 'show' command from another instance")
+                    self._do_show_settings()  # Show the main window
+        except Exception as e:
+            logger.error("Failed to handle new connection: %s", e)
+
     def _cleanup_on_exit(self) -> None:
         """Cleanup resources on exit (called by atexit)."""
         logger.info("Cleaning up resources...")
         try:
+            if hasattr(self, '_local_server') and self._local_server:
+                self._local_server.close()
             if self._storage_monitor:
                 self._storage_monitor.stop()
             if self._tray_icon:
