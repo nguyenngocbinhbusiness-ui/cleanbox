@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.0.9] - 2026-01-08
+
+### Fixed
+- Fixed build: assets now bundled correctly via `--add-data` flag
+- Application icon and resources now work in release builds
+
+---
+
+## [1.0.8] - 2026-01-08
+
+### Fixed
+- Fixed release workflow (Windows-only app, not cross-platform)
+- Improved artifact packaging with proper version naming
+
+---
+
 ## [1.0.7] - 2026-01-08
 
 ### Changed
