@@ -31,74 +31,57 @@ jobs:
       - name: Install NSIS
         run: choco install nsis -y
 
-      - name: Build portable EXE
-        run: |
-          pyinstaller --onefile --windowed --name CleanBox --icon src/assets/icon.ico --add-data "src/assets;assets" --path src `
-            --hidden-import features `
-            --hidden-import features.cleanup `
-            --hidden-import features.cleanup.service `
-            --hidden-import features.cleanup.directory_detector `
-            --hidden-import features.cleanup.worker `
-            --hidden-import features.notifications `
-            --hidden-import features.notifications.service `
-            --hidden-import features.storage_monitor `
-            --hidden-import features.storage_monitor.service `
-            --hidden-import features.storage_monitor.utils `
-            --hidden-import features.folder_scanner `
-            --hidden-import shared `
-            --hidden-import shared.constants `
-            --hidden-import shared.registry `
-            --hidden-import shared.utils `
-            --hidden-import shared.config `
-            --hidden-import shared.config.manager `
-            --hidden-import ui `
-            --hidden-import ui.main_window `
-            --hidden-import ui.tray_icon `
-            --hidden-import ui.components `
-            --hidden-import ui.components.sidebar `
-            --hidden-import ui.views `
-            --hidden-import ui.views.cleanup_view `
-            --hidden-import ui.views.settings_view `
-            --hidden-import ui.views.storage_view `
-            src/main.py
+      - name: Build portable EXE using spec file
+        run: pyinstaller CleanBox.spec --noconfirm
 
       - name: Create portable ZIP
         run: |
           $version = "${{ github.ref_name }}"
           Compress-Archive -Path dist/CleanBox.exe -DestinationPath "CleanBox-$version-windows-x64-portable.zip"
 
-      - name: Build for NSIS installer
+      - name: Build for NSIS installer (onedir mode)
         run: |
           Remove-Item -Recurse -Force dist -ErrorAction SilentlyContinue
           Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue
-          pyinstaller --onedir --windowed --name CleanBox --icon src/assets/icon.ico --add-data "src/assets;assets" --path src `
-            --hidden-import features `
-            --hidden-import features.cleanup `
-            --hidden-import features.cleanup.service `
-            --hidden-import features.cleanup.directory_detector `
-            --hidden-import features.cleanup.worker `
-            --hidden-import features.notifications `
-            --hidden-import features.notifications.service `
-            --hidden-import features.storage_monitor `
-            --hidden-import features.storage_monitor.service `
-            --hidden-import features.storage_monitor.utils `
-            --hidden-import features.folder_scanner `
-            --hidden-import shared `
-            --hidden-import shared.constants `
-            --hidden-import shared.registry `
-            --hidden-import shared.utils `
-            --hidden-import shared.config `
-            --hidden-import shared.config.manager `
-            --hidden-import ui `
-            --hidden-import ui.main_window `
-            --hidden-import ui.tray_icon `
-            --hidden-import ui.components `
-            --hidden-import ui.components.sidebar `
-            --hidden-import ui.views `
-            --hidden-import ui.views.cleanup_view `
-            --hidden-import ui.views.settings_view `
-            --hidden-import ui.views.storage_view `
-            src/main.py
+          python -c "
+          import PyInstaller.__main__
+          PyInstaller.__main__.run([
+              'src/main.py',
+              '--onedir',
+              '--windowed',
+              '--name=CleanBox',
+              '--icon=src/assets/icon.ico',
+              '--add-data=src/assets;assets',
+              '--path=src',
+              '--hidden-import=features',
+              '--hidden-import=features.cleanup',
+              '--hidden-import=features.cleanup.service',
+              '--hidden-import=features.cleanup.directory_detector',
+              '--hidden-import=features.cleanup.worker',
+              '--hidden-import=features.notifications',
+              '--hidden-import=features.notifications.service',
+              '--hidden-import=features.storage_monitor',
+              '--hidden-import=features.storage_monitor.service',
+              '--hidden-import=features.storage_monitor.utils',
+              '--hidden-import=features.folder_scanner',
+              '--hidden-import=shared',
+              '--hidden-import=shared.constants',
+              '--hidden-import=shared.registry',
+              '--hidden-import=shared.utils',
+              '--hidden-import=shared.config',
+              '--hidden-import=shared.config.manager',
+              '--hidden-import=ui',
+              '--hidden-import=ui.main_window',
+              '--hidden-import=ui.tray_icon',
+              '--hidden-import=ui.components',
+              '--hidden-import=ui.components.sidebar',
+              '--hidden-import=ui.views',
+              '--hidden-import=ui.views.cleanup_view',
+              '--hidden-import=ui.views.settings_view',
+              '--hidden-import=ui.views.storage_view',
+              '--noconfirm',
+          ])
+          "
 
       - name: Create NSIS installer script
         run: |

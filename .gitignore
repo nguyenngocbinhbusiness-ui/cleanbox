@@ -33,6 +33,7 @@ env/
 # PyInstaller
 *.manifest
 *.spec
+!CleanBox.spec
 
 # Test / coverage
 .pytest_cache/

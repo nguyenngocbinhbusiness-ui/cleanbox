@@ -1,12 +1,15 @@
 # Changelog
 
-## [1.0.11] - 2026-01-08
+## [1.0.12] - 2026-01-09
 
 ### Fixed
-- Fixed runtime crash: added all hidden imports for PyInstaller bundling
-- Application now starts correctly from both portable and installer builds
+- Fixed PyInstaller build: now uses `.spec` file with proper hidden imports
+- Switched workflow to use Python script for reliable bundling
+- All local modules (features, shared, ui) now correctly included in build
 
 ---
+
+## [1.0.11] - 2026-01-08
 
 ## [1.0.10] - 2026-01-08
 
