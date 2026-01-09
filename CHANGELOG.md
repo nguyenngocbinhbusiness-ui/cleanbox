@@ -1,14 +1,16 @@
 # Changelog
 
-## [1.0.16] - 2026-01-09
+## [1.0.17] - 2026-01-09
 
 ### Fixed
-- Fixed multi-line f-strings in notifications service that caused SyntaxError in bundled app
-- Build configuration with collect_all() now fully functional
+- **ROOT CAUSE FIXED**: Python 3.11 compatibility for f-strings
+- Multi-line f-strings (PEP 701, Python 3.12+) converted to single-line
+- Files fixed: `notifications/service.py`, `storage_view.py`
+- ✅ **Local build verified working**
 
 ---
 
-## [1.0.15] - 2026-01-09
+## [1.0.16] - 2026-01-09
 
 ## [1.0.14] - 2026-01-09
 

@@ -238,10 +238,7 @@ class StorageView(QWidget):
 
             self._drive_combo.clear()
             for drive in drives:
-                label = f"{
-                    drive.letter} ({
-                    drive.free_gb:.1f} GB free of {
-                    drive.total_gb:.1f} GB)"
+                label = f"{drive.letter} ({drive.free_gb:.1f} GB free of {drive.total_gb:.1f} GB)"
                 self._drive_combo.addItem(label, drive.letter)
 
             # Restore selection if possible
@@ -325,9 +322,7 @@ class StorageView(QWidget):
                 return
 
             self._status_label.setText(
-                f"Scan complete: {
-                    result.size_formatted()} in {
-                    result.file_count:,} files")
+                f"Scan complete: {result.size_formatted()} in {result.file_count:,} files")
 
             # Populate tree
             self._populate_tree(result)
