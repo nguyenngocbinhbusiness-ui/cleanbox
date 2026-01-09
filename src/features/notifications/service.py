@@ -18,8 +18,7 @@ class NotificationService:
         """Show notification for low disk space."""
         try:
             title = f"{APP_NAME} - Low Disk Space"
-            message = f"Drive {drive_letter} has only {
-                free_gb:.1f} GB free space."
+            message = f"Drive {drive_letter} has only {free_gb:.1f} GB free space."
 
             logger.info("Showing low space notification for %s", drive_letter)
             self._show_toast(title, message)
@@ -40,8 +39,7 @@ class NotificationService:
             if files_deleted == 0 and folders_deleted == 0:
                 message = "No files to clean up."
             else:
-                message = f"Freed {
-                    size_mb:.1f} MB ({files_deleted} files, {folders_deleted} folders)"
+                message = f"Freed {size_mb:.1f} MB ({files_deleted} files, {folders_deleted} folders)"
                 if errors > 0:
                     message += f" - {errors} items skipped"
 

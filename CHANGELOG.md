@@ -1,13 +1,14 @@
 # Changelog
 
-## [1.0.15] - 2026-01-09
+## [1.0.16] - 2026-01-09
 
 ### Fixed
-- **VERIFIED WORKING** - Uses `collect_all()` instead of `collect_submodules()`
-- Collects 28 hidden imports (features: 12, shared: 6, ui: 9)
-- App starts correctly with all modules bundled
+- Fixed multi-line f-strings in notifications service that caused SyntaxError in bundled app
+- Build configuration with collect_all() now fully functional
 
 ---
+
+## [1.0.15] - 2026-01-09
 
 ## [1.0.14] - 2026-01-09
 
