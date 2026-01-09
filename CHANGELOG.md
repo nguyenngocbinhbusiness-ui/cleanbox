@@ -1,13 +1,14 @@
 # Changelog
 
-## [1.0.13] - 2026-01-09
+## [1.0.14] - 2026-01-09
 
 ### Fixed
-- Fixed PyInstaller bundling using `collect_submodules()` function
-- Spec file now uses proper `SPECPATH` for correct path resolution
-- ✅ **Verified locally: app starts correctly**
+- Fixed GitHub Actions build: set `PYTHONPATH=src` for `collect_submodules()` to work
+- NSIS build now uses dynamic module collection via Python script
 
 ---
+
+## [1.0.13] - 2026-01-09
 
 ## [1.0.12] - 2026-01-09
 

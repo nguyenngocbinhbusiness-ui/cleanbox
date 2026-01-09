@@ -32,6 +32,8 @@ jobs:
         run: choco install nsis -y
 
       - name: Build portable EXE using spec file
+        env:
+          PYTHONPATH: src
         run: pyinstaller CleanBox.spec --noconfirm
 
       - name: Create portable ZIP
@@ -40,12 +42,23 @@ jobs:
           Compress-Archive -Path dist/CleanBox.exe -DestinationPath "CleanBox-$version-windows-x64-portable.zip"
 
       - name: Build for NSIS installer (onedir mode)
+        env:
+          PYTHONPATH: src
         run: |
           Remove-Item -Recurse -Force dist -ErrorAction SilentlyContinue
           Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue
           python -c "
-          import PyInstaller.__main__
-          PyInstaller.__main__.run([
+          import sys
+          import os
+          sys.path.insert(0, 'src')
+          from PyInstaller.utils.hooks import collect_submodules
+          
+          hiddenimports = []
+          hiddenimports += collect_submodules('features')
+          hiddenimports += collect_submodules('shared')
+          hiddenimports += collect_submodules('ui')
+          
+          args = [
               'src/main.py',
               '--onedir',
               '--windowed',
@@ -53,34 +66,14 @@ jobs:
               '--icon=src/assets/icon.ico',
               '--add-data=src/assets;assets',
               '--path=src',
-              '--hidden-import=features',
-              '--hidden-import=features.cleanup',
-              '--hidden-import=features.cleanup.service',
-              '--hidden-import=features.cleanup.directory_detector',
-              '--hidden-import=features.cleanup.worker',
-              '--hidden-import=features.notifications',
-              '--hidden-import=features.notifications.service',
-              '--hidden-import=features.storage_monitor',
-              '--hidden-import=features.storage_monitor.service',
-              '--hidden-import=features.storage_monitor.utils',
-              '--hidden-import=features.folder_scanner',
-              '--hidden-import=shared',
-              '--hidden-import=shared.constants',
-              '--hidden-import=shared.registry',
-              '--hidden-import=shared.utils',
-              '--hidden-import=shared.config',
-              '--hidden-import=shared.config.manager',
-              '--hidden-import=ui',
-              '--hidden-import=ui.main_window',
-              '--hidden-import=ui.tray_icon',
-              '--hidden-import=ui.components',
-              '--hidden-import=ui.components.sidebar',
-              '--hidden-import=ui.views',
-              '--hidden-import=ui.views.cleanup_view',
-              '--hidden-import=ui.views.settings_view',
-              '--hidden-import=ui.views.storage_view',
               '--noconfirm',
-          ])
+          ]
+          
+          for hi in hiddenimports:
+              args.append(f'--hidden-import={hi}')
+          
+          import PyInstaller.__main__
+          PyInstaller.__main__.run(args)
           "
 
       - name: Create NSIS installer script
