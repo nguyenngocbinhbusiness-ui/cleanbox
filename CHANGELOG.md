@@ -1,15 +1,15 @@
 # Changelog
 
-## [1.0.12] - 2026-01-09
+## [1.0.13] - 2026-01-09
 
 ### Fixed
-- Fixed PyInstaller build: now uses `.spec` file with proper hidden imports
-- Switched workflow to use Python script for reliable bundling
-- All local modules (features, shared, ui) now correctly included in build
+- Fixed PyInstaller bundling using `collect_submodules()` function
+- Spec file now uses proper `SPECPATH` for correct path resolution
+- ✅ **Verified locally: app starts correctly**
 
 ---
 
-## [1.0.11] - 2026-01-08
+## [1.0.12] - 2026-01-09
 
 ## [1.0.10] - 2026-01-08
 

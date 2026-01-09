@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cleanbox"
-version = "1.0.12"
+version = "1.0.13"
 description = "Windows disk cleanup utility with system tray integration"
 readme = "README.md"
 license = {text = "MIT"}
