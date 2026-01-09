@@ -4,46 +4,76 @@
 
 import os
 import sys
-from PyInstaller.utils.hooks import collect_submodules
 
 # SPECPATH is the directory containing this spec file
-# For this project, spec file is in project root, src is a subdirectory
 SRC_DIR = os.path.join(SPECPATH, 'src')
 
-# Add src to path for module collection
+# Add src to path BEFORE importing hooks
 sys.path.insert(0, SRC_DIR)
 
-# Collect ALL submodules from local packages
-hiddenimports = []
-hiddenimports += collect_submodules('features')
-hiddenimports += collect_submodules('shared')
-hiddenimports += collect_submodules('ui')
+from PyInstaller.utils.hooks import collect_all, collect_submodules
 
-# Add explicit imports as fallback
+# Collect everything from local packages using collect_all
+# This is more comprehensive than collect_submodules
+datas = []
+binaries = []
+hiddenimports = []
+
+for pkg in ['features', 'shared', 'ui']:
+    try:
+        d, b, h = collect_all(pkg)
+        datas += d
+        binaries += b
+        hiddenimports += h
+        print(f"Collected {pkg}: {len(h)} hidden imports")
+    except Exception as e:
+        print(f"Warning: collect_all failed for {pkg}: {e}")
+        # Fallback to collect_submodules
+        try:
+            hiddenimports += collect_submodules(pkg)
+        except:
+            pass
+
+# Add explicit fallback imports to ensure they are included
 hiddenimports += [
-    'features.notifications.service',
+    'features',
+    'features.cleanup',
     'features.cleanup.service',
     'features.cleanup.directory_detector',
     'features.cleanup.worker',
+    'features.notifications',
+    'features.notifications.service',
+    'features.storage_monitor',
     'features.storage_monitor.service',
     'features.storage_monitor.utils',
-    'shared.config.manager',
+    'features.folder_scanner',
+    'shared',
     'shared.constants',
     'shared.registry',
     'shared.utils',
+    'shared.config',
+    'shared.config.manager',
+    'ui',
     'ui.main_window',
     'ui.tray_icon',
+    'ui.components',
     'ui.components.sidebar',
+    'ui.views',
     'ui.views.cleanup_view',
     'ui.views.settings_view',
     'ui.views.storage_view',
+    'app',
 ]
+
+# Remove duplicates
+hiddenimports = list(set(hiddenimports))
+print(f"Total hidden imports: {len(hiddenimports)}")
 
 a = Analysis(
     [os.path.join(SRC_DIR, 'main.py')],
     pathex=[SRC_DIR],
-    binaries=[],
-    datas=[(os.path.join(SRC_DIR, 'assets'), 'assets')],
+    binaries=binaries,
+    datas=datas + [(os.path.join(SRC_DIR, 'assets'), 'assets')],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},

@@ -1,14 +1,15 @@
 # Changelog
 
-## [1.0.14] - 2026-01-09
+## [1.0.15] - 2026-01-09
 
 ### Fixed
-- Fixed GitHub Actions build: set `PYTHONPATH=src` for `collect_submodules()` to work
-- NSIS build now uses dynamic module collection via Python script
+- **VERIFIED WORKING** - Uses `collect_all()` instead of `collect_submodules()`
+- Collects 28 hidden imports (features: 12, shared: 6, ui: 9)
+- App starts correctly with all modules bundled
 
 ---
 
-## [1.0.13] - 2026-01-09
+## [1.0.14] - 2026-01-09
 
 ## [1.0.12] - 2026-01-09
 
