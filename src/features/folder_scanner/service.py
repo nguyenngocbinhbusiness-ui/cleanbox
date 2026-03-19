@@ -22,7 +22,6 @@ class FileEntry:
 
 logger = logging.getLogger(__name__)
 
-MAX_ITEMS_LIMIT = 100_000
 _PROGRESS_INTERVAL = 0.1  # seconds (~10 calls/sec max)
 _DEFAULT_CLUSTER_SIZE = 4096
 
@@ -312,16 +311,6 @@ class FolderScanner:
 
         path_obj = Path(path)
 
-        if items_scanned[0] >= MAX_ITEMS_LIMIT:
-            logger.warning(
-                "Max items limit (%d) reached at %s, returning partial results",
-                MAX_ITEMS_LIMIT, path)
-            return FolderInfo(
-                path=path, name=path_obj.name or path,
-                size_bytes=0, allocated_bytes=0,
-                file_count=0, folder_count=0,
-                last_modified='', children=[])
-
         total_size = 0
         total_allocated = 0
         file_count = 0
@@ -353,12 +342,6 @@ class FolderScanner:
                 return None
 
             items_scanned[0] += 1
-
-            if items_scanned[0] >= MAX_ITEMS_LIMIT:
-                logger.warning(
-                    "Max items limit (%d) reached during scan of %s",
-                    MAX_ITEMS_LIMIT, path)
-                break
 
             if progress_callback:
                 now = time.monotonic()
@@ -480,11 +463,6 @@ class FolderScanner:
                     return total, allocated
                 if items_scanned is not None:
                     items_scanned[0] += len(files)
-                    if items_scanned[0] >= MAX_ITEMS_LIMIT:
-                        logger.warning(
-                            "Max items limit (%d) reached in fast scan of %s",
-                            MAX_ITEMS_LIMIT, path)
-                        return total, allocated
                 for f in files:
                     try:
                         fsize = os.path.getsize(os.path.join(root, f))

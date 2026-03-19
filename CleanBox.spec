@@ -104,4 +104,5 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=os.path.join(SRC_DIR, 'assets', 'icon.ico'),
+    uac_admin=True,
 )

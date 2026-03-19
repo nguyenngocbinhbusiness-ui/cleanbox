@@ -1,5 +1,7 @@
 """CleanBox - Main entry point."""
+import ctypes
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -8,6 +10,41 @@ src_path = Path(__file__).parent
 sys.path.insert(0, str(src_path))
 
 from shared.constants import APP_NAME, CONFIG_DIR
+
+
+def is_admin() -> bool:
+    """Check if the current process has administrator privileges."""
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin() != 0
+    except Exception:
+        return False
+
+
+def run_as_admin() -> bool:
+    """Re-launch the current process with administrator privileges.
+
+    Returns True if elevation was requested (caller should exit),
+    False if elevation failed or was declined by the user.
+    """
+    try:
+        if getattr(sys, "frozen", False):
+            # Packaged exe
+            executable = sys.executable
+            params = " ".join(sys.argv[1:])
+        else:
+            # Running from source
+            executable = sys.executable
+            params = f'"{os.path.abspath(sys.argv[0])}"'
+            if len(sys.argv) > 1:
+                params += " " + " ".join(sys.argv[1:])
+
+        ret = ctypes.windll.shell32.ShellExecuteW(
+            None, "runas", executable, params, None, 1
+        )
+        # ShellExecuteW returns > 32 on success
+        return ret > 32
+    except Exception:
+        return False
 
 
 def setup_logging() -> None:
@@ -37,9 +74,18 @@ def main() -> int:
     setup_logging()
     logger = logging.getLogger(__name__)
 
+    # Request admin privileges if not already elevated
+    if not is_admin():
+        logger.info("Not running as admin, requesting elevation...")
+        if run_as_admin():
+            logger.info("Elevation requested, exiting current process")
+            return 0
+        else:
+            logger.warning("Admin elevation failed or declined, continuing without admin")
+
     try:
         logger.info("=" * 50)
-        logger.info("Starting %s", APP_NAME)
+        logger.info("Starting %s (admin=%s)", APP_NAME, is_admin())
         logger.info("=" * 50)
 
         from app import App
