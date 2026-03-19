@@ -12,7 +12,7 @@ from PyQt6.QtCore import Qt, pyqtSignal, QThread, pyqtSlot
 from PyQt6.QtGui import QFont, QAction, QColor, QBrush
 
 from features.storage_monitor import DriveInfo
-from features.folder_scanner import FolderScanner, FolderInfo, format_size
+from features.folder_scanner import FolderScanner, FolderInfo, FileEntry, format_size
 from shared.utils import is_protected_path
 
 logger = logging.getLogger(__name__)
@@ -25,6 +25,36 @@ COL_FILES = 3
 COL_FOLDERS = 4
 COL_PERCENT = 5
 NUM_COLUMNS = 6
+
+
+class NumericSortItem(QTreeWidgetItem):
+    """QTreeWidgetItem with numeric sorting for size/percent columns."""
+
+    def __lt__(self, other: QTreeWidgetItem) -> bool:
+        tw = self.treeWidget()
+        column = tw.sortColumn() if tw else 0
+        if column == COL_PERCENT:
+            self_val = self.data(
+                COL_PERCENT, Qt.ItemDataRole.UserRole) or 0.0
+            other_val = other.data(
+                COL_PERCENT, Qt.ItemDataRole.UserRole) or 0.0
+            return float(self_val) < float(other_val)
+        elif column in (COL_SIZE, COL_ALLOCATED):
+            self_val = self.data(
+                COL_SIZE, Qt.ItemDataRole.UserRole) or 0
+            other_val = other.data(
+                COL_SIZE, Qt.ItemDataRole.UserRole) or 0
+            return int(self_val) < int(other_val)
+        elif column in (COL_FILES, COL_FOLDERS):
+            try:
+                s_text = self.text(column).replace(',', '')
+                o_text = other.text(column).replace(',', '')
+                s_val = int(s_text) if s_text != '-' else 0
+                o_val = int(o_text) if o_text != '-' else 0
+                return s_val < o_val
+            except ValueError:
+                pass
+        return super().__lt__(other)
 
 
 class ScanWorker(QThread):
@@ -168,6 +198,7 @@ class StorageView(QWidget):
             self._nav_history: List[str] = []
             self._nav_forward: List[str] = []
             self._current_scan_path: Optional[str] = None
+            self._scan_cache: dict[str, FolderInfo] = {}
             self._setup_ui()
         except Exception as e:
             logger.error("Failed to init StorageView: %s", e)
@@ -433,6 +464,7 @@ class StorageView(QWidget):
             # Reset navigation when scanning a new drive
             self._nav_history.clear()
             self._nav_forward.clear()
+            self._scan_cache.clear()
             self._current_scan_path = path
             self._update_nav_buttons()
             self._start_realtime_scan(path)
@@ -458,7 +490,7 @@ class StorageView(QWidget):
 
             # Create root item
             reference_size = self._drive_total_bytes or 1
-            self._root_item = QTreeWidgetItem()
+            self._root_item = NumericSortItem()
             self._root_item.setText(COL_NAME, path)
             self._root_item.setText(COL_SIZE, "Scanning...")
             self._root_item.setText(COL_ALLOCATED, "...")
@@ -469,6 +501,8 @@ class StorageView(QWidget):
                 COL_NAME, Qt.ItemDataRole.UserRole, path)
             self._root_item.setData(
                 COL_SIZE, Qt.ItemDataRole.UserRole, 0)
+            self._root_item.setData(
+                COL_PERCENT, Qt.ItemDataRole.UserRole, 100.0)
 
             # Bold root
             bold_font = QFont()
@@ -619,22 +653,34 @@ class StorageView(QWidget):
                             percent = (child_size / parent_size) * 100
                             child_item.setText(
                                 COL_PERCENT, f"{percent:.1f} %")
+                            child_item.setData(
+                                COL_PERCENT, Qt.ItemDataRole.UserRole,
+                                percent)
                             # Update % bar background tint
                             if percent > 0.5:
-                                alpha = min(int(percent * 1.8), 120)
-                                bar_color = QColor(255, 220, 100, alpha)
+                                alpha = min(int(percent * 2.5), 220)
+                                bar_color = QColor(245, 170, 40, alpha)
                                 child_item.setBackground(
                                     COL_PERCENT, QBrush(bar_color))
                             else:
                                 child_item.setBackground(
                                     COL_PERCENT, QBrush())
 
-                # Add "(Other files)" entry for root-level files
-                self._add_other_files_entry(
+                # Add individual file entries for root-level files
+                self._add_file_entries(
                     self._root_item, result,
                     result.size_bytes or 1)
 
             self._tree.setSortingEnabled(True)
+
+            # Cache result for back/forward navigation
+            if self._current_scan_path:
+                # Limit cache to 20 entries
+                if len(self._scan_cache) >= 20:
+                    oldest_key = next(iter(self._scan_cache))
+                    del self._scan_cache[oldest_key]
+                self._scan_cache[self._current_scan_path] = result
+
             self._status_label.setText(
                 f"Scan complete: {result.size_formatted()} in "
                 f"{result.file_count:,} files, "
@@ -658,6 +704,13 @@ class StorageView(QWidget):
                 f"Scan complete: {result.size_formatted()} in "
                 f"{result.file_count:,} files")
 
+            # Cache result for back/forward navigation
+            if self._current_scan_path:
+                if len(self._scan_cache) >= 20:
+                    oldest_key = next(iter(self._scan_cache))
+                    del self._scan_cache[oldest_key]
+                self._scan_cache[self._current_scan_path] = result
+
             # Populate tree
             self._populate_tree(result)
         except Exception as e:
@@ -676,10 +729,6 @@ class StorageView(QWidget):
                 folder_info, reference_size, is_root=True)
             self._tree.addTopLevelItem(root_item)
             root_item.setExpanded(True)
-
-            # Add "(Other files)" entry
-            self._add_other_files_entry(
-                root_item, folder_info, reference_size)
         except Exception as e:
             logger.error("Failed to populate tree: %s", e)
 
@@ -691,7 +740,7 @@ class StorageView(QWidget):
     ) -> QTreeWidgetItem:
         """Create a tree item from FolderInfo."""
         try:
-            item = QTreeWidgetItem()
+            item = NumericSortItem()
 
             item.setText(COL_NAME, folder_info.name or folder_info.path)
             item.setText(COL_SIZE, folder_info.size_formatted())
@@ -704,6 +753,7 @@ class StorageView(QWidget):
                 f"{folder_info.folder_count:,}" if folder_info.folder_count else "-")
 
             # % of reference (parent size)
+            percent = 0.0
             if reference_size > 0:
                 percent = (folder_info.size_bytes / reference_size) * 100
                 item.setText(COL_PERCENT, f"{percent:.1f} %")
@@ -715,6 +765,8 @@ class StorageView(QWidget):
                 COL_NAME, Qt.ItemDataRole.UserRole, folder_info.path)
             item.setData(
                 COL_SIZE, Qt.ItemDataRole.UserRole, folder_info.size_bytes)
+            item.setData(
+                COL_PERCENT, Qt.ItemDataRole.UserRole, percent)
             # Store whether this has unscanned children for lazy expand
             item.setData(
                 COL_ALLOCATED, Qt.ItemDataRole.UserRole,
@@ -738,12 +790,11 @@ class StorageView(QWidget):
                 for col in range(NUM_COLUMNS):
                     item.setBackground(col, root_bg)
 
-            # % bar background tint (subtle yellow proportional to %)
+            # % bar background tint (deeper orange-amber)
             if reference_size > 0 and not is_root:
-                percent = (folder_info.size_bytes / reference_size) * 100
                 if percent > 0.5:
-                    alpha = min(int(percent * 1.8), 120)
-                    bar_color = QColor(255, 220, 100, alpha)
+                    alpha = min(int(percent * 2.5), 220)
+                    bar_color = QColor(245, 170, 40, alpha)
                     item.setBackground(COL_PERCENT, QBrush(bar_color))
 
             # Children use parent's size as reference for sub-level %
@@ -755,14 +806,14 @@ class StorageView(QWidget):
                     child, child_reference)
                 item.addChild(child_item)
 
-            # Add "(Other files)" for this level if it has children
-            if folder_info.children:
-                self._add_other_files_entry(
+            # Add individual file entries for this level
+            if folder_info.children or folder_info.direct_files:
+                self._add_file_entries(
                     item, folder_info, child_reference)
 
             # If folder has unscanned children, add placeholder for expand
             if folder_info.has_unscanned_children and not folder_info.children:
-                placeholder = QTreeWidgetItem()
+                placeholder = NumericSortItem()
                 placeholder.setText(COL_NAME, "Loading...")
                 placeholder.setData(
                     COL_NAME, Qt.ItemDataRole.UserRole, "__placeholder__")
@@ -771,59 +822,63 @@ class StorageView(QWidget):
             return item
         except Exception as e:
             logger.error("Failed to create tree item: %s", e)
-            return QTreeWidgetItem()
+            return NumericSortItem()
 
-    def _add_other_files_entry(
+    def _add_file_entries(
         self,
         parent_item: QTreeWidgetItem,
         folder_info: FolderInfo,
         reference_size: int,
     ) -> None:
-        """Add '(Other files)' entry to make percentages sum to 100%."""
+        """Add individual file entries as children of a folder item."""
         try:
-            children_total = sum(c.size_bytes for c in folder_info.children)
-            children_alloc = sum(
-                c.allocated_bytes for c in folder_info.children)
-            other_size = folder_info.size_bytes - children_total
-            other_alloc = folder_info.allocated_bytes - children_alloc
-
-            if other_size > 0 and folder_info.children:
-                other_item = QTreeWidgetItem()
-                other_item.setText(COL_NAME, "(Other files)")
-                other_item.setText(COL_SIZE, format_size(other_size))
-                other_item.setText(
+            for fentry in folder_info.direct_files:
+                file_item = NumericSortItem()
+                file_item.setText(COL_NAME, fentry.name)
+                file_item.setText(COL_SIZE, format_size(fentry.size_bytes))
+                file_item.setText(
                     COL_ALLOCATED,
-                    format_size(max(other_alloc, 0)))
-                other_item.setText(COL_FILES, "-")
-                other_item.setText(COL_FOLDERS, "-")
+                    format_size(fentry.allocated_bytes))
+                file_item.setText(COL_FILES, "-")
+                file_item.setText(COL_FOLDERS, "-")
 
+                percent = 0.0
                 if reference_size > 0:
-                    percent = (other_size / reference_size) * 100
-                    other_item.setText(COL_PERCENT, f"{percent:.1f} %")
+                    percent = (fentry.size_bytes / reference_size) * 100
+                    file_item.setText(COL_PERCENT, f"{percent:.1f} %")
                 else:
-                    other_item.setText(COL_PERCENT, "-")
+                    file_item.setText(COL_PERCENT, "-")
 
-                other_item.setData(
-                    COL_NAME, Qt.ItemDataRole.UserRole, "__other_files__")
-                other_item.setData(
-                    COL_SIZE, Qt.ItemDataRole.UserRole, other_size)
+                file_item.setData(
+                    COL_NAME, Qt.ItemDataRole.UserRole, fentry.path)
+                file_item.setData(
+                    COL_SIZE, Qt.ItemDataRole.UserRole, fentry.size_bytes)
+                file_item.setData(
+                    COL_PERCENT, Qt.ItemDataRole.UserRole, percent)
 
                 # Right-align numeric columns
                 for col in (COL_SIZE, COL_ALLOCATED, COL_FILES,
                             COL_FOLDERS, COL_PERCENT):
-                    other_item.setTextAlignment(
+                    file_item.setTextAlignment(
                         col,
                         Qt.AlignmentFlag.AlignRight
                         | Qt.AlignmentFlag.AlignVCenter)
 
-                # Italic style for visual distinction
+                # Italic style for file entries
                 font = QFont()
                 font.setItalic(True)
-                other_item.setFont(COL_NAME, font)
+                file_item.setFont(COL_NAME, font)
 
-                parent_item.addChild(other_item)
+                # % bar background tint
+                if percent > 0.5:
+                    alpha = min(int(percent * 2.5), 220)
+                    bar_color = QColor(245, 170, 40, alpha)
+                    file_item.setBackground(
+                        COL_PERCENT, QBrush(bar_color))
+
+                parent_item.addChild(file_item)
         except Exception as e:
-            logger.error("Failed to add other files entry: %s", e)
+            logger.error("Failed to add file entries: %s", e)
 
     def _on_item_expanded(self, item: QTreeWidgetItem) -> None:
         """Handle tree item expand - lazy scan sub-folders on demand."""
@@ -883,8 +938,8 @@ class StorageView(QWidget):
                 child_item = self._create_tree_item(child, parent_size)
                 item.addChild(child_item)
 
-            # Add "(Other files)" for this level
-            self._add_other_files_entry(item, result, parent_size)
+            # Add individual file entries for this level
+            self._add_file_entries(item, result, parent_size)
 
             # Mark as scanned
             item.setData(
@@ -1053,7 +1108,7 @@ class StorageView(QWidget):
             logger.error("Failed to handle double-click: %s", e)
 
     def _on_navigate_back(self) -> None:
-        """Navigate back to the previous folder."""
+        """Navigate back to the previous folder (cached if available)."""
         try:
             if not self._nav_history:
                 return
@@ -1062,12 +1117,22 @@ class StorageView(QWidget):
             prev_path = self._nav_history.pop()
             self._current_scan_path = prev_path
             self._update_nav_buttons()
-            self._start_realtime_scan(prev_path)
+
+            # Use cache if available for instant navigation
+            cached = self._scan_cache.get(prev_path)
+            if cached:
+                self._populate_tree(cached)
+                self._status_label.setText(
+                    f"Navigated back: {cached.size_formatted()} in "
+                    f"{cached.file_count:,} files, "
+                    f"{cached.folder_count:,} folders")
+            else:
+                self._start_realtime_scan(prev_path)
         except Exception as e:
             logger.error("Failed to navigate back: %s", e)
 
     def _on_navigate_forward(self) -> None:
-        """Navigate forward to the next folder."""
+        """Navigate forward to the next folder (cached if available)."""
         try:
             if not self._nav_forward:
                 return
@@ -1076,7 +1141,17 @@ class StorageView(QWidget):
             next_path = self._nav_forward.pop()
             self._current_scan_path = next_path
             self._update_nav_buttons()
-            self._start_realtime_scan(next_path)
+
+            # Use cache if available for instant navigation
+            cached = self._scan_cache.get(next_path)
+            if cached:
+                self._populate_tree(cached)
+                self._status_label.setText(
+                    f"Navigated forward: {cached.size_formatted()} in "
+                    f"{cached.file_count:,} files, "
+                    f"{cached.folder_count:,} folders")
+            else:
+                self._start_realtime_scan(next_path)
         except Exception as e:
             logger.error("Failed to navigate forward: %s", e)
 

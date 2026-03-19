@@ -11,6 +11,15 @@ from typing import Optional, Callable, List, Tuple
 from concurrent.futures import ThreadPoolExecutor
 import threading
 
+
+@dataclass
+class FileEntry:
+    """Information about a single file."""
+    name: str
+    path: str
+    size_bytes: int
+    allocated_bytes: int
+
 logger = logging.getLogger(__name__)
 
 MAX_ITEMS_LIMIT = 100_000
@@ -76,6 +85,7 @@ class FolderInfo:
     last_modified: str
     children: List['FolderInfo']
     has_unscanned_children: bool = False
+    direct_files: List[FileEntry] = field(default_factory=list)
 
     @property
     def size_mb(self) -> float:
@@ -212,6 +222,7 @@ class FolderScanner:
 
         # Separate files and directories
         dirs = []
+        direct_files: List[FileEntry] = []
         for entry in entries:
             if self._cancel_flag.is_set():
                 return None
@@ -220,10 +231,13 @@ class FolderScanner:
                     try:
                         st = entry.stat()
                         fsize = st.st_size
+                        falloc = _calc_allocated(fsize, self._cluster_size)
                         total_size += fsize
-                        total_allocated += _calc_allocated(
-                            fsize, self._cluster_size)
+                        total_allocated += falloc
                         file_count += 1
+                        direct_files.append(FileEntry(
+                            name=entry.name, path=str(entry),
+                            size_bytes=fsize, allocated_bytes=falloc))
                         if st.st_mtime > max_mtime:
                             max_mtime = st.st_mtime
                     except (PermissionError, OSError):
@@ -266,6 +280,7 @@ class FolderScanner:
             child_callback(child_info)
 
         children.sort(key=lambda x: x.size_bytes, reverse=True)
+        direct_files.sort(key=lambda x: x.size_bytes, reverse=True)
         root_modified = (
             datetime.datetime.fromtimestamp(max_mtime).strftime('%m/%d/%Y')
             if max_mtime > 0 else '')
@@ -279,6 +294,7 @@ class FolderScanner:
             folder_count=folder_count,
             last_modified=root_modified,
             children=children,
+            direct_files=direct_files,
         )
 
     def _scan_recursive(
@@ -312,6 +328,7 @@ class FolderScanner:
         folder_count = 0
         max_mtime = 0.0
         children: List[FolderInfo] = []
+        direct_files: List[FileEntry] = []
         has_unscanned = False
 
         try:
@@ -354,10 +371,13 @@ class FolderScanner:
                     try:
                         st = entry.stat()
                         fsize = st.st_size
+                        falloc = _calc_allocated(fsize, self._cluster_size)
                         total_size += fsize
-                        total_allocated += _calc_allocated(
-                            fsize, self._cluster_size)
+                        total_allocated += falloc
                         file_count += 1
+                        direct_files.append(FileEntry(
+                            name=entry.name, path=str(entry),
+                            size_bytes=fsize, allocated_bytes=falloc))
                         if st.st_mtime > max_mtime:
                             max_mtime = st.st_mtime
                     except (PermissionError, OSError) as e:
@@ -428,6 +448,7 @@ class FolderScanner:
 
         # Sort children by size (largest first)
         children.sort(key=lambda x: x.size_bytes, reverse=True)
+        direct_files.sort(key=lambda x: x.size_bytes, reverse=True)
 
         folder_modified = (
             datetime.datetime.fromtimestamp(max_mtime).strftime('%m/%d/%Y')
@@ -443,6 +464,7 @@ class FolderScanner:
             last_modified=folder_modified,
             children=children,
             has_unscanned_children=has_unscanned,
+            direct_files=direct_files,
         )
 
     def _get_folder_size_fast(
