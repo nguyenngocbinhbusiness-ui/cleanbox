@@ -5,13 +5,15 @@ from pathlib import Path
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTreeWidget, QTreeWidgetItem,
-    QHeaderView, QProgressBar, QLabel, QFrame, QPushButton, QComboBox
+    QHeaderView, QProgressBar, QLabel, QFrame, QPushButton, QComboBox,
+    QMenu, QMessageBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QThread, pyqtSlot
-from PyQt6.QtGui import QFont
+from PyQt6.QtGui import QFont, QAction
 
 from features.storage_monitor import DriveInfo
 from features.folder_scanner import FolderScanner, FolderInfo
+from shared.utils import is_protected_path
 
 logger = logging.getLogger(__name__)
 
@@ -53,10 +55,46 @@ class ScanWorker(QThread):
             logger.error("Failed to emit progress: %s", e)
 
 
+class ExpandScanWorker(QThread):
+    """Worker thread for lazy-expand sub-folder scanning."""
+
+    progress = pyqtSignal(str, int)
+    finished = pyqtSignal(object)  # FolderInfo or None
+
+    def __init__(self, scanner: FolderScanner, path: str):
+        """Initialize expand worker."""
+        try:
+            super().__init__()
+            self.scanner = scanner
+            self.path = path
+        except Exception as e:
+            logger.error("Failed to init ExpandScanWorker: %s", e)
+
+    def run(self):
+        """Scan single level for expand."""
+        try:
+            result = self.scanner.scan_single_level(
+                self.path,
+                progress_callback=self._on_progress,
+            )
+            self.finished.emit(result)
+        except Exception as e:
+            logger.error("Expand scan worker failed: %s", e)
+            self.finished.emit(None)
+
+    def _on_progress(self, current_path: str, items_scanned: int):
+        """Emit progress signal."""
+        try:
+            self.progress.emit(current_path, items_scanned)
+        except Exception as e:
+            logger.error("Failed to emit expand progress: %s", e)
+
+
 class StorageView(QWidget):
     """View displaying drives and folder sizes with TreeSize-like interface."""
 
     refresh_requested = pyqtSignal()
+    add_to_cleanup_requested = pyqtSignal(str)  # directory path
 
     def __init__(self, parent: Optional[QWidget] = None):
         """Initialize the storage view."""
@@ -65,6 +103,9 @@ class StorageView(QWidget):
             self._drives: List[DriveInfo] = []
             self._scanner = FolderScanner()
             self._worker: Optional[ScanWorker] = None
+            self._expand_worker: Optional[ExpandScanWorker] = None
+            self._expanding_item: Optional[QTreeWidgetItem] = None
+            self._drive_total_bytes: int = 0
             self._setup_ui()
         except Exception as e:
             logger.error("Failed to init StorageView: %s", e)
@@ -190,7 +231,7 @@ class StorageView(QWidget):
             # Tree widget for folder sizes
             self._tree = QTreeWidget()
             self._tree.setHeaderLabels(
-                ["Name", "Size", "Files", "Folders", "% of Parent"])
+                ["Name", "Size", "Files", "Folders", "% of Drive"])
             self._tree.setAlternatingRowColors(True)
             self._tree.setRootIsDecorated(True)
             self._tree.setSortingEnabled(True)
@@ -223,8 +264,14 @@ class StorageView(QWidget):
                 }
             """)
 
-            # Double-click to expand/scan deeper
-            self._tree.itemDoubleClicked.connect(self._on_item_double_clicked)
+            # Context menu for right-click
+            self._tree.setContextMenuPolicy(
+                Qt.ContextMenuPolicy.CustomContextMenu)
+            self._tree.customContextMenuRequested.connect(
+                self._on_tree_context_menu)
+
+            # Expand arrow triggers lazy sub-folder scan
+            self._tree.itemExpanded.connect(self._on_item_expanded)
 
             layout.addWidget(self._tree)
         except Exception as e:
@@ -262,6 +309,12 @@ class StorageView(QWidget):
             drive_letter = self._drive_combo.currentData()
             if not drive_letter:
                 return
+
+            # Store drive total size for % calculation
+            for drive in self._drives:
+                if drive.letter == drive_letter:
+                    self._drive_total_bytes = int(drive.total_gb * (1024 ** 3))
+                    break
 
             path = f"{drive_letter}\\"
             self._start_scan(path)
@@ -334,24 +387,33 @@ class StorageView(QWidget):
         try:
             self._tree.clear()
 
-            # Add root item
+            # Use drive total for % at root level; fall back to scan size
+            reference_size = self._drive_total_bytes or folder_info.size_bytes
+
+            # Add root item (the drive itself = 100%)
             root_item = self._create_tree_item(
-                folder_info, folder_info.size_bytes)
+                folder_info, reference_size, is_root=True)
             self._tree.addTopLevelItem(root_item)
             root_item.setExpanded(True)
 
-            # Expand first level
-            for i in range(root_item.childCount()):
-                root_item.child(i).setExpanded(False)
+            # Add "(Other files)" entry if folder sizes don't account for all space
+            self._add_other_files_entry(root_item, folder_info, reference_size)
         except Exception as e:
             logger.error("Failed to populate tree: %s", e)
 
     def _create_tree_item(
         self,
         folder_info: FolderInfo,
-        parent_size: int
+        reference_size: int,
+        is_root: bool = False,
     ) -> QTreeWidgetItem:
-        """Create a tree item from FolderInfo."""
+        """Create a tree item from FolderInfo.
+
+        Args:
+            folder_info: Folder data
+            reference_size: Size to compute % against (drive total at root, parent size for sub-levels)
+            is_root: Whether this is the drive root item
+        """
         try:
             item = QTreeWidgetItem()
 
@@ -362,9 +424,9 @@ class StorageView(QWidget):
             item.setText(
                 3, f"{folder_info.folder_count:,}" if folder_info.folder_count else "-")
 
-            # Percentage of parent
-            if parent_size > 0:
-                percent = (folder_info.size_bytes / parent_size) * 100
+            # % of reference (drive total at root level)
+            if reference_size > 0:
+                percent = (folder_info.size_bytes / reference_size) * 100
                 item.setText(4, f"{percent:.1f}%")
             else:
                 item.setText(4, "-")
@@ -372,6 +434,10 @@ class StorageView(QWidget):
             # Store data for later use
             item.setData(0, Qt.ItemDataRole.UserRole, folder_info.path)
             item.setData(1, Qt.ItemDataRole.UserRole, folder_info.size_bytes)
+            # Store whether this has unscanned children for lazy expand
+            item.setData(
+                2, Qt.ItemDataRole.UserRole,
+                folder_info.has_unscanned_children)
 
             # Right-align numeric columns
             item.setTextAlignment(
@@ -383,28 +449,201 @@ class StorageView(QWidget):
             item.setTextAlignment(
                 4, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
-            # Add children
+            # Children use parent's size as reference for sub-level %
+            child_reference = folder_info.size_bytes if folder_info.size_bytes > 0 else 1
+
             for child in folder_info.children:
-                child_item = self._create_tree_item(child, folder_info.size_bytes)
+                child_item = self._create_tree_item(
+                    child, child_reference)
                 item.addChild(child_item)
+
+            # Add "(Other files)" for this level if it has children
+            if folder_info.children:
+                self._add_other_files_entry(
+                    item, folder_info, child_reference)
+
+            # If folder has unscanned children, add a placeholder for expand arrow
+            if folder_info.has_unscanned_children and not folder_info.children:
+                placeholder = QTreeWidgetItem()
+                placeholder.setText(0, "Loading...")
+                placeholder.setData(0, Qt.ItemDataRole.UserRole, "__placeholder__")
+                item.addChild(placeholder)
 
             return item
         except Exception as e:
             logger.error("Failed to create tree item: %s", e)
             return QTreeWidgetItem()
 
-    def _on_item_double_clicked(
-            self,
-            item: QTreeWidgetItem,
-            column: int) -> None:
-        """Handle double-click to scan deeper."""
+    def _add_other_files_entry(
+        self,
+        parent_item: QTreeWidgetItem,
+        folder_info: FolderInfo,
+        reference_size: int,
+    ) -> None:
+        """Add '(Other files)' entry to make percentages sum to 100%."""
         try:
-            path = item.data(0, Qt.ItemDataRole.UserRole)
-            if path and Path(path).is_dir():
-                # Scan this folder with more depth
-                self._start_scan(path, max_depth=2)
+            children_total = sum(c.size_bytes for c in folder_info.children)
+            other_size = folder_info.size_bytes - children_total
+
+            if other_size > 0 and folder_info.children:
+                other_item = QTreeWidgetItem()
+                other_item.setText(0, "(Other files)")
+
+                # Format size
+                if other_size >= 1024 * 1024 * 1024:
+                    size_str = f"{other_size / (1024**3):.2f} GB"
+                elif other_size >= 1024 * 1024:
+                    size_str = f"{other_size / (1024**2):.2f} MB"
+                elif other_size >= 1024:
+                    size_str = f"{other_size / 1024:.2f} KB"
+                else:
+                    size_str = f"{other_size} B"
+
+                other_item.setText(1, size_str)
+                other_item.setText(2, "-")
+                other_item.setText(3, "-")
+
+                if reference_size > 0:
+                    percent = (other_size / reference_size) * 100
+                    other_item.setText(4, f"{percent:.1f}%")
+                else:
+                    other_item.setText(4, "-")
+
+                other_item.setData(
+                    0, Qt.ItemDataRole.UserRole, "__other_files__")
+                other_item.setData(1, Qt.ItemDataRole.UserRole, other_size)
+
+                # Right-align
+                other_item.setTextAlignment(
+                    1, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                other_item.setTextAlignment(
+                    2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                other_item.setTextAlignment(
+                    3, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                other_item.setTextAlignment(
+                    4, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+
+                # Italic style for visual distinction
+                font = QFont()
+                font.setItalic(True)
+                other_item.setFont(0, font)
+
+                parent_item.addChild(other_item)
         except Exception as e:
-            logger.error("Failed to handle double-click: %s", e)
+            logger.error("Failed to add other files entry: %s", e)
+
+    def _on_item_expanded(self, item: QTreeWidgetItem) -> None:
+        """Handle tree item expand — lazy scan sub-folders on demand."""
+        try:
+            # Check if first child is placeholder
+            if item.childCount() == 1:
+                child = item.child(0)
+                if (child and
+                        child.data(0, Qt.ItemDataRole.UserRole) == "__placeholder__"):
+                    path = item.data(0, Qt.ItemDataRole.UserRole)
+                    if path and Path(path).is_dir():
+                        self._start_expand_scan(item, path)
+        except Exception as e:
+            logger.error("Failed to handle item expand: %s", e)
+
+    def _start_expand_scan(
+            self, item: QTreeWidgetItem, path: str) -> None:
+        """Start scanning sub-folders for a tree item expand."""
+        try:
+            # Cancel any previous expand scan
+            if (self._expand_worker is not None
+                    and self._expand_worker.isRunning()):
+                self._scanner.cancel()
+                self._expand_worker.wait(2000)
+
+            self._expanding_item = item
+            self._status_label.setText(f"Scanning: {path}...")
+
+            self._expand_worker = ExpandScanWorker(self._scanner, path)
+            self._expand_worker.finished.connect(self._on_expand_finished)
+            self._expand_worker.start()
+        except Exception as e:
+            logger.error("Failed to start expand scan: %s", e)
+
+    @pyqtSlot(object)
+    def _on_expand_finished(self, result: Optional[FolderInfo]) -> None:
+        """Handle expand scan completion — populate children."""
+        try:
+            item = self._expanding_item
+            self._expanding_item = None
+
+            if item is None or result is None:
+                self._status_label.setText("Expand scan cancelled or failed.")
+                return
+
+            # Remove placeholder
+            while item.childCount() > 0:
+                item.removeChild(item.child(0))
+
+            parent_size = item.data(1, Qt.ItemDataRole.UserRole) or 1
+
+            # Add scanned children sorted by size (already sorted by scanner)
+            for child in result.children:
+                child_item = self._create_tree_item(child, parent_size)
+                item.addChild(child_item)
+
+            # Add "(Other files)" for this level
+            self._add_other_files_entry(item, result, parent_size)
+
+            # Mark as scanned
+            item.setData(2, Qt.ItemDataRole.UserRole, False)
+
+            self._status_label.setText(
+                f"Expanded: {result.name} — "
+                f"{len(result.children)} sub-folders")
+        except Exception as e:
+            logger.error("Failed to handle expand completion: %s", e)
+
+    def _on_tree_context_menu(self, position) -> None:
+        """Show context menu with 'Add to Cleanup' option."""
+        try:
+            item = self._tree.itemAt(position)
+            if item is None:
+                return
+
+            path = item.data(0, Qt.ItemDataRole.UserRole)
+            if not path or path in ("__placeholder__", "__other_files__"):
+                return
+
+            menu = QMenu(self)
+            add_action = QAction("Add to Cleanup", self)
+            add_action.triggered.connect(
+                lambda: self._on_add_to_cleanup(path))
+            menu.addAction(add_action)
+
+            menu.exec(self._tree.viewport().mapToGlobal(position))
+        except Exception as e:
+            logger.error("Failed to show context menu: %s", e)
+
+    def _on_add_to_cleanup(self, path: str) -> None:
+        """Handle 'Add to Cleanup' action from context menu."""
+        try:
+            if is_protected_path(path):
+                QMessageBox.warning(
+                    self,
+                    "Protected Directory",
+                    f"'{path}' is a protected system directory "
+                    f"and cannot be added to cleanup.",
+                )
+                return
+
+            if not Path(path).is_dir():
+                QMessageBox.warning(
+                    self,
+                    "Not a Directory",
+                    f"'{path}' is not a valid directory.",
+                )
+                return
+
+            self.add_to_cleanup_requested.emit(path)
+            self._status_label.setText(f"Added to cleanup: {path}")
+        except Exception as e:
+            logger.error("Failed to add to cleanup: %s", e)
 
     def _update_drive_summary(self) -> None:
         """Update the drive summary display with capacity bars."""
@@ -492,3 +731,16 @@ class StorageView(QWidget):
             self.refresh_requested.emit()
         except Exception as e:
             logger.error("Failed to handle refresh: %s", e)
+
+    def _on_item_double_clicked(
+            self,
+            item: QTreeWidgetItem,
+            column: int) -> None:
+        """Handle double-click to scan deeper (legacy support)."""
+        try:
+            path = item.data(0, Qt.ItemDataRole.UserRole)
+            if path and path not in ("__placeholder__", "__other_files__"):
+                if Path(path).is_dir():
+                    self._start_scan(path, max_depth=2)
+        except Exception as e:
+            logger.error("Failed to handle double-click: %s", e)

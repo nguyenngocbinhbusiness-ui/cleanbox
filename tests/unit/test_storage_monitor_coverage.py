@@ -21,7 +21,7 @@ class TestStorageMonitorCoverage:
         """Cover stop exception and finally block."""
         monitor._timer = MagicMock()
         monitor._timer.stop.side_effect = Exception("Stop Error")
-        monitor._notified_drives = ["C:"]
+        monitor._notified_drives = {"C:": 0.0}
         
         with patch("features.storage_monitor.service.logger") as mock_log:
             monitor.stop()
@@ -57,7 +57,7 @@ class TestStorageMonitorCoverage:
     def test_check_drives_recovery(self, monitor):
         """Test recovery from low space (removing from notified list)."""
         # Initial state: C is notified
-        monitor._notified_drives = ["C:"]
+        monitor._notified_drives = {"C:": 0.0}
         
         # Scenario: C matches threshold now (not low)
         normal_drive = DriveInfo(letter="C:", total_gb=100.0, free_gb=20.0, used_gb=80.0, percent_used=80.0)

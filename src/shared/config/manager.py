@@ -1,6 +1,8 @@
 """ConfigManager - Load/save JSON configuration."""
 import json
 import logging
+import os
+import shutil
 from typing import List
 
 from shared.constants import (
@@ -9,6 +11,7 @@ from shared.constants import (
     DEFAULT_THRESHOLD_GB,
     DEFAULT_POLLING_INTERVAL_SECONDS,
 )
+from shared.utils import is_protected_path
 
 logger = logging.getLogger(__name__)
 
@@ -48,28 +51,86 @@ class ConfigManager:
             logger.error("Failed to get default config: %s", e)
             return {}
 
+    def _cleanup_stale_tmp(self) -> None:
+        """Remove leftover .tmp files from config directory (DRBFM D-CB-014)."""
+        try:
+            for entry in CONFIG_DIR.iterdir():
+                if entry.suffix == ".tmp" and entry.is_file():
+                    entry.unlink()
+                    logger.info("Cleaned up stale tmp file: %s", entry)
+        except Exception as e:
+            logger.warning("Failed to clean stale tmp files: %s", e)
+
     def load(self) -> None:
         """Load configuration from file."""
+        self._cleanup_stale_tmp()
+        bak_file = CONFIG_FILE.with_suffix(".json.bak")
+
         if CONFIG_FILE.exists():
             try:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     self._config = json.load(f)
+                self._filter_protected_paths()
                 logger.info("Configuration loaded from %s", CONFIG_FILE)
+                return
             except (json.JSONDecodeError, IOError) as e:
-                logger.warning("Failed to load config, using defaults: %s", e)
-                self._config = self._get_default_config()
+                logger.warning("Failed to load config: %s", e)
+
+            # Try recovering from backup (FM-CB-009)
+            if bak_file.exists():
+                try:
+                    with open(bak_file, "r", encoding="utf-8") as f:
+                        self._config = json.load(f)
+                    self._filter_protected_paths()
+                    logger.warning("Recovered config from backup %s", bak_file)
+                    return
+                except (json.JSONDecodeError, IOError) as e2:
+                    logger.warning("Backup also invalid: %s", e2)
+
+            logger.warning("Falling back to default config")
+            self._config = self._get_default_config()
         else:
             logger.info("No config file found, using defaults")
             self._config = self._get_default_config()
 
     def save(self) -> None:
-        """Save configuration to file."""
+        """Save configuration atomically with backup (DRBFM D-CB-011/012)."""
         try:
-            with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-                json.dump(self._config, f, indent=2)
-            logger.info("Configuration saved to %s", CONFIG_FILE)
+            # Backup current config before overwriting (D-CB-012)
+            if CONFIG_FILE.exists():
+                bak_file = CONFIG_FILE.with_suffix(".json.bak")
+                try:
+                    shutil.copy2(CONFIG_FILE, bak_file)
+                except Exception as e:
+                    logger.warning("Failed to create config backup: %s", e)
+
+            # Atomic write: tmp in same dir then os.replace (D-CB-011)
+            tmp_file = CONFIG_FILE.with_suffix(".json.tmp")
+            try:
+                with open(tmp_file, "w", encoding="utf-8") as f:
+                    json.dump(self._config, f, indent=2)
+                os.replace(str(tmp_file), str(CONFIG_FILE))
+                logger.info("Configuration saved to %s", CONFIG_FILE)
+            except PermissionError as e:
+                # Fallback to direct write (D-CB-013)
+                logger.warning("Atomic write failed (PermissionError), "
+                               "falling back to direct write: %s", e)
+                with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+                    json.dump(self._config, f, indent=2)
+                logger.info("Configuration saved (direct) to %s", CONFIG_FILE)
         except IOError as e:
             logger.error("Failed to save config: %s", e)
+
+    def _filter_protected_paths(self) -> None:
+        """Remove any protected system paths from cleanup_directories."""
+        dirs = self._config.get("cleanup_directories", [])
+        filtered = [d for d in dirs if not is_protected_path(d)]
+        removed = set(dirs) - set(filtered)
+        if removed:
+            for p in removed:
+                logger.warning("Removed protected path from config: %s", p)
+            self._config["cleanup_directories"] = filtered
+            self.save()
 
     @property
     def is_first_run(self) -> bool:
@@ -100,6 +161,10 @@ class ConfigManager:
     def add_directory(self, path: str) -> bool:
         """Add a directory to cleanup list."""
         try:
+            if is_protected_path(path):
+                logger.warning("Blocked adding protected path to config: %s", path)
+                return False
+
             # Ensure list exists
             if "cleanup_directories" not in self._config:
                 self._config["cleanup_directories"] = []

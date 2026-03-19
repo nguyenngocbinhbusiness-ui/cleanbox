@@ -32,7 +32,8 @@ def get_all_drives() -> List[DriveInfo]:
     drives = []
 
     try:
-        for partition in psutil.disk_partitions():
+        partitions = psutil.disk_partitions()
+        for partition in partitions:
             # Skip removable and network drives
             if "fixed" not in partition.opts.lower() and "cdrom" not in partition.opts.lower():
                 # On Windows, check if it's a local drive
@@ -42,6 +43,7 @@ def get_all_drives() -> List[DriveInfo]:
 
             try:
                 usage = psutil.disk_usage(partition.mountpoint)
+                # Copy data to plain dataclass before del (D-CB-016)
                 drive = DriveInfo(
                     letter=partition.device[:2],
                     total_gb=usage.total / (1024**3),
@@ -49,6 +51,7 @@ def get_all_drives() -> List[DriveInfo]:
                     used_gb=usage.used / (1024**3),
                     percent_used=usage.percent,
                 )
+                del usage
                 drives.append(drive)
                 logger.debug(
                     "Drive %s: %.1f GB free / %.1f GB total",
@@ -56,11 +59,17 @@ def get_all_drives() -> List[DriveInfo]:
                     drive.free_gb,
                     drive.total_gb,
                 )
-            except (PermissionError, OSError) as e:
+            except (OSError, PermissionError) as e:
                 logger.warning(
-                    "Cannot access drive %s: %s",
+                    "Drive disconnected or inaccessible, skipping %s: %s",
                     partition.device,
                     e)
+            except Exception as e:
+                logger.warning(
+                    "Unexpected error reading drive %s, skipping: %s",
+                    partition.device,
+                    e)
+        del partitions
     except Exception as e:
         logger.error("Failed to enumerate drives: %s", e)
 

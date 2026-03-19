@@ -1,6 +1,7 @@
 """Folder Scanner - Recursive folder size calculation."""
 import os
 import logging
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Callable, List
@@ -8,6 +9,9 @@ from concurrent.futures import ThreadPoolExecutor
 import threading
 
 logger = logging.getLogger(__name__)
+
+MAX_ITEMS_LIMIT = 100_000
+_PROGRESS_INTERVAL = 0.1  # seconds (~10 calls/sec max)
 
 
 @dataclass
@@ -88,10 +92,12 @@ class FolderScanner:
         """
         self._cancel_flag.clear()
         items_scanned = [0]
+        last_progress_time = [0.0]
 
         try:
             return self._scan_recursive(
-                path, max_depth, 0, progress_callback, items_scanned)
+                path, max_depth, 0, progress_callback, items_scanned,
+                last_progress_time)
         except Exception as e:
             logger.error("Scan failed for %s: %s", path, e)
             return None
@@ -106,12 +112,21 @@ class FolderScanner:
         current_depth: int,
         progress_callback: Optional[Callable[[str, int], None]],
         items_scanned: List[int],
+        last_progress_time: List[float],
     ) -> Optional[FolderInfo]:
         """Recursive folder scanning."""
         if self._cancel_flag.is_set():
             return None
 
         path_obj = Path(path)
+
+        if items_scanned[0] >= MAX_ITEMS_LIMIT:
+            logger.warning(
+                "Max items limit (%d) reached at %s, returning partial results",
+                MAX_ITEMS_LIMIT, path)
+            return FolderInfo(
+                path=path, name=path_obj.name or path,
+                size_bytes=0, file_count=0, folder_count=0, children=[])
         total_size = 0
         file_count = 0
         folder_count = 0
@@ -146,8 +161,17 @@ class FolderScanner:
 
             items_scanned[0] += 1
 
-            if progress_callback and items_scanned[0] % 100 == 0:
-                progress_callback(str(entry), items_scanned[0])
+            if items_scanned[0] >= MAX_ITEMS_LIMIT:
+                logger.warning(
+                    "Max items limit (%d) reached during scan of %s",
+                    MAX_ITEMS_LIMIT, path)
+                break
+
+            if progress_callback:
+                now = time.monotonic()
+                if now - last_progress_time[0] >= _PROGRESS_INTERVAL:
+                    last_progress_time[0] = now
+                    progress_callback(str(entry), items_scanned[0])
 
             try:
                 if entry.is_file():
@@ -168,6 +192,7 @@ class FolderScanner:
                             current_depth + 1,
                             progress_callback,
                             items_scanned,
+                            last_progress_time,
                         )
                         if child_info:
                             children.append(child_info)
@@ -176,7 +201,8 @@ class FolderScanner:
                             folder_count += child_info.folder_count
                     else:
                         # Just get size without children
-                        child_size = self._get_folder_size_fast(str(entry))
+                        child_size = self._get_folder_size_fast(
+                            str(entry), items_scanned)
                         child_info = FolderInfo(
                             path=str(entry),
                             name=entry.name,
@@ -202,13 +228,21 @@ class FolderScanner:
             children=children,
         )
 
-    def _get_folder_size_fast(self, path: str) -> int:
+    def _get_folder_size_fast(self, path: str,
+                             items_scanned: Optional[List[int]] = None) -> int:
         """Get total size of folder without tracking children."""
         total = 0
         try:
             for root, dirs, files in os.walk(path):
                 if self._cancel_flag.is_set():
                     return total
+                if items_scanned is not None:
+                    items_scanned[0] += len(files)
+                    if items_scanned[0] >= MAX_ITEMS_LIMIT:
+                        logger.warning(
+                            "Max items limit (%d) reached in fast scan of %s",
+                            MAX_ITEMS_LIMIT, path)
+                        return total
                 for f in files:
                     try:
                         total += os.path.getsize(os.path.join(root, f))

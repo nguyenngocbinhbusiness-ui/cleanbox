@@ -1,6 +1,6 @@
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, ANY
 from pathlib import Path
 from features.folder_scanner.service import FolderScanner, FolderInfo
 
@@ -99,7 +99,7 @@ class TestFolderScannerCoverage:
              
              res = scanner.scan_folder("C:/Root", max_depth=1)
              
-             mock_fast.assert_called_with("C:/Root/Sub")
+             mock_fast.assert_called_with("C:/Root/Sub", ANY)
              assert res.size_bytes == 500
              assert res.children[0].size_bytes == 500
 

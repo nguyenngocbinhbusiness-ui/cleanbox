@@ -136,6 +136,8 @@ class MainWindow(QMainWindow):
             self.storage_view = StorageView()
             self.storage_view.refresh_requested.connect(
                 self.refresh_storage.emit)
+            self.storage_view.add_to_cleanup_requested.connect(
+                self._on_add_to_cleanup_from_scan)
             self.views["drives"] = self.storage_view
 
             # Cleanup View
@@ -232,4 +234,17 @@ class MainWindow(QMainWindow):
             self.hide()
         except Exception as e:
             logger.error("Failed to handle close event: %s", e)
+
+    def _on_add_to_cleanup_from_scan(self, path: str) -> None:
+        """Handle 'Add to Cleanup' from Storage Analyzer scan view."""
+        try:
+            self.directory_added.emit(path)
+            # Also update cleanup view immediately
+            if hasattr(self, 'cleanup_view'):
+                dirs = list(self.cleanup_view._directories)
+                if path not in dirs:
+                    dirs.append(path)
+                    self.cleanup_view.update_directories(dirs)
+        except Exception as e:
+            logger.error("Failed to add to cleanup from scan: %s", e)
 

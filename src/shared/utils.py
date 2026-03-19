@@ -1,12 +1,35 @@
 """Shared utility functions for CleanBox application."""
 import functools
 import logging
+import os
 import time
 from typing import TypeVar, Callable, Any, Type, Tuple, Optional
+
+from shared.constants import PROTECTED_PATHS
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar('T')
+
+
+class ProtectedPathError(Exception):
+    """Raised when an operation targets a protected system path."""
+    pass
+
+
+def normalize_path(path: str) -> str:
+    """Normalize a path for consistent comparison (resolve symlinks, case-fold)."""
+    return os.path.normcase(os.path.realpath(path))
+
+
+def is_protected_path(path: str) -> bool:
+    """Check if a path is a protected system directory.
+
+    Only blocks top-level protected paths, not their subdirectories
+    (e.g. C:\\Users is blocked but C:\\Users\\<user>\\Downloads is allowed).
+    """
+    normalized = normalize_path(path)
+    return normalized in PROTECTED_PATHS
 
 
 def retry(

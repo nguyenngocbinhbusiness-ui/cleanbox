@@ -8,6 +8,7 @@ from typing import List
 import winshell
 
 from shared.constants import RECYCLE_BIN_MARKER
+from shared.utils import is_protected_path, ProtectedPathError
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,13 @@ class CleanupService:
         The directory itself is preserved.
         """
         result = CleanupResult()
+
+        if is_protected_path(path):
+            logger.warning("Blocked cleanup of protected path: %s", path)
+            raise ProtectedPathError(
+                f"Cannot clean protected system directory: {path}"
+            )
+
         dir_path = Path(path)
 
         if not dir_path.exists():
@@ -90,13 +98,20 @@ class CleanupService:
         """Empty the Windows Recycle Bin."""
         result = CleanupResult()
         try:
-            # Get size before emptying (approximate)
             winshell.recycle_bin().empty(confirm=False, show_progress=False, sound=False)
             logger.info("Recycle Bin emptied")
             result.total_folders = 1  # Count as 1 "folder" for stats
         except Exception as e:
-            logger.error("Failed to empty Recycle Bin: %s", e)
-            result.errors.append(f"Recycle Bin error: {e}")
+            logger.warning("winshell failed to empty Recycle Bin: %s. Trying ctypes fallback.", e)
+            try:
+                import ctypes
+                # SHERB_NOCONFIRMATION | SHERB_NOPROGRESSUI | SHERB_NOSOUND
+                ctypes.windll.shell32.SHEmptyRecycleBinW(None, None, 0x0007)
+                logger.info("Recycle Bin emptied via ctypes fallback")
+                result.total_folders = 1
+            except Exception as fallback_err:
+                logger.error("Both winshell and ctypes failed to empty Recycle Bin: %s", fallback_err)
+                result.errors.append(f"Recycle Bin error: winshell={e}, ctypes={fallback_err}")
         return result
 
     def cleanup_all(self, directories: List[str]) -> CleanupResult:
@@ -108,6 +123,12 @@ class CleanupService:
                 if directory == RECYCLE_BIN_MARKER:
                     result = self.empty_recycle_bin()
                 else:
+                    if not Path(directory).exists():
+                        logger.warning("Skipping non-existent path: %s", directory)
+                        total_result.errors.append(
+                            f"Skipped (path not found): {directory}"
+                        )
+                        continue
                     result = self.cleanup_directory(directory)
 
                 total_result.total_files += result.total_files

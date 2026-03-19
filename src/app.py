@@ -6,7 +6,7 @@ import tempfile
 import os
 from typing import Optional
 
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QMessageBox
 from PyQt6.QtCore import QObject, pyqtSlot, pyqtSignal
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 
@@ -125,6 +125,10 @@ class App(QObject):
             )
             self._tray_icon.start()
 
+            # Give notification service access to tray icon for fallback
+            if self._tray_icon._icon is not None:
+                self._notification_service.set_tray_icon(self._tray_icon._icon)
+
             logger.info("%s started successfully", APP_NAME)
 
             # Run Qt event loop
@@ -140,6 +144,7 @@ class App(QObject):
         
         Uses QLocalServer to ensure only one instance runs at a time.
         If another instance exists, sends a 'show' command to it.
+        Detects and removes stale locks left by crashed instances (R-008, FM-CB-012).
         Returns True if this is the first instance, False otherwise.
         """
         try:
@@ -155,20 +160,50 @@ class App(QObject):
                 logger.info("Sent 'show' command to existing instance")
                 return False
             
-            # No other instance - create server
+            socket.close()
+            
+            # No other instance responding - create server
             self._local_server = QLocalServer()
-            # Remove stale socket if exists
-            QLocalServer.removeServer(SINGLE_INSTANCE_KEY)
             
             if self._local_server.listen(SINGLE_INSTANCE_KEY):
                 logger.info("Single instance lock acquired")
-                # Connect to handle incoming connections
                 self._local_server.newConnection.connect(self._handle_new_connection)
                 return True
-            else:
-                logger.error("Failed to create local server: %s", 
-                           self._local_server.errorString())
-                return True  # Allow running anyway
+            
+            # Listen failed — possible stale lock from a previous crash.
+            # Verify with a longer timeout before removing.
+            logger.warning(
+                "Cannot listen on '%s': %s. Checking for stale lock...",
+                SINGLE_INSTANCE_KEY, self._local_server.errorString())
+            
+            stale_check = QLocalSocket()
+            stale_check.connectToServer(SINGLE_INSTANCE_KEY)
+            
+            if stale_check.waitForConnected(2000):
+                # Another instance IS actually running
+                stale_check.write(b"show")
+                stale_check.waitForBytesWritten(1000)
+                stale_check.close()
+                logger.info("Confirmed another instance is running")
+                return False
+            
+            stale_check.close()
+            
+            # No response — stale lock confirmed. Remove and retry.
+            logger.warning(
+                "Stale lock detected for '%s'. Removing and retrying...",
+                SINGLE_INSTANCE_KEY)
+            QLocalServer.removeServer(SINGLE_INSTANCE_KEY)
+            
+            if self._local_server.listen(SINGLE_INSTANCE_KEY):
+                logger.info("Single instance lock acquired after stale lock cleanup")
+                self._local_server.newConnection.connect(self._handle_new_connection)
+                return True
+            
+            logger.error(
+                "Failed to acquire lock after stale lock cleanup: %s",
+                self._local_server.errorString())
+            return True  # Allow running anyway
                 
         except Exception as e:
             logger.error("Single instance check failed: %s", e)
@@ -262,6 +297,21 @@ class App(QObject):
             directories = self._config.cleanup_directories
             if not directories:
                 logger.info("No directories to clean")
+                return
+            
+            # Confirmation dialog (DRBFM D-CB-001..005, STPA UCA-2)
+            dir_list = "\n".join(f"  • {d}" for d in directories)
+            result = QMessageBox.warning(
+                self._main_window,
+                "Confirm Cleanup",
+                f"This will delete contents of {len(directories)} "
+                f"directory(ies):\n\n{dir_list}\n\n"
+                f"Are you sure you want to continue?",
+                QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Cancel,
+            )
+            if result != QMessageBox.StandardButton.Ok:
+                logger.info("Cleanup cancelled by user")
                 return
             
             logger.info("Starting cleanup with %d directories", len(directories))

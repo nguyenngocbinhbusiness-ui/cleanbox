@@ -1,5 +1,6 @@
 """Cleanup progress worker - Background thread for cleanup with progress signals."""
 import logging
+from pathlib import Path
 from typing import List
 
 from PyQt6.QtCore import QThread, pyqtSignal
@@ -49,6 +50,12 @@ class CleanupProgressWorker(QThread):
                     if directory == RECYCLE_BIN_MARKER:
                         result = self._service.empty_recycle_bin()
                     else:
+                        if not Path(directory).exists():
+                            logger.warning("Skipping non-existent path: %s", directory)
+                            total_result.errors.append(
+                                f"Skipped (path not found): {directory}"
+                            )
+                            continue
                         result = self._service.cleanup_directory(directory)
                     
                     # Accumulate results

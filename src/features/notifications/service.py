@@ -14,6 +14,13 @@ logger = logging.getLogger(__name__)
 class NotificationService:
     """Service for showing Windows toast notifications."""
 
+    def __init__(self):
+        self._tray_icon = None
+
+    def set_tray_icon(self, tray_icon) -> None:
+        """Set a pystray Icon reference for fallback notifications."""
+        self._tray_icon = tray_icon
+
     def notify_low_space(self, drive_letter: str, free_gb: float) -> None:
         """Show notification for low disk space."""
         try:
@@ -66,10 +73,23 @@ class NotificationService:
         """Show a Windows toast notification."""
         if toast is None:
             logger.warning("Toast notifications not supported (win11toast missing)")
+            self._fallback_notify(title, message)
             return
 
         try:
             toast(title, message, app_id=APP_NAME, duration=duration)
         except Exception as e:
-            logger.error("Failed to show notification: %s", e)
+            logger.warning("Toast notification failed: %s. Trying fallback.", e)
+            self._fallback_notify(title, message)
+
+    def _fallback_notify(self, title: str, message: str) -> None:
+        """Fallback: try tray icon balloon, then log."""
+        if self._tray_icon is not None:
+            try:
+                self._tray_icon.notify(message, title)
+                logger.info("Notification sent via tray icon fallback")
+                return
+            except Exception as e:
+                logger.warning("Tray icon fallback failed: %s", e)
+        logger.info("Notification (fallback log): [%s] %s", title, message)
 

@@ -108,7 +108,11 @@ class TestAppComplexFlows:
         
         import app as app_module
         
-        with patch.object(app_module, "CleanupProgressWorker") as MockWorker:
+        with patch.object(app_module, "CleanupProgressWorker") as MockWorker, \
+             patch.object(app_module, "QMessageBox") as MockMsgBox:
+            MockMsgBox.StandardButton.Ok = 1024
+            MockMsgBox.StandardButton.Cancel = 4194304
+            MockMsgBox.warning.return_value = MockMsgBox.StandardButton.Ok
             mock_worker_instance = MagicMock()
             MockWorker.return_value = mock_worker_instance
             

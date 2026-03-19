@@ -1,4 +1,5 @@
 """Shared constants for the CleanBox application."""
+import os
 import sys
 from pathlib import Path
 
@@ -32,4 +33,50 @@ REGISTRY_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 
 # Markers
 RECYCLE_BIN_MARKER = "__RECYCLE_BIN__"
+
+
+def _build_protected_paths() -> frozenset:
+    """Build set of protected system paths resolved from environment variables."""
+    paths = set()
+
+    # Environment-based paths
+    env_vars = [
+        "WINDIR",               # C:\Windows
+        "SYSTEMROOT",           # C:\Windows (alias)
+        "PROGRAMFILES",         # C:\Program Files
+        "PROGRAMFILES(X86)",    # C:\Program Files (x86)
+        "PROGRAMDATA",          # C:\ProgramData
+        "APPDATA",              # C:\Users\<user>\AppData\Roaming
+        "LOCALAPPDATA",         # C:\Users\<user>\AppData\Local
+        "USERPROFILE",          # C:\Users\<user>
+        "SYSTEMDRIVE",          # C:
+        "HOMEDRIVE",            # C:
+        "COMMONPROGRAMFILES",   # C:\Program Files\Common Files
+        "COMMONPROGRAMFILES(X86)",
+    ]
+    for var in env_vars:
+        value = os.environ.get(var)
+        if value:
+            paths.add(os.path.normcase(os.path.realpath(value)))
+
+    # Well-known system directories
+    windir = os.environ.get("WINDIR", r"C:\Windows")
+    sys_drive = os.environ.get("SYSTEMDRIVE", "C:")
+    static_paths = [
+        os.path.join(windir, "System32"),
+        os.path.join(windir, "SysWOW64"),
+        os.path.join(windir, "WinSxS"),
+        sys_drive + os.sep,                        # Boot drive root (C:\)
+        sys_drive + os.sep + "Recovery",
+        sys_drive + os.sep + "$Recycle.Bin",
+        sys_drive + os.sep + "System Volume Information",
+        sys_drive + os.sep + "Users",
+    ]
+    for p in static_paths:
+        paths.add(os.path.normcase(os.path.realpath(p)))
+
+    return frozenset(paths)
+
+
+PROTECTED_PATHS: frozenset = _build_protected_paths()
 

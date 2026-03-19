@@ -11,6 +11,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 
 from shared.constants import RECYCLE_BIN_MARKER
+from shared.utils import is_protected_path
 
 logger = logging.getLogger(__name__)
 
@@ -175,7 +176,14 @@ class CleanupView(QWidget):
                 str(Path.home()),
             )
             if directory:
-                if directory not in self._directories:
+                if is_protected_path(directory):
+                    QMessageBox.warning(
+                        self,
+                        "Protected Directory",
+                        f"'{directory}' is a protected system directory and cannot be added.",
+                    )
+                    logger.warning("Blocked adding protected path: %s", directory)
+                elif directory not in self._directories:
                     self._directories.append(directory)
                     self.update_directories(self._directories)
                     self.directory_added.emit(directory)
