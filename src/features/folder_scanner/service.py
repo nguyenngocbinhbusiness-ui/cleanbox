@@ -1,4 +1,9 @@
-"""Folder Scanner - Recursive folder size calculation."""
+"""Folder Scanner - Recursive folder size calculation.
+
+Uses TreeSize-style scanning techniques:
+- os.scandir() for cached stat (simulates FindFirstFileExW with LARGE_FETCH)
+- ThreadPoolExecutor for parallel subdirectory scanning
+"""
 import os
 import logging
 import time
@@ -6,9 +11,8 @@ import math
 import ctypes
 import datetime
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Optional, Callable, List, Tuple
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
 
@@ -24,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 _PROGRESS_INTERVAL = 0.1  # seconds (~10 calls/sec max)
 _DEFAULT_CLUSTER_SIZE = 4096
+_PARALLEL_WORKERS = 4  # thread pool size for parallel subdirectory scanning
 
 
 def _get_cluster_size(path: str) -> int:
@@ -115,6 +120,10 @@ class FolderScanner:
     """
     Service for recursively scanning folder sizes.
 
+    Uses TreeSize-style techniques for fast scanning:
+    - os.scandir() with cached stat (simulates FindFirstFileExW)
+    - Parallel subdirectory scanning via ThreadPoolExecutor
+
     Supports:
     - Async scanning with progress callbacks
     - Scan cancellation
@@ -128,6 +137,7 @@ class FolderScanner:
             self._cancel_flag = threading.Event()
             self._executor: Optional[ThreadPoolExecutor] = None
             self._cluster_size: int = _DEFAULT_CLUSTER_SIZE
+            self._progress_lock = threading.Lock()
         except Exception as e:
             logger.error("Failed to init FolderScanner: %s", e)
 
@@ -194,13 +204,17 @@ class FolderScanner:
         Scan children of path, calling child_callback for each child folder
         as its size calculation completes (real-time updates).
 
+        Uses parallel scanning: subdirectories are scanned concurrently
+        via ThreadPoolExecutor, with callbacks emitted sequentially on
+        the calling thread as each completes.
+
         Returns the root FolderInfo with all children.
         """
         self._cancel_flag.clear()
         self._cluster_size = _get_cluster_size(path)
         items_scanned = [0]
         last_progress_time = [0.0]
-        path_obj = Path(path)
+        folder_name = os.path.basename(path) or path
 
         total_size = 0
         total_allocated = 0
@@ -209,74 +223,115 @@ class FolderScanner:
         max_mtime = 0.0
         children: List[FolderInfo] = []
 
+        # TreeSize Layer 1: os.scandir() – cached stat, no extra syscalls
         try:
-            entries = list(path_obj.iterdir())
+            entries = list(os.scandir(path))
         except (PermissionError, OSError) as e:
             logger.debug("Cannot access %s: %s", path, e)
             return FolderInfo(
-                path=path, name=path_obj.name or path,
+                path=path, name=folder_name,
                 size_bytes=0, allocated_bytes=0,
                 file_count=0, folder_count=0,
                 last_modified='', children=[])
 
-        # Separate files and directories
+        # Separate files and directories using cached attributes
         dirs = []
         direct_files: List[FileEntry] = []
         for entry in entries:
             if self._cancel_flag.is_set():
                 return None
             try:
-                if entry.is_file():
+                if entry.is_file(follow_symlinks=False):
                     try:
-                        st = entry.stat()
+                        st = entry.stat(follow_symlinks=False)
                         fsize = st.st_size
                         falloc = _calc_allocated(fsize, self._cluster_size)
                         total_size += fsize
                         total_allocated += falloc
                         file_count += 1
                         direct_files.append(FileEntry(
-                            name=entry.name, path=str(entry),
+                            name=entry.name, path=entry.path,
                             size_bytes=fsize, allocated_bytes=falloc))
                         if st.st_mtime > max_mtime:
                             max_mtime = st.st_mtime
                     except (PermissionError, OSError):
                         pass
-                elif entry.is_dir():
+                elif entry.is_dir(follow_symlinks=False):
                     dirs.append(entry)
                     folder_count += 1
             except Exception:
                 pass
             items_scanned[0] += 1
 
-        # Scan each directory and emit real-time
-        for entry in dirs:
-            if self._cancel_flag.is_set():
-                return None
-
-            child_info = self._scan_recursive(
-                str(entry), 1, 0, progress_callback,
-                items_scanned, last_progress_time)
-
-            if child_info is None:
-                return None
-
-            children.append(child_info)
-            total_size += child_info.size_bytes
-            total_allocated += child_info.allocated_bytes
-            file_count += child_info.file_count
-            folder_count += child_info.folder_count
+        # TreeSize Layer 2: parallel subdirectory scanning
+        if dirs and not self._cancel_flag.is_set():
             try:
-                if child_info.last_modified:
-                    child_mtime = datetime.datetime.strptime(
-                        child_info.last_modified, '%m/%d/%Y'
-                    ).timestamp()
-                    if child_mtime > max_mtime:
-                        max_mtime = child_mtime
-            except Exception:
-                pass
+                with ThreadPoolExecutor(
+                    max_workers=_PARALLEL_WORKERS
+                ) as executor:
+                    future_to_dir = {}
+                    for entry in dirs:
+                        if self._cancel_flag.is_set():
+                            break
+                        fut = executor.submit(
+                            self._scan_subtree,
+                            entry.path, progress_callback)
+                        future_to_dir[fut] = entry
 
-            # Emit real-time callback
-            child_callback(child_info)
+                    # Collect results sequentially via as_completed,
+                    # emit child_callback on calling thread (DRBFM D6)
+                    for future in as_completed(future_to_dir):
+                        if self._cancel_flag.is_set():
+                            executor.shutdown(
+                                wait=False, cancel_futures=True)
+                            return None
+
+                        child_info = future.result()
+                        if child_info is None:
+                            continue
+
+                        children.append(child_info)
+                        total_size += child_info.size_bytes
+                        total_allocated += child_info.allocated_bytes
+                        file_count += child_info.file_count
+                        folder_count += child_info.folder_count
+
+                        # Aggregate items_scanned from subtree
+                        with self._progress_lock:
+                            if progress_callback:
+                                progress_callback(
+                                    child_info.path, items_scanned[0])
+
+                        try:
+                            if child_info.last_modified:
+                                child_mtime = datetime.datetime.strptime(
+                                    child_info.last_modified, '%m/%d/%Y'
+                                ).timestamp()
+                                if child_mtime > max_mtime:
+                                    max_mtime = child_mtime
+                        except Exception:
+                            pass
+
+                        child_callback(child_info)
+            except Exception as e:
+                logger.error("Parallel scan failed: %s", e)
+                # Fallback: sequential scan for remaining dirs
+                for entry in dirs:
+                    if self._cancel_flag.is_set():
+                        return None
+                    already = {c.path for c in children}
+                    if entry.path in already:
+                        continue
+                    child_info = self._scan_subtree(
+                        entry.path, progress_callback)
+                    if child_info is None:
+                        continue
+                    children.append(child_info)
+                    total_size += child_info.size_bytes
+                    total_allocated += child_info.allocated_bytes
+                    file_count += child_info.file_count
+                    folder_count += child_info.folder_count
+                    child_callback(child_info)
 
         children.sort(key=lambda x: x.size_bytes, reverse=True)
         direct_files.sort(key=lambda x: x.size_bytes, reverse=True)
@@ -286,7 +341,7 @@ class FolderScanner:
 
         return FolderInfo(
             path=path,
-            name=path_obj.name or path,
+            name=folder_name,
             size_bytes=total_size,
             allocated_bytes=total_allocated,
             file_count=file_count,
@@ -295,6 +350,26 @@ class FolderScanner:
             children=children,
             direct_files=direct_files,
         )
+
+    def _scan_subtree(
+        self,
+        path: str,
+        progress_callback: Optional[Callable[[str, int], None]] = None,
+    ) -> Optional[FolderInfo]:
+        """Scan a subtree with its own local progress counter.
+
+        Used by parallel scanning to avoid race conditions on shared
+        items_scanned counter (DRBFM D5).
+        """
+        local_scanned = [0]
+        local_progress_time = [0.0]
+        try:
+            return self._scan_recursive(
+                path, 999, 0, progress_callback,
+                local_scanned, local_progress_time)
+        except Exception as e:
+            logger.error("Subtree scan failed for %s: %s", path, e)
+            return None
 
     def _scan_recursive(
         self,
@@ -305,11 +380,11 @@ class FolderScanner:
         items_scanned: List[int],
         last_progress_time: List[float],
     ) -> Optional[FolderInfo]:
-        """Recursive folder scanning."""
+        """Recursive folder scanning using os.scandir() for cached stat."""
         if self._cancel_flag.is_set():
             return None
 
-        path_obj = Path(path)
+        folder_name = os.path.basename(path) or path
 
         total_size = 0
         total_allocated = 0
@@ -320,19 +395,20 @@ class FolderScanner:
         direct_files: List[FileEntry] = []
         has_unscanned = False
 
+        # TreeSize Layer 1: os.scandir() – releases handle immediately
         try:
-            entries = list(path_obj.iterdir())
+            entries = list(os.scandir(path))
         except PermissionError:
             logger.debug("Permission denied: %s", path)
             return FolderInfo(
-                path=path, name=path_obj.name or path,
+                path=path, name=folder_name,
                 size_bytes=0, allocated_bytes=0,
                 file_count=0, folder_count=0,
                 last_modified='', children=[])
         except Exception as e:
             logger.debug("Cannot access %s: %s", path, e)
             return FolderInfo(
-                path=path, name=path_obj.name or path,
+                path=path, name=folder_name,
                 size_bytes=0, allocated_bytes=0,
                 file_count=0, folder_count=0,
                 last_modified='', children=[])
@@ -347,31 +423,32 @@ class FolderScanner:
                 now = time.monotonic()
                 if now - last_progress_time[0] >= _PROGRESS_INTERVAL:
                     last_progress_time[0] = now
-                    progress_callback(str(entry), items_scanned[0])
+                    progress_callback(entry.path, items_scanned[0])
 
             try:
-                if entry.is_file():
+                # Cached attributes from os.scandir – no extra syscalls
+                if entry.is_file(follow_symlinks=False):
                     try:
-                        st = entry.stat()
+                        st = entry.stat(follow_symlinks=False)
                         fsize = st.st_size
                         falloc = _calc_allocated(fsize, self._cluster_size)
                         total_size += fsize
                         total_allocated += falloc
                         file_count += 1
                         direct_files.append(FileEntry(
-                            name=entry.name, path=str(entry),
+                            name=entry.name, path=entry.path,
                             size_bytes=fsize, allocated_bytes=falloc))
                         if st.st_mtime > max_mtime:
                             max_mtime = st.st_mtime
                     except (PermissionError, OSError) as e:
                         logger.debug("Cannot access file %s: %s", entry, e)
 
-                elif entry.is_dir():
+                elif entry.is_dir(follow_symlinks=False):
                     folder_count += 1
 
                     if current_depth < max_depth:
                         child_info = self._scan_recursive(
-                            str(entry),
+                            entry.path,
                             max_depth,
                             current_depth + 1,
                             progress_callback,
@@ -394,12 +471,13 @@ class FolderScanner:
                             except Exception:
                                 pass
                     else:
-                        # Just get size without children
                         child_size, child_alloc = self._get_folder_size_fast(
-                            str(entry), items_scanned)
+                            entry.path, items_scanned)
                         entry_mtime = 0.0
                         try:
-                            entry_mtime = float(entry.stat().st_mtime)
+                            entry_mtime = float(
+                                entry.stat(
+                                    follow_symlinks=False).st_mtime)
                         except Exception:
                             pass
                         try:
@@ -410,7 +488,7 @@ class FolderScanner:
                         except Exception:
                             child_modified = ''
                         child_info = FolderInfo(
-                            path=str(entry),
+                            path=entry.path,
                             name=entry.name,
                             size_bytes=child_size,
                             allocated_bytes=child_alloc,
@@ -439,7 +517,7 @@ class FolderScanner:
 
         return FolderInfo(
             path=path,
-            name=path_obj.name or path,
+            name=folder_name,
             size_bytes=total_size,
             allocated_bytes=total_allocated,
             file_count=file_count,
@@ -465,7 +543,8 @@ class FolderScanner:
                     items_scanned[0] += len(files)
                 for f in files:
                     try:
-                        fsize = os.path.getsize(os.path.join(root, f))
+                        fp = os.path.join(root, f)
+                        fsize = os.stat(fp).st_size
                         total += fsize
                         allocated += _calc_allocated(
                             fsize, self._cluster_size)

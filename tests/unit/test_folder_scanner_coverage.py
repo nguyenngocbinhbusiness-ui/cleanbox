@@ -39,14 +39,15 @@ class TestFolderScannerCoverage:
 
     def test_scan_recursive_permissions(self, scanner):
         """Cover permission handling inside loop."""
-        # We need to simulate iterdir returning items that fail on is_file/is_dir or stat
-        with patch("pathlib.Path.iterdir") as mock_iter:
-            # Create a mock path entry that fails on is_file
+        # We need to simulate os.scandir returning items that fail on is_file/is_dir or stat
+        with patch("os.scandir") as mock_scandir:
+            # Create a mock DirEntry that fails on is_file
             bad_entry = MagicMock()
             bad_entry.is_file.side_effect = Exception("Access Error")
+            bad_entry.path = "C:/Test/Bad"
             bad_entry.__str__.return_value = "C:/Test/Bad"
             
-            mock_iter.return_value = [bad_entry]
+            mock_scandir.return_value = [bad_entry]
             
             with patch("features.folder_scanner.service.logger") as mock_log:
                 scanner.scan_folder("C:/Test")
@@ -67,9 +68,9 @@ class TestFolderScannerCoverage:
             scanner._get_folder_size_fast("C:/Test")
             mock_log.debug.assert_called()
             
-        # 2. os.path.getsize raises OSError inside loop
+        # 2. os.stat raises OSError inside loop
         with patch("os.walk", return_value=[("root", [], ["file1"])]), \
-             patch("os.path.getsize", side_effect=OSError("Disk Error")), \
+             patch("os.stat", side_effect=OSError("Disk Error")), \
              patch("features.folder_scanner.service.logger") as mock_log:
              
              scanner._get_folder_size_fast("C:/Test")
@@ -85,17 +86,18 @@ class TestFolderScannerCoverage:
         # current_depth for subdir is 1. 1 < 1 is False.
         # So it should call fast scan for subdir.
         
-        with patch("pathlib.Path.iterdir") as mock_iter, \
+        with patch("os.scandir") as mock_scandir, \
              patch.object(scanner, "_get_folder_size_fast", return_value=(500, 512)) as mock_fast:
              
-             # Mock entry
+             # Mock DirEntry for subdirectory
              sub = MagicMock()
              sub.is_file.return_value = False
              sub.is_dir.return_value = True
              sub.name = "Sub"
+             sub.path = "C:/Root/Sub"
              sub.__str__.return_value = "C:/Root/Sub"
              
-             mock_iter.return_value = [sub]
+             mock_scandir.return_value = [sub]
              
              res = scanner.scan_folder("C:/Root", max_depth=1)
              
@@ -105,13 +107,14 @@ class TestFolderScannerCoverage:
 
     def test_scan_file_stat_error(self, scanner):
         """Cover file stat permission error."""
-        with patch("pathlib.Path.iterdir") as mock_iter:
+        with patch("os.scandir") as mock_scandir:
             f = MagicMock()
             f.is_file.return_value = True
             f.stat.side_effect = PermissionError("Restricted")
+            f.path = "C:/File"
             f.__str__.return_value = "C:/File"
             
-            mock_iter.return_value = [f]
+            mock_scandir.return_value = [f]
             
             with patch("features.folder_scanner.service.logger") as mock_log:
                 scanner.scan_folder("C:/Root")

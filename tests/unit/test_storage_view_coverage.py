@@ -144,8 +144,9 @@ class TestStorageViewCoverage:
         )
         item = view._create_tree_item(folder, 2048000)
         
-        assert item.text(0) == "test"
-        assert "KB" in item.text(COL_SIZE) or "MB" in item.text(COL_SIZE)
+        # Name column now includes size prefix: "999.0 KB   test"
+        assert "test" in item.text(0)
+        assert "KB" in item.text(0) or "MB" in item.text(0)
 
     def test_create_tree_item_with_children(self, qtbot, app):
         """Test _create_tree_item with child folders."""
