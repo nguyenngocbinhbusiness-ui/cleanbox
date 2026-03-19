@@ -170,7 +170,7 @@ class TestSharedUtilsCoverage:
         """Test format_size functionality via FolderInfo."""
         from features.folder_scanner.service import FolderInfo
         
-        folder = FolderInfo(path="C:", name="C:", size_bytes=1024*1024, file_count=1, folder_count=0, children=[])
+        folder = FolderInfo(path="C:", name="C:", size_bytes=1024*1024, allocated_bytes=1024*1024, file_count=1, folder_count=0, last_modified='', children=[])
         assert "MB" in folder.size_formatted() or "KB" in folder.size_formatted()
 
 

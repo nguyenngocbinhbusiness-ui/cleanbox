@@ -114,7 +114,8 @@ class TestCoverageViews:
         # Hit _on_scan_complete
         from features.folder_scanner.service import FolderInfo
         data = FolderInfo(name="Test", path=Path("C:/Test"), size_bytes=1000, 
-                         file_count=5, folder_count=1, children=[])
+                         allocated_bytes=1024, file_count=5, folder_count=1, 
+                         last_modified='', children=[])
         view._on_scan_finished(data)
         
         # Hit _on_cancel

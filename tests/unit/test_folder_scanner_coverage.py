@@ -13,7 +13,7 @@ class TestFolderScannerCoverage:
     def test_folder_info_properties(self):
         """Cover FolderInfo property errors."""
         # Create info with "bad" size (though int can't really fail, we can mock it)
-        info = FolderInfo("path", "name", 0, 0, 0, [])
+        info = FolderInfo("path", "name", 0, 0, 0, 0, '', [])
         
         # Test size_mb error
         # We can't easily force float division to fail unless size_bytes is non-numeric,
@@ -25,7 +25,7 @@ class TestFolderScannerCoverage:
         info.size_bytes = "not an int" 
         assert info.size_mb == 0.0
         assert info.size_gb == 0.0
-        assert info.size_formatted() == "0 B"
+        assert info.size_formatted() == "0 Bytes"
 
     def test_scan_folder_recursive_error(self, scanner):
         """Cover _scan_recursive unhandled exception."""
@@ -56,7 +56,7 @@ class TestFolderScannerCoverage:
     def test_get_folder_size_fast_cancellation(self, scanner):
         """Cover cancellation check in fast scan."""
         scanner._cancel_flag.set()
-        assert scanner._get_folder_size_fast("C:/Test") == 0
+        assert scanner._get_folder_size_fast("C:/Test") == (0, 0)
 
     def test_get_folder_size_fast_errors(self, scanner):
         """Cover os.walk errors in fast scan."""
@@ -86,7 +86,7 @@ class TestFolderScannerCoverage:
         # So it should call fast scan for subdir.
         
         with patch("pathlib.Path.iterdir") as mock_iter, \
-             patch.object(scanner, "_get_folder_size_fast", return_value=500) as mock_fast:
+             patch.object(scanner, "_get_folder_size_fast", return_value=(500, 512)) as mock_fast:
              
              # Mock entry
              sub = MagicMock()

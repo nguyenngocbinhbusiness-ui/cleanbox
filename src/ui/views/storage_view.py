@@ -9,13 +9,22 @@ from PyQt6.QtWidgets import (
     QMenu, QMessageBox
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QThread, pyqtSlot
-from PyQt6.QtGui import QFont, QAction
+from PyQt6.QtGui import QFont, QAction, QColor, QBrush
 
 from features.storage_monitor import DriveInfo
-from features.folder_scanner import FolderScanner, FolderInfo
+from features.folder_scanner import FolderScanner, FolderInfo, format_size
 from shared.utils import is_protected_path
 
 logger = logging.getLogger(__name__)
+
+# Column indices
+COL_NAME = 0
+COL_SIZE = 1
+COL_ALLOCATED = 2
+COL_FILES = 3
+COL_FOLDERS = 4
+COL_PERCENT = 5
+COL_MODIFIED = 6
 
 
 class ScanWorker(QThread):
@@ -90,6 +99,50 @@ class ExpandScanWorker(QThread):
             logger.error("Failed to emit expand progress: %s", e)
 
 
+class RealtimeScanWorker(QThread):
+    """Worker thread that emits per-child results for real-time UI updates."""
+
+    child_scanned = pyqtSignal(object)  # FolderInfo for one child
+    progress = pyqtSignal(str, int)
+    finished = pyqtSignal(object)  # root FolderInfo
+
+    def __init__(self, scanner: FolderScanner, path: str):
+        """Initialize realtime scan worker."""
+        try:
+            super().__init__()
+            self.scanner = scanner
+            self.path = path
+        except Exception as e:
+            logger.error("Failed to init RealtimeScanWorker: %s", e)
+
+    def run(self):
+        """Scan children and emit each as completed."""
+        try:
+            result = self.scanner.scan_children_realtime(
+                self.path,
+                child_callback=self._on_child,
+                progress_callback=self._on_progress,
+            )
+            self.finished.emit(result)
+        except Exception as e:
+            logger.error("Realtime scan worker failed: %s", e)
+            self.finished.emit(None)
+
+    def _on_child(self, child_info: FolderInfo):
+        """Emit child_scanned signal."""
+        try:
+            self.child_scanned.emit(child_info)
+        except Exception as e:
+            logger.error("Failed to emit child_scanned: %s", e)
+
+    def _on_progress(self, current_path: str, items_scanned: int):
+        """Emit progress signal."""
+        try:
+            self.progress.emit(current_path, items_scanned)
+        except Exception as e:
+            logger.error("Failed to emit realtime progress: %s", e)
+
+
 class StorageView(QWidget):
     """View displaying drives and folder sizes with TreeSize-like interface."""
 
@@ -103,9 +156,15 @@ class StorageView(QWidget):
             self._drives: List[DriveInfo] = []
             self._scanner = FolderScanner()
             self._worker: Optional[ScanWorker] = None
+            self._realtime_worker: Optional[RealtimeScanWorker] = None
             self._expand_worker: Optional[ExpandScanWorker] = None
             self._expanding_item: Optional[QTreeWidgetItem] = None
             self._drive_total_bytes: int = 0
+            self._root_item: Optional[QTreeWidgetItem] = None
+            self._root_size_accumulator: int = 0
+            self._root_alloc_accumulator: int = 0
+            self._root_files_accumulator: int = 0
+            self._root_folders_accumulator: int = 0
             self._setup_ui()
         except Exception as e:
             logger.error("Failed to init StorageView: %s", e)
@@ -228,23 +287,34 @@ class StorageView(QWidget):
 
             layout.addWidget(self._summary_frame)
 
-            # Tree widget for folder sizes
+            # Tree widget for folder sizes - TreeSize-like columns
             self._tree = QTreeWidget()
-            self._tree.setHeaderLabels(
-                ["Name", "Size", "Files", "Folders", "% of Drive"])
+            self._tree.setHeaderLabels([
+                "Name", "Size", "Allocated", "Files",
+                "Folders", "% of Parent (Size)", "Last Modified"
+            ])
             self._tree.setAlternatingRowColors(True)
             self._tree.setRootIsDecorated(True)
             self._tree.setSortingEnabled(True)
-            self._tree.sortByColumn(1, Qt.SortOrder.DescendingOrder)
+            self._tree.sortByColumn(COL_SIZE, Qt.SortOrder.DescendingOrder)
 
             # Column widths
             header = self._tree.header()
-            header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-            header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-            header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-            header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-            header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
-            header.resizeSection(4, 100)
+            header.setSectionResizeMode(
+                COL_NAME, QHeaderView.ResizeMode.Stretch)
+            header.setSectionResizeMode(
+                COL_SIZE, QHeaderView.ResizeMode.ResizeToContents)
+            header.setSectionResizeMode(
+                COL_ALLOCATED, QHeaderView.ResizeMode.ResizeToContents)
+            header.setSectionResizeMode(
+                COL_FILES, QHeaderView.ResizeMode.ResizeToContents)
+            header.setSectionResizeMode(
+                COL_FOLDERS, QHeaderView.ResizeMode.ResizeToContents)
+            header.setSectionResizeMode(
+                COL_PERCENT, QHeaderView.ResizeMode.Fixed)
+            header.resizeSection(COL_PERCENT, 130)
+            header.setSectionResizeMode(
+                COL_MODIFIED, QHeaderView.ResizeMode.ResizeToContents)
 
             self._tree.setStyleSheet("""
                 QTreeWidget {
@@ -285,7 +355,9 @@ class StorageView(QWidget):
 
             self._drive_combo.clear()
             for drive in drives:
-                label = f"{drive.letter} ({drive.free_gb:.1f} GB free of {drive.total_gb:.1f} GB)"
+                label = (
+                    f"{drive.letter} ({drive.free_gb:.1f} GB free "
+                    f"of {drive.total_gb:.1f} GB)")
                 self._drive_combo.addItem(label, drive.letter)
 
             # Restore selection if possible
@@ -317,12 +389,72 @@ class StorageView(QWidget):
                     break
 
             path = f"{drive_letter}\\"
-            self._start_scan(path)
+            self._start_realtime_scan(path)
         except Exception as e:
             logger.error("Failed to start scan: %s", e)
 
+    def _start_realtime_scan(self, path: str) -> None:
+        """Start a real-time scan that updates the tree incrementally."""
+        try:
+            self._tree.clear()
+            self._tree.setSortingEnabled(False)
+            self._scan_btn.setEnabled(False)
+            self._cancel_btn.setEnabled(True)
+            self._progress_bar.show()
+            self._progress_bar.setValue(0)
+            self._status_label.setText(f"Scanning {path}...")
+
+            # Reset accumulators
+            self._root_size_accumulator = 0
+            self._root_alloc_accumulator = 0
+            self._root_files_accumulator = 0
+            self._root_folders_accumulator = 0
+
+            # Create root item
+            reference_size = self._drive_total_bytes or 1
+            self._root_item = QTreeWidgetItem()
+            self._root_item.setText(COL_NAME, path)
+            self._root_item.setText(COL_SIZE, "Scanning...")
+            self._root_item.setText(COL_ALLOCATED, "...")
+            self._root_item.setText(COL_FILES, "...")
+            self._root_item.setText(COL_FOLDERS, "...")
+            self._root_item.setText(COL_PERCENT, "100.0 %")
+            self._root_item.setText(COL_MODIFIED, "...")
+            self._root_item.setData(
+                COL_NAME, Qt.ItemDataRole.UserRole, path)
+            self._root_item.setData(
+                COL_SIZE, Qt.ItemDataRole.UserRole, 0)
+
+            # Bold root
+            bold_font = QFont()
+            bold_font.setBold(True)
+            for col in range(7):
+                self._root_item.setFont(col, bold_font)
+
+            # Highlight root row
+            root_bg = QBrush(QColor("#E8F0FE"))
+            for col in range(7):
+                self._root_item.setBackground(col, root_bg)
+
+            self._tree.addTopLevelItem(self._root_item)
+            self._root_item.setExpanded(True)
+
+            # Start realtime worker
+            self._realtime_worker = RealtimeScanWorker(
+                self._scanner, path)
+            self._realtime_worker.child_scanned.connect(
+                self._on_child_scanned)
+            self._realtime_worker.progress.connect(
+                self._on_scan_progress)
+            self._realtime_worker.finished.connect(
+                self._on_realtime_finished)
+            self._realtime_worker.start()
+        except Exception as e:
+            logger.error("Failed to start realtime scan: %s", e)
+            self._scan_btn.setEnabled(True)
+
     def _start_scan(self, path: str, max_depth: int = 1) -> None:
-        """Start scanning a path."""
+        """Start scanning a path (non-realtime, used for deeper scans)."""
         try:
             self._tree.clear()
             self._scan_btn.setEnabled(False)
@@ -363,8 +495,91 @@ class StorageView(QWidget):
             logger.error("Failed to update scan progress: %s", e)
 
     @pyqtSlot(object)
+    def _on_child_scanned(self, child_info: FolderInfo) -> None:
+        """Handle a single child folder scan completion (real-time update)."""
+        try:
+            if self._root_item is None:
+                return
+
+            # Update accumulators
+            self._root_size_accumulator += child_info.size_bytes
+            self._root_alloc_accumulator += child_info.allocated_bytes
+            self._root_files_accumulator += child_info.file_count
+            self._root_folders_accumulator += child_info.folder_count
+
+            # Reference size for % calculation
+            reference_size = self._drive_total_bytes or 1
+
+            # Create child tree item
+            child_item = self._create_tree_item(
+                child_info, reference_size)
+            self._root_item.addChild(child_item)
+
+            # Update root item totals
+            self._root_item.setText(
+                COL_SIZE, format_size(self._root_size_accumulator))
+            self._root_item.setText(
+                COL_ALLOCATED, format_size(self._root_alloc_accumulator))
+            self._root_item.setText(
+                COL_FILES, f"{self._root_files_accumulator:,}")
+            self._root_item.setText(
+                COL_FOLDERS, f"{self._root_folders_accumulator:,}")
+            self._root_item.setData(
+                COL_SIZE, Qt.ItemDataRole.UserRole,
+                self._root_size_accumulator)
+
+            self._status_label.setText(
+                f"Scanned: {child_info.name} "
+                f"({child_info.size_formatted()})")
+        except Exception as e:
+            logger.error("Failed to handle child scan: %s", e)
+
+    @pyqtSlot(object)
+    def _on_realtime_finished(self, result: Optional[FolderInfo]) -> None:
+        """Handle realtime scan completion."""
+        try:
+            self._scan_btn.setEnabled(True)
+            self._cancel_btn.setEnabled(False)
+            self._progress_bar.hide()
+
+            if result is None:
+                self._status_label.setText("Scan cancelled or failed.")
+                self._tree.setSortingEnabled(True)
+                return
+
+            # Update root item with final data
+            if self._root_item:
+                self._root_item.setText(
+                    COL_SIZE, result.size_formatted())
+                self._root_item.setText(
+                    COL_ALLOCATED, result.allocated_formatted())
+                self._root_item.setText(
+                    COL_FILES,
+                    f"{result.file_count:,}" if result.file_count else "-")
+                self._root_item.setText(
+                    COL_FOLDERS,
+                    f"{result.folder_count:,}" if result.folder_count else "-")
+                self._root_item.setText(COL_PERCENT, "100.0 %")
+                self._root_item.setText(COL_MODIFIED, result.last_modified)
+                self._root_item.setData(
+                    COL_SIZE, Qt.ItemDataRole.UserRole, result.size_bytes)
+
+                # Add "(Other files)" entry for root-level files
+                self._add_other_files_entry(
+                    self._root_item, result,
+                    self._drive_total_bytes or result.size_bytes)
+
+            self._tree.setSortingEnabled(True)
+            self._status_label.setText(
+                f"Scan complete: {result.size_formatted()} in "
+                f"{result.file_count:,} files, "
+                f"{result.folder_count:,} folders")
+        except Exception as e:
+            logger.error("Failed to handle realtime scan completion: %s", e)
+
+    @pyqtSlot(object)
     def _on_scan_finished(self, result: Optional[FolderInfo]) -> None:
-        """Handle scan completion."""
+        """Handle scan completion (non-realtime)."""
         try:
             self._scan_btn.setEnabled(True)
             self._cancel_btn.setEnabled(False)
@@ -375,7 +590,8 @@ class StorageView(QWidget):
                 return
 
             self._status_label.setText(
-                f"Scan complete: {result.size_formatted()} in {result.file_count:,} files")
+                f"Scan complete: {result.size_formatted()} in "
+                f"{result.file_count:,} files")
 
             # Populate tree
             self._populate_tree(result)
@@ -396,8 +612,9 @@ class StorageView(QWidget):
             self._tree.addTopLevelItem(root_item)
             root_item.setExpanded(True)
 
-            # Add "(Other files)" entry if folder sizes don't account for all space
-            self._add_other_files_entry(root_item, folder_info, reference_size)
+            # Add "(Other files)" entry
+            self._add_other_files_entry(
+                root_item, folder_info, reference_size)
         except Exception as e:
             logger.error("Failed to populate tree: %s", e)
 
@@ -407,50 +624,75 @@ class StorageView(QWidget):
         reference_size: int,
         is_root: bool = False,
     ) -> QTreeWidgetItem:
-        """Create a tree item from FolderInfo.
-
-        Args:
-            folder_info: Folder data
-            reference_size: Size to compute % against (drive total at root, parent size for sub-levels)
-            is_root: Whether this is the drive root item
-        """
+        """Create a tree item from FolderInfo."""
         try:
             item = QTreeWidgetItem()
 
-            item.setText(0, folder_info.name or folder_info.path)
-            item.setText(1, folder_info.size_formatted())
+            item.setText(COL_NAME, folder_info.name or folder_info.path)
+            item.setText(COL_SIZE, folder_info.size_formatted())
+            item.setText(COL_ALLOCATED, folder_info.allocated_formatted())
             item.setText(
-                2, f"{folder_info.file_count:,}" if folder_info.file_count else "-")
+                COL_FILES,
+                f"{folder_info.file_count:,}" if folder_info.file_count else "-")
             item.setText(
-                3, f"{folder_info.folder_count:,}" if folder_info.folder_count else "-")
+                COL_FOLDERS,
+                f"{folder_info.folder_count:,}" if folder_info.folder_count else "-")
 
-            # % of reference (drive total at root level)
+            # % of reference (parent size)
             if reference_size > 0:
                 percent = (folder_info.size_bytes / reference_size) * 100
-                item.setText(4, f"{percent:.1f}%")
+                item.setText(COL_PERCENT, f"{percent:.1f} %")
             else:
-                item.setText(4, "-")
+                item.setText(COL_PERCENT, "-")
+
+            # Last Modified
+            item.setText(COL_MODIFIED, folder_info.last_modified or "-")
 
             # Store data for later use
-            item.setData(0, Qt.ItemDataRole.UserRole, folder_info.path)
-            item.setData(1, Qt.ItemDataRole.UserRole, folder_info.size_bytes)
+            item.setData(
+                COL_NAME, Qt.ItemDataRole.UserRole, folder_info.path)
+            item.setData(
+                COL_SIZE, Qt.ItemDataRole.UserRole, folder_info.size_bytes)
             # Store whether this has unscanned children for lazy expand
             item.setData(
-                2, Qt.ItemDataRole.UserRole,
+                COL_ALLOCATED, Qt.ItemDataRole.UserRole,
                 folder_info.has_unscanned_children)
 
             # Right-align numeric columns
+            for col in (COL_SIZE, COL_ALLOCATED, COL_FILES,
+                        COL_FOLDERS, COL_PERCENT):
+                item.setTextAlignment(
+                    col,
+                    Qt.AlignmentFlag.AlignRight
+                    | Qt.AlignmentFlag.AlignVCenter)
+
+            # Center-align date column
             item.setTextAlignment(
-                1, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            item.setTextAlignment(
-                2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            item.setTextAlignment(
-                3, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            item.setTextAlignment(
-                4, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                COL_MODIFIED,
+                Qt.AlignmentFlag.AlignCenter
+                | Qt.AlignmentFlag.AlignVCenter)
+
+            # Bold for root item
+            if is_root:
+                bold_font = QFont()
+                bold_font.setBold(True)
+                for col in range(7):
+                    item.setFont(col, bold_font)
+                root_bg = QBrush(QColor("#E8F0FE"))
+                for col in range(7):
+                    item.setBackground(col, root_bg)
+
+            # % bar background tint (subtle yellow proportional to %)
+            if reference_size > 0 and not is_root:
+                percent = (folder_info.size_bytes / reference_size) * 100
+                if percent > 0.5:
+                    alpha = min(int(percent * 1.8), 120)
+                    bar_color = QColor(255, 220, 100, alpha)
+                    item.setBackground(COL_PERCENT, QBrush(bar_color))
 
             # Children use parent's size as reference for sub-level %
-            child_reference = folder_info.size_bytes if folder_info.size_bytes > 0 else 1
+            child_reference = (
+                folder_info.size_bytes if folder_info.size_bytes > 0 else 1)
 
             for child in folder_info.children:
                 child_item = self._create_tree_item(
@@ -462,11 +704,12 @@ class StorageView(QWidget):
                 self._add_other_files_entry(
                     item, folder_info, child_reference)
 
-            # If folder has unscanned children, add a placeholder for expand arrow
+            # If folder has unscanned children, add placeholder for expand
             if folder_info.has_unscanned_children and not folder_info.children:
                 placeholder = QTreeWidgetItem()
-                placeholder.setText(0, "Loading...")
-                placeholder.setData(0, Qt.ItemDataRole.UserRole, "__placeholder__")
+                placeholder.setText(COL_NAME, "Loading...")
+                placeholder.setData(
+                    COL_NAME, Qt.ItemDataRole.UserRole, "__placeholder__")
                 item.addChild(placeholder)
 
             return item
@@ -483,64 +726,66 @@ class StorageView(QWidget):
         """Add '(Other files)' entry to make percentages sum to 100%."""
         try:
             children_total = sum(c.size_bytes for c in folder_info.children)
+            children_alloc = sum(
+                c.allocated_bytes for c in folder_info.children)
             other_size = folder_info.size_bytes - children_total
+            other_alloc = folder_info.allocated_bytes - children_alloc
 
             if other_size > 0 and folder_info.children:
                 other_item = QTreeWidgetItem()
-                other_item.setText(0, "(Other files)")
-
-                # Format size
-                if other_size >= 1024 * 1024 * 1024:
-                    size_str = f"{other_size / (1024**3):.2f} GB"
-                elif other_size >= 1024 * 1024:
-                    size_str = f"{other_size / (1024**2):.2f} MB"
-                elif other_size >= 1024:
-                    size_str = f"{other_size / 1024:.2f} KB"
-                else:
-                    size_str = f"{other_size} B"
-
-                other_item.setText(1, size_str)
-                other_item.setText(2, "-")
-                other_item.setText(3, "-")
+                other_item.setText(COL_NAME, "(Other files)")
+                other_item.setText(COL_SIZE, format_size(other_size))
+                other_item.setText(
+                    COL_ALLOCATED,
+                    format_size(max(other_alloc, 0)))
+                other_item.setText(COL_FILES, "-")
+                other_item.setText(COL_FOLDERS, "-")
 
                 if reference_size > 0:
                     percent = (other_size / reference_size) * 100
-                    other_item.setText(4, f"{percent:.1f}%")
+                    other_item.setText(COL_PERCENT, f"{percent:.1f} %")
                 else:
-                    other_item.setText(4, "-")
+                    other_item.setText(COL_PERCENT, "-")
+
+                other_item.setText(COL_MODIFIED, "-")
 
                 other_item.setData(
-                    0, Qt.ItemDataRole.UserRole, "__other_files__")
-                other_item.setData(1, Qt.ItemDataRole.UserRole, other_size)
+                    COL_NAME, Qt.ItemDataRole.UserRole, "__other_files__")
+                other_item.setData(
+                    COL_SIZE, Qt.ItemDataRole.UserRole, other_size)
 
-                # Right-align
+                # Right-align numeric columns
+                for col in (COL_SIZE, COL_ALLOCATED, COL_FILES,
+                            COL_FOLDERS, COL_PERCENT):
+                    other_item.setTextAlignment(
+                        col,
+                        Qt.AlignmentFlag.AlignRight
+                        | Qt.AlignmentFlag.AlignVCenter)
                 other_item.setTextAlignment(
-                    1, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-                other_item.setTextAlignment(
-                    2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-                other_item.setTextAlignment(
-                    3, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-                other_item.setTextAlignment(
-                    4, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                    COL_MODIFIED,
+                    Qt.AlignmentFlag.AlignCenter
+                    | Qt.AlignmentFlag.AlignVCenter)
 
                 # Italic style for visual distinction
                 font = QFont()
                 font.setItalic(True)
-                other_item.setFont(0, font)
+                other_item.setFont(COL_NAME, font)
 
                 parent_item.addChild(other_item)
         except Exception as e:
             logger.error("Failed to add other files entry: %s", e)
 
     def _on_item_expanded(self, item: QTreeWidgetItem) -> None:
-        """Handle tree item expand — lazy scan sub-folders on demand."""
+        """Handle tree item expand - lazy scan sub-folders on demand."""
         try:
             # Check if first child is placeholder
             if item.childCount() == 1:
                 child = item.child(0)
                 if (child and
-                        child.data(0, Qt.ItemDataRole.UserRole) == "__placeholder__"):
-                    path = item.data(0, Qt.ItemDataRole.UserRole)
+                        child.data(
+                            COL_NAME,
+                            Qt.ItemDataRole.UserRole) == "__placeholder__"):
+                    path = item.data(COL_NAME, Qt.ItemDataRole.UserRole)
                     if path and Path(path).is_dir():
                         self._start_expand_scan(item, path)
         except Exception as e:
@@ -567,7 +812,7 @@ class StorageView(QWidget):
 
     @pyqtSlot(object)
     def _on_expand_finished(self, result: Optional[FolderInfo]) -> None:
-        """Handle expand scan completion — populate children."""
+        """Handle expand scan completion - populate children."""
         try:
             item = self._expanding_item
             self._expanding_item = None
@@ -580,9 +825,10 @@ class StorageView(QWidget):
             while item.childCount() > 0:
                 item.removeChild(item.child(0))
 
-            parent_size = item.data(1, Qt.ItemDataRole.UserRole) or 1
+            parent_size = item.data(
+                COL_SIZE, Qt.ItemDataRole.UserRole) or 1
 
-            # Add scanned children sorted by size (already sorted by scanner)
+            # Add scanned children sorted by size
             for child in result.children:
                 child_item = self._create_tree_item(child, parent_size)
                 item.addChild(child_item)
@@ -591,10 +837,11 @@ class StorageView(QWidget):
             self._add_other_files_entry(item, result, parent_size)
 
             # Mark as scanned
-            item.setData(2, Qt.ItemDataRole.UserRole, False)
+            item.setData(
+                COL_ALLOCATED, Qt.ItemDataRole.UserRole, False)
 
             self._status_label.setText(
-                f"Expanded: {result.name} — "
+                f"Expanded: {result.name} \u2014 "
                 f"{len(result.children)} sub-folders")
         except Exception as e:
             logger.error("Failed to handle expand completion: %s", e)
@@ -606,7 +853,7 @@ class StorageView(QWidget):
             if item is None:
                 return
 
-            path = item.data(0, Qt.ItemDataRole.UserRole)
+            path = item.data(COL_NAME, Qt.ItemDataRole.UserRole)
             if not path or path in ("__placeholder__", "__other_files__"):
                 return
 
@@ -672,8 +919,9 @@ class StorageView(QWidget):
 
             for drive in sorted_drives:
                 used_gb = drive.total_gb - drive.free_gb
-                used_percent = int((used_gb / drive.total_gb * 100)
-                                   ) if drive.total_gb > 0 else 0
+                used_percent = int(
+                    (used_gb / drive.total_gb * 100)
+                ) if drive.total_gb > 0 else 0
 
                 total_used += used_gb
                 total_capacity += drive.total_gb
@@ -687,7 +935,8 @@ class StorageView(QWidget):
                 # Drive label
                 drive_label = QLabel(f"{drive.letter}")
                 drive_label.setFixedWidth(30)
-                drive_label.setStyleSheet("font-weight: bold; color: #333333;")
+                drive_label.setStyleSheet(
+                    "font-weight: bold; color: #333333;")
                 row_layout.addWidget(drive_label)
 
                 # Progress bar
@@ -695,7 +944,9 @@ class StorageView(QWidget):
                 progress.setValue(used_percent)
                 progress.setTextVisible(True)
                 progress.setFormat(
-                    f"Free: {drive.free_gb:.1f} GB | Used: {used_gb:.1f} GB | Total: {drive.total_gb:.1f} GB")
+                    f"Free: {drive.free_gb:.1f} GB | "
+                    f"Used: {used_gb:.1f} GB | "
+                    f"Total: {drive.total_gb:.1f} GB")
                 progress.setMinimumHeight(24)
 
                 # Color based on usage
@@ -738,7 +989,7 @@ class StorageView(QWidget):
             column: int) -> None:
         """Handle double-click to scan deeper (legacy support)."""
         try:
-            path = item.data(0, Qt.ItemDataRole.UserRole)
+            path = item.data(COL_NAME, Qt.ItemDataRole.UserRole)
             if path and path not in ("__placeholder__", "__other_files__"):
                 if Path(path).is_dir():
                     self._start_scan(path, max_depth=2)
