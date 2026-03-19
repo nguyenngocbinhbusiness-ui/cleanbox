@@ -16,13 +16,18 @@ def setup_logging() -> None:
         log_file = CONFIG_DIR / "cleanbox.log"
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
+        handlers: list = [logging.FileHandler(log_file, encoding="utf-8")]
+
+        # Only write to the console when one is actually attached.
+        # sys.stdout is None when running as a windowed app (PyInstaller
+        # console=False) or when launched via pythonw.exe.
+        if sys.stdout is not None:
+            handlers.append(logging.StreamHandler())
+
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            handlers=[
-                logging.FileHandler(log_file, encoding="utf-8"),
-                logging.StreamHandler(),
-            ],
+            handlers=handlers,
         )
     except Exception as e:
         print(f"Failed to setup logging: {e}")

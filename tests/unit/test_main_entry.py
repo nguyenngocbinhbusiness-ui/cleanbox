@@ -34,6 +34,21 @@ class TestMainEntry:
             assert (tmp_path).exists()
             mock_basic.assert_called_once()    
 
+    def test_setup_logging_no_console(self, tmp_path):
+        """Test that no StreamHandler is added when stdout is None (windowed mode)."""
+        with patch("main.CONFIG_DIR", tmp_path), \
+             patch("sys.stdout", None), \
+             patch("logging.basicConfig") as mock_basic:
+
+            setup_logging()
+
+            mock_basic.assert_called_once()
+            _, kwargs = mock_basic.call_args
+            handlers = kwargs.get("handlers", [])
+            stream_handlers = [h for h in handlers if isinstance(h, logging.StreamHandler)
+                               and type(h) is logging.StreamHandler]
+            assert stream_handlers == [], "StreamHandler must not be added when stdout is None"
+
     def test_main_success(self):
         """Test main execution flow."""
         # Patch app.App because main() does 'from app import App'

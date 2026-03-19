@@ -19,12 +19,50 @@ class TestGetExecutablePath:
         assert isinstance(result, str)
         assert len(result) > 0
 
-    def test_get_executable_path_contains_executable(self):
-        """Test get_executable_path includes sys.executable."""
+    def test_get_executable_path_frozen_mode(self, monkeypatch):
+        """Test get_executable_path returns quoted exe path in frozen mode."""
+        monkeypatch.setattr(sys, 'frozen', True, raising=False)
+        monkeypatch.setattr(sys, 'executable', r'C:\App\CleanBox.exe')
+
         from shared.registry import get_executable_path
-        
+
         result = get_executable_path()
-        assert sys.executable in result
+        # Frozen: just the quoted exe, no script argument
+        assert result == '"C:\\App\\CleanBox.exe"'
+        assert sys.argv[0] not in result
+
+    def test_get_executable_path_script_mode_replaces_python_exe(self, monkeypatch):
+        """Test that python.exe is replaced with pythonw.exe in script mode."""
+        if hasattr(sys, 'frozen'):
+            monkeypatch.delattr(sys, 'frozen')
+        # Use platform-appropriate separators so os.path.basename works correctly
+        if sys.platform == 'win32':
+            fake_exe = r'C:\Python311\python.exe'
+            fake_script = r'C:\scripts\main.py'
+        else:
+            fake_exe = '/opt/Python311/python.exe'
+            fake_script = '/home/user/main.py'
+        monkeypatch.setattr(sys, 'executable', fake_exe)
+        monkeypatch.setattr(sys, 'argv', [fake_script])
+
+        from shared.registry import get_executable_path
+
+        result = get_executable_path()
+        assert 'pythonw.exe' in result
+        assert 'python.exe' not in result
+
+    def test_get_executable_path_script_mode_non_windows(self, monkeypatch):
+        """Test that non-.exe interpreters are used as-is in script mode."""
+        if hasattr(sys, 'frozen'):
+            monkeypatch.delattr(sys, 'frozen')
+        monkeypatch.setattr(sys, 'executable', '/usr/bin/python3')
+        monkeypatch.setattr(sys, 'argv', ['/home/user/main.py'])
+
+        from shared.registry import get_executable_path
+
+        result = get_executable_path()
+        # sys.executable (/usr/bin/python3) should appear in result
+        assert '/usr/bin/python3' in result
 
     def test_get_executable_path_exception_handling(self, monkeypatch):
         """Test get_executable_path handles exceptions gracefully."""

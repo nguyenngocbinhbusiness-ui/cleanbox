@@ -13,9 +13,22 @@ IS_WINDOWS = sys.platform == "win32"
 
 
 def get_executable_path() -> str:
-    """Get the path to the main script or executable."""
+    """Get the path to the main script or executable.
+
+    When running as a frozen PyInstaller executable, returns the exe path
+    directly.  When running as a plain Python script, substitutes pythonw.exe
+    for python.exe so that no console window is created on startup.
+    """
     try:
-        return sys.executable + ' "' + sys.argv[0] + '"'
+        if getattr(sys, 'frozen', False):
+            # Running as a compiled executable (PyInstaller) – use it directly.
+            return f'"{sys.executable}"'
+        # Running as a script – prefer pythonw.exe to suppress console window.
+        import os
+        python_exe = sys.executable
+        if os.path.basename(python_exe).lower() == 'python.exe':
+            python_exe = os.path.join(os.path.dirname(python_exe), 'pythonw.exe')
+        return f'"{python_exe}" "{sys.argv[0]}"'
     except Exception as e:
         logger.error("Failed to get executable path: %s", e)
         return sys.executable
