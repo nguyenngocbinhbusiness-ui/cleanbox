@@ -24,7 +24,7 @@ COL_ALLOCATED = 2
 COL_FILES = 3
 COL_FOLDERS = 4
 COL_PERCENT = 5
-COL_MODIFIED = 6
+NUM_COLUMNS = 6
 
 
 class ScanWorker(QThread):
@@ -165,6 +165,9 @@ class StorageView(QWidget):
             self._root_alloc_accumulator: int = 0
             self._root_files_accumulator: int = 0
             self._root_folders_accumulator: int = 0
+            self._nav_history: List[str] = []
+            self._nav_forward: List[str] = []
+            self._current_scan_path: Optional[str] = None
             self._setup_ui()
         except Exception as e:
             logger.error("Failed to init StorageView: %s", e)
@@ -245,6 +248,42 @@ class StorageView(QWidget):
             drive_layout.addWidget(self._refresh_btn)
 
             drive_layout.addStretch()
+
+            # Back/Forward navigation buttons
+            self._back_btn = QPushButton("◀ Back")
+            self._back_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            self._back_btn.clicked.connect(self._on_navigate_back)
+            self._back_btn.setEnabled(False)
+            self._back_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #F0F0F0;
+                    border: 1px solid #CCCCCC;
+                    border-radius: 4px;
+                    padding: 8px 12px;
+                    font-weight: bold;
+                }
+                QPushButton:hover { background-color: #E0E0E0; }
+                QPushButton:disabled { color: #AAAAAA; }
+            """)
+            drive_layout.addWidget(self._back_btn)
+
+            self._forward_btn = QPushButton("Forward ▶")
+            self._forward_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            self._forward_btn.clicked.connect(self._on_navigate_forward)
+            self._forward_btn.setEnabled(False)
+            self._forward_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #F0F0F0;
+                    border: 1px solid #CCCCCC;
+                    border-radius: 4px;
+                    padding: 8px 12px;
+                    font-weight: bold;
+                }
+                QPushButton:hover { background-color: #E0E0E0; }
+                QPushButton:disabled { color: #AAAAAA; }
+            """)
+            drive_layout.addWidget(self._forward_btn)
+
             layout.addLayout(drive_layout)
 
             # Progress bar (hidden by default)
@@ -291,12 +330,12 @@ class StorageView(QWidget):
             self._tree = QTreeWidget()
             self._tree.setHeaderLabels([
                 "Name", "Size", "Allocated", "Files",
-                "Folders", "% of Parent (Size)", "Last Modified"
+                "Folders", "% of Parent (Size)"
             ])
             self._tree.setAlternatingRowColors(True)
             self._tree.setRootIsDecorated(True)
             self._tree.setSortingEnabled(True)
-            self._tree.sortByColumn(COL_SIZE, Qt.SortOrder.DescendingOrder)
+            self._tree.sortByColumn(COL_PERCENT, Qt.SortOrder.DescendingOrder)
 
             # Column widths
             header = self._tree.header()
@@ -313,8 +352,6 @@ class StorageView(QWidget):
             header.setSectionResizeMode(
                 COL_PERCENT, QHeaderView.ResizeMode.Fixed)
             header.resizeSection(COL_PERCENT, 130)
-            header.setSectionResizeMode(
-                COL_MODIFIED, QHeaderView.ResizeMode.ResizeToContents)
 
             self._tree.setStyleSheet("""
                 QTreeWidget {
@@ -342,6 +379,10 @@ class StorageView(QWidget):
 
             # Expand arrow triggers lazy sub-folder scan
             self._tree.itemExpanded.connect(self._on_item_expanded)
+
+            # Double-click to navigate into subfolder
+            self._tree.itemDoubleClicked.connect(
+                self._on_item_double_clicked)
 
             layout.addWidget(self._tree)
         except Exception as e:
@@ -389,6 +430,11 @@ class StorageView(QWidget):
                     break
 
             path = f"{drive_letter}\\"
+            # Reset navigation when scanning a new drive
+            self._nav_history.clear()
+            self._nav_forward.clear()
+            self._current_scan_path = path
+            self._update_nav_buttons()
             self._start_realtime_scan(path)
         except Exception as e:
             logger.error("Failed to start scan: %s", e)
@@ -419,7 +465,6 @@ class StorageView(QWidget):
             self._root_item.setText(COL_FILES, "...")
             self._root_item.setText(COL_FOLDERS, "...")
             self._root_item.setText(COL_PERCENT, "100.0 %")
-            self._root_item.setText(COL_MODIFIED, "...")
             self._root_item.setData(
                 COL_NAME, Qt.ItemDataRole.UserRole, path)
             self._root_item.setData(
@@ -428,12 +473,12 @@ class StorageView(QWidget):
             # Bold root
             bold_font = QFont()
             bold_font.setBold(True)
-            for col in range(7):
+            for col in range(NUM_COLUMNS):
                 self._root_item.setFont(col, bold_font)
 
             # Highlight root row
             root_bg = QBrush(QColor("#E8F0FE"))
-            for col in range(7):
+            for col in range(NUM_COLUMNS):
                 self._root_item.setBackground(col, root_bg)
 
             self._tree.addTopLevelItem(self._root_item)
@@ -560,14 +605,34 @@ class StorageView(QWidget):
                     COL_FOLDERS,
                     f"{result.folder_count:,}" if result.folder_count else "-")
                 self._root_item.setText(COL_PERCENT, "100.0 %")
-                self._root_item.setText(COL_MODIFIED, result.last_modified)
                 self._root_item.setData(
                     COL_SIZE, Qt.ItemDataRole.UserRole, result.size_bytes)
+
+                # Recalculate children % using parent's actual scanned size
+                parent_size = result.size_bytes or 1
+                for i in range(self._root_item.childCount()):
+                    child_item = self._root_item.child(i)
+                    if child_item:
+                        child_size = child_item.data(
+                            COL_SIZE, Qt.ItemDataRole.UserRole)
+                        if child_size is not None and parent_size > 0:
+                            percent = (child_size / parent_size) * 100
+                            child_item.setText(
+                                COL_PERCENT, f"{percent:.1f} %")
+                            # Update % bar background tint
+                            if percent > 0.5:
+                                alpha = min(int(percent * 1.8), 120)
+                                bar_color = QColor(255, 220, 100, alpha)
+                                child_item.setBackground(
+                                    COL_PERCENT, QBrush(bar_color))
+                            else:
+                                child_item.setBackground(
+                                    COL_PERCENT, QBrush())
 
                 # Add "(Other files)" entry for root-level files
                 self._add_other_files_entry(
                     self._root_item, result,
-                    self._drive_total_bytes or result.size_bytes)
+                    result.size_bytes or 1)
 
             self._tree.setSortingEnabled(True)
             self._status_label.setText(
@@ -603,8 +668,8 @@ class StorageView(QWidget):
         try:
             self._tree.clear()
 
-            # Use drive total for % at root level; fall back to scan size
-            reference_size = self._drive_total_bytes or folder_info.size_bytes
+            # Use the scanned folder's own size as reference for 100%
+            reference_size = folder_info.size_bytes or 1
 
             # Add root item (the drive itself = 100%)
             root_item = self._create_tree_item(
@@ -645,9 +710,6 @@ class StorageView(QWidget):
             else:
                 item.setText(COL_PERCENT, "-")
 
-            # Last Modified
-            item.setText(COL_MODIFIED, folder_info.last_modified or "-")
-
             # Store data for later use
             item.setData(
                 COL_NAME, Qt.ItemDataRole.UserRole, folder_info.path)
@@ -666,20 +728,14 @@ class StorageView(QWidget):
                     Qt.AlignmentFlag.AlignRight
                     | Qt.AlignmentFlag.AlignVCenter)
 
-            # Center-align date column
-            item.setTextAlignment(
-                COL_MODIFIED,
-                Qt.AlignmentFlag.AlignCenter
-                | Qt.AlignmentFlag.AlignVCenter)
-
             # Bold for root item
             if is_root:
                 bold_font = QFont()
                 bold_font.setBold(True)
-                for col in range(7):
+                for col in range(NUM_COLUMNS):
                     item.setFont(col, bold_font)
                 root_bg = QBrush(QColor("#E8F0FE"))
-                for col in range(7):
+                for col in range(NUM_COLUMNS):
                     item.setBackground(col, root_bg)
 
             # % bar background tint (subtle yellow proportional to %)
@@ -747,8 +803,6 @@ class StorageView(QWidget):
                 else:
                     other_item.setText(COL_PERCENT, "-")
 
-                other_item.setText(COL_MODIFIED, "-")
-
                 other_item.setData(
                     COL_NAME, Qt.ItemDataRole.UserRole, "__other_files__")
                 other_item.setData(
@@ -761,10 +815,6 @@ class StorageView(QWidget):
                         col,
                         Qt.AlignmentFlag.AlignRight
                         | Qt.AlignmentFlag.AlignVCenter)
-                other_item.setTextAlignment(
-                    COL_MODIFIED,
-                    Qt.AlignmentFlag.AlignCenter
-                    | Qt.AlignmentFlag.AlignVCenter)
 
                 # Italic style for visual distinction
                 font = QFont()
@@ -987,11 +1037,53 @@ class StorageView(QWidget):
             self,
             item: QTreeWidgetItem,
             column: int) -> None:
-        """Handle double-click to scan deeper (legacy support)."""
+        """Handle double-click to navigate into subfolder."""
         try:
             path = item.data(COL_NAME, Qt.ItemDataRole.UserRole)
             if path and path not in ("__placeholder__", "__other_files__"):
                 if Path(path).is_dir():
-                    self._start_scan(path, max_depth=2)
+                    # Push current path to history for back navigation
+                    if self._current_scan_path:
+                        self._nav_history.append(self._current_scan_path)
+                        self._nav_forward.clear()
+                    self._current_scan_path = path
+                    self._update_nav_buttons()
+                    self._start_realtime_scan(path)
         except Exception as e:
             logger.error("Failed to handle double-click: %s", e)
+
+    def _on_navigate_back(self) -> None:
+        """Navigate back to the previous folder."""
+        try:
+            if not self._nav_history:
+                return
+            if self._current_scan_path:
+                self._nav_forward.append(self._current_scan_path)
+            prev_path = self._nav_history.pop()
+            self._current_scan_path = prev_path
+            self._update_nav_buttons()
+            self._start_realtime_scan(prev_path)
+        except Exception as e:
+            logger.error("Failed to navigate back: %s", e)
+
+    def _on_navigate_forward(self) -> None:
+        """Navigate forward to the next folder."""
+        try:
+            if not self._nav_forward:
+                return
+            if self._current_scan_path:
+                self._nav_history.append(self._current_scan_path)
+            next_path = self._nav_forward.pop()
+            self._current_scan_path = next_path
+            self._update_nav_buttons()
+            self._start_realtime_scan(next_path)
+        except Exception as e:
+            logger.error("Failed to navigate forward: %s", e)
+
+    def _update_nav_buttons(self) -> None:
+        """Update enabled state of back/forward buttons."""
+        try:
+            self._back_btn.setEnabled(len(self._nav_history) > 0)
+            self._forward_btn.setEnabled(len(self._nav_forward) > 0)
+        except Exception as e:
+            logger.error("Failed to update nav buttons: %s", e)
