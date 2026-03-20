@@ -532,25 +532,36 @@ class FolderScanner:
         self, path: str,
         items_scanned: Optional[List[int]] = None,
     ) -> Tuple[int, int]:
-        """Get total size and allocated size of folder without tracking children."""
+        """Get total size and allocated size using os.scandir (D6: avoid walk+stat)."""
         total = 0
         allocated = 0
+        stack = [path]
         try:
-            for root, dirs, files in os.walk(path):
+            while stack:
                 if self._cancel_flag.is_set():
                     return total, allocated
-                if items_scanned is not None:
-                    items_scanned[0] += len(files)
-                for f in files:
-                    try:
-                        fp = os.path.join(root, f)
-                        fsize = os.stat(fp).st_size
-                        total += fsize
-                        allocated += _calc_allocated(
-                            fsize, self._cluster_size)
-                    except (PermissionError, OSError) as e:
-                        logger.debug("Cannot get size of %s: %s", f, e)
-        except (PermissionError, OSError) as e:
+                current = stack.pop()
+                try:
+                    with os.scandir(current) as it:
+                        for entry in it:
+                            if self._cancel_flag.is_set():
+                                return total, allocated
+                            try:
+                                if entry.is_file(follow_symlinks=False):
+                                    fsize = entry.stat(
+                                        follow_symlinks=False).st_size
+                                    total += fsize
+                                    allocated += _calc_allocated(
+                                        fsize, self._cluster_size)
+                                    if items_scanned is not None:
+                                        items_scanned[0] += 1
+                                elif entry.is_dir(follow_symlinks=False):
+                                    stack.append(entry.path)
+                            except (PermissionError, OSError):
+                                pass
+                except (PermissionError, OSError) as e:
+                    logger.debug("Cannot scan %s: %s", current, e)
+        except Exception as e:
             logger.debug("Cannot walk path %s: %s", path, e)
         return total, allocated
 
