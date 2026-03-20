@@ -370,6 +370,8 @@ class StorageView(QWidget):
             self._scan_cache: dict[str, FolderInfo] = {}
             self._full_tree_cache: Optional[FolderInfo] = None
             self._path_index: dict[str, FolderInfo] = {}
+            self._scan_session_seq: int = 0
+            self._active_scan_session_id: Optional[int] = None
 
             # D1: Batch buffer for child scan results
             self._child_buffer: List[FolderInfo] = []
@@ -672,6 +674,11 @@ class StorageView(QWidget):
     def _start_realtime_scan(self, path: str) -> None:
         """Start a real-time scan that updates the tree incrementally."""
         try:
+            self._scan_session_seq += 1
+            session_id = self._scan_session_seq
+            self._active_scan_session_id = session_id
+            self._batch_timer.stop()
+            self._child_buffer.clear()
             self._tree.clear()
             self._tree.setSortingEnabled(False)
             self._scan_btn.setEnabled(False)
@@ -724,11 +731,14 @@ class StorageView(QWidget):
             self._realtime_worker = RealtimeScanWorker(
                 self._scanner, path)
             self._realtime_worker.child_scanned.connect(
-                self._on_child_scanned)
+                lambda child, sid=session_id:
+                self._on_child_scanned_session(sid, child))
             self._realtime_worker.progress.connect(
-                self._on_scan_progress)
+                lambda current_path, items_scanned, sid=session_id:
+                self._on_scan_progress_session(sid, current_path, items_scanned))
             self._realtime_worker.finished.connect(
-                self._on_realtime_finished)
+                lambda result, path_index, sid=session_id:
+                self._on_realtime_finished_session(sid, result, path_index))
             self._realtime_worker.start()
         except Exception as e:
             logger.error("Failed to start realtime scan: %s", e)
@@ -756,10 +766,45 @@ class StorageView(QWidget):
         """Cancel ongoing scan."""
         try:
             self._scanner.cancel()
+            self._active_scan_session_id = None
+            self._batch_timer.stop()
+            self._child_buffer.clear()
             self._cancel_btn.setEnabled(False)
             self._status_label.setText("Cancelling...")
         except Exception as e:
             logger.error("Failed to cancel scan: %s", e)
+
+    def _is_active_realtime_session(self, session_id: int) -> bool:
+        """Return True if signal belongs to the currently active scan session."""
+        return (
+            self._active_scan_session_id is not None
+            and session_id == self._active_scan_session_id
+        )
+
+    def _on_scan_progress_session(
+            self, session_id: int, current_path: str, items_scanned: int) -> None:
+        """Apply progress only for the active realtime session."""
+        if not self._is_active_realtime_session(session_id):
+            return
+        self._on_scan_progress(current_path, items_scanned)
+
+    def _on_child_scanned_session(
+            self, session_id: int, child_info: FolderInfo) -> None:
+        """Apply child updates only for the active realtime session."""
+        if not self._is_active_realtime_session(session_id):
+            return
+        self._on_child_scanned(child_info)
+
+    def _on_realtime_finished_session(
+            self,
+            session_id: int,
+            result: Optional[FolderInfo],
+            path_index: Optional[dict] = None) -> None:
+        """Finalize only the active realtime session; ignore stale completions."""
+        if not self._is_active_realtime_session(session_id):
+            return
+        self._on_realtime_finished(result, path_index)
+        self._active_scan_session_id = None
 
     @pyqtSlot(str, int)
     def _on_scan_progress(self, current_path: str, items_scanned: int) -> None:
@@ -803,6 +848,10 @@ class StorageView(QWidget):
     def _flush_child_buffer(self) -> None:
         """Flush buffered children into tree in one batch (D1, D2)."""
         try:
+            if self._active_scan_session_id is None:
+                self._child_buffer.clear()
+                self._batch_timer.stop()
+                return
             if not self._child_buffer or self._root_item is None:
                 self._batch_timer.stop()
                 return
@@ -933,11 +982,43 @@ class StorageView(QWidget):
                 self._path_index = path_index if path_index else {}
 
             self._status_label.setText(
-                f"Scan complete: {result.size_formatted()} in "
-                f"{result.file_count:,} files, "
-                f"{result.folder_count:,} folders")
+                self._build_scan_complete_text(result))
         except Exception as e:
             logger.error("Failed to handle realtime scan completion: %s", e)
+
+    @staticmethod
+    def _build_scan_complete_text(result: FolderInfo) -> str:
+        """Build completion text and include completeness accounting when present."""
+        base = (
+            f"Scan complete: {result.size_formatted()} in "
+            f"{result.file_count:,} files, "
+            f"{result.folder_count:,} folders"
+        )
+
+        stats = getattr(result, "scan_stats", None)
+        if stats is None:
+            return base
+
+        scanned_files = getattr(stats, "scanned_files", None)
+        scanned_dirs = getattr(stats, "scanned_dirs", None)
+        skipped = getattr(stats, "skipped_count", None)
+        reasons = getattr(stats, "skipped_reasons", None)
+
+        parts = []
+        if isinstance(scanned_files, int):
+            parts.append(f"scanned_files={scanned_files}")
+        if isinstance(scanned_dirs, int):
+            parts.append(f"scanned_dirs={scanned_dirs}")
+        if isinstance(skipped, int):
+            parts.append(f"skipped={skipped}")
+        if isinstance(reasons, dict) and reasons:
+            parts.append(
+                "skip_reasons=" + ", ".join(
+                    f"{k}:{v}" for k, v in sorted(reasons.items())))
+
+        if not parts:
+            return base
+        return f"{base} ({'; '.join(parts)})"
 
     @pyqtSlot(object)
     def _on_scan_finished(self, result: Optional[FolderInfo]) -> None:

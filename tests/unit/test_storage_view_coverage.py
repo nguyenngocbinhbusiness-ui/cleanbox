@@ -1,6 +1,7 @@
 """Tests for StorageView coverage - targeting exception paths and edge cases."""
 import pytest
 from unittest.mock import MagicMock, patch, PropertyMock
+from types import SimpleNamespace
 from PyQt6.QtWidgets import QApplication, QTreeWidgetItem
 
 from features.folder_scanner.service import FolderScanner, FolderInfo
@@ -306,3 +307,111 @@ class TestStorageViewCoverage:
         view._populate_tree(folder)
         
         assert view._tree.topLevelItemCount() > 0
+
+    def test_stale_progress_signal_is_ignored(self, qtbot, app):
+        """Signals from old sessions must not update current UI state."""
+        from ui.views.storage_view import StorageView
+        view = StorageView()
+        qtbot.addWidget(view)
+
+        view._active_scan_session_id = 2
+        with patch.object(view, "_on_scan_progress") as on_progress:
+            view._on_scan_progress_session(1, "C:\\old", 100)
+            on_progress.assert_not_called()
+            view._on_scan_progress_session(2, "C:\\new", 200)
+            on_progress.assert_called_once_with("C:\\new", 200)
+
+    def test_stale_child_signal_is_ignored(self, qtbot, app):
+        """Child results from old sessions must be ignored."""
+        from ui.views.storage_view import StorageView
+        view = StorageView()
+        qtbot.addWidget(view)
+
+        child = FolderInfo(
+            path="C:\\x",
+            name="x",
+            size_bytes=1,
+            allocated_bytes=4096,
+            file_count=1,
+            folder_count=0,
+            last_modified='',
+            children=[],
+        )
+        view._active_scan_session_id = 7
+        with patch.object(view, "_on_child_scanned") as on_child:
+            view._on_child_scanned_session(6, child)
+            on_child.assert_not_called()
+            view._on_child_scanned_session(7, child)
+            on_child.assert_called_once_with(child)
+
+    def test_stale_finish_signal_is_ignored(self, qtbot, app):
+        """Finalization from stale sessions must not be applied."""
+        from ui.views.storage_view import StorageView
+        view = StorageView()
+        qtbot.addWidget(view)
+
+        result = FolderInfo(
+            path="C:\\x",
+            name="x",
+            size_bytes=1,
+            allocated_bytes=4096,
+            file_count=1,
+            folder_count=0,
+            last_modified='',
+            children=[],
+        )
+        view._active_scan_session_id = 10
+        with patch.object(view, "_on_realtime_finished") as on_finished:
+            view._on_realtime_finished_session(9, result, {})
+            on_finished.assert_not_called()
+            view._on_realtime_finished_session(10, result, {})
+            on_finished.assert_called_once_with(result, {})
+            assert view._active_scan_session_id is None
+
+    def test_cancel_clears_active_session_and_buffer(self, qtbot, app):
+        """Cancel should invalidate session and clear pending batch buffer."""
+        from ui.views.storage_view import StorageView
+        view = StorageView()
+        qtbot.addWidget(view)
+
+        view._active_scan_session_id = 3
+        view._child_buffer.append(FolderInfo(
+            path="C:\\x",
+            name="x",
+            size_bytes=1,
+            allocated_bytes=4096,
+            file_count=1,
+            folder_count=0,
+            last_modified='',
+            children=[],
+        ))
+
+        view._on_cancel()
+        assert view._active_scan_session_id is None
+        assert view._child_buffer == []
+
+    def test_build_scan_complete_text_includes_scan_stats(self, qtbot, app):
+        """Completion text should include completeness accounting if provided."""
+        from ui.views.storage_view import StorageView
+        result = FolderInfo(
+            path="C:\\x",
+            name="x",
+            size_bytes=1024,
+            allocated_bytes=4096,
+            file_count=3,
+            folder_count=1,
+            last_modified='',
+            children=[],
+        )
+        result.scan_stats = SimpleNamespace(
+            scanned_files=3,
+            scanned_dirs=1,
+            skipped_count=2,
+            skipped_reasons={"permission_denied": 2},
+        )
+
+        text = StorageView._build_scan_complete_text(result)
+        assert "scanned_files=3" in text
+        assert "scanned_dirs=1" in text
+        assert "skipped=2" in text
+        assert "permission_denied:2" in text

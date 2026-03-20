@@ -76,7 +76,9 @@ class TestAppComplexFlows:
         
         with patch("sys.argv", ["cleanbox.exe"]), \
              patch.object(app_module, "QApplication") as MockQApp, \
-             patch.object(app_module, "registry") as mock_registry:
+             patch.object(app_module, "registry") as mock_registry, \
+             patch.object(app_module.atexit, "register"), \
+             patch.object(app_module.App, "_acquire_single_instance", return_value=True):
              
             # Setup mock app instance returned by constructor
             mock_qt_instance = MockQApp.return_value

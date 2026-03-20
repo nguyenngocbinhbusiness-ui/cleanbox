@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.0.18] - 2026-03-20
+
+### Added
+- Scan completeness accounting (`scanned_files`, `scanned_dirs`, skip counters and reasons) for folder scanning results.
+- Session isolation for real-time scan UI updates to ignore stale worker signals after cancel/restart.
+- Regression tests for scan stats aggregation and stale-session signal handling.
+
+### Changed
+- Scanner now streams `os.scandir()` entries instead of materializing full lists, reducing memory spikes on large folders.
+- Parallel scanner worker count is adaptive by CPU and configurable via `CLEANBOX_SCANNER_WORKERS`.
+- Realtime completion status text now includes completeness counters when available.
+
+### Fixed
+- Cancel flow now invalidates active scan session and clears pending buffered child updates.
+- Unit tests stabilized by removing modal-dialog side effects and aligning main-entry mocks with admin path.
+
+---
+
 ## [1.0.17] - 2026-01-09
 
 ### Fixed

@@ -39,6 +39,7 @@ class TestMainEntry:
         # Patch app.App because main() does 'from app import App'
         # app module is available because main.py modifies sys.path
         with patch("main.setup_logging") as mock_setup, \
+             patch("main.is_admin", return_value=True), \
              patch("app.App") as MockApp, \
              patch("logging.getLogger") as mock_logger:
             
@@ -55,6 +56,7 @@ class TestMainEntry:
     def test_main_error_start(self):
         """Test main catches exceptions from App."""
         with patch("main.setup_logging"), \
+             patch("main.is_admin", return_value=True), \
              patch("app.App") as MockApp, \
              patch("logging.getLogger"):
             
@@ -68,6 +70,7 @@ class TestMainEntry:
     def test_main_fail_app_init(self):
          """Test main catches App init failure."""
          with patch("main.setup_logging"), \
+              patch("main.is_admin", return_value=True), \
               patch("app.App", side_effect=Exception("Init failed")), \
               patch("logging.getLogger"):
              
