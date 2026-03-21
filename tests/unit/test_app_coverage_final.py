@@ -130,3 +130,10 @@ class TestAppCoverageFinal:
             app._refresh_storage_data()
             mock_log.error.assert_called()
 
+    def test_restart_with_admin_success(self, app):
+        """Cover restart-with-admin success path."""
+        with patch("app.ctypes.windll.shell32.ShellExecuteW", return_value=33), \
+             patch.object(app, "_do_exit") as do_exit:
+            app._restart_with_admin()
+            do_exit.assert_called_once()
+

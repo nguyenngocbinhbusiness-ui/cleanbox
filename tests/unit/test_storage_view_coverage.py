@@ -251,6 +251,59 @@ class TestStorageViewCoverage:
         
         assert len(refresh_emitted) == 1
 
+    def test_context_menu_adds_delete_and_open_location_actions(self, qtbot, app):
+        """Context menu should expose add, delete, and open-location actions."""
+        from ui.views.storage_view import StorageView
+        view = StorageView()
+        qtbot.addWidget(view)
+
+        item = QTreeWidgetItem(view._tree)
+        item.setData(0, 0x0100, "C:\\test")
+        view._tree.setCurrentItem(item)
+
+        fake_menu = MagicMock()
+        with patch("ui.views.storage_view.QMenu", return_value=fake_menu), \
+             patch.object(view._tree, "itemAt", return_value=item):
+            view._on_tree_context_menu(view._tree.visualItemRect(item).center())
+
+        assert fake_menu.addAction.call_count == 3
+
+    def test_open_file_location_uses_explorer_select(self, qtbot, app, tmp_path):
+        """Open file location should invoke Explorer with /select."""
+        from ui.views.storage_view import StorageView
+        view = StorageView()
+        qtbot.addWidget(view)
+
+        target = tmp_path / "demo.txt"
+        target.write_text("x")
+
+        with patch("ui.views.storage_view.subprocess.run") as run_mock:
+            view._on_open_file_location(str(target))
+
+        run_mock.assert_called_once()
+        assert run_mock.call_args[0][0][0] == "explorer"
+        assert run_mock.call_args[0][0][1] == "/select,"
+
+    def test_delete_item_uses_recycle_bin_and_removes_tree_item(self, qtbot, app, tmp_path):
+        """Delete should move the selected item to recycle bin and remove it from tree."""
+        from ui.views.storage_view import StorageView
+        view = StorageView()
+        qtbot.addWidget(view)
+
+        target = tmp_path / "demo.txt"
+        target.write_text("x")
+
+        item = QTreeWidgetItem(view._tree)
+        item.setData(0, 0x0100, str(target))
+        assert view._tree.topLevelItemCount() == 1
+
+        with patch("ui.views.storage_view.QMessageBox.warning", return_value=16384), \
+             patch("ui.views.storage_view.winshell.delete_file") as delete_mock:
+            view._on_delete_item(str(target), item)
+
+        delete_mock.assert_called_once()
+        assert view._tree.topLevelItemCount() == 0
+
     def test_on_item_double_clicked_directory(self, qtbot, app, tmp_path):
         """Test _on_item_double_clicked with valid directory."""
         from ui.views.storage_view import StorageView

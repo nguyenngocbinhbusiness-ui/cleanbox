@@ -161,6 +161,15 @@ class TestMainWindowConfigIntegration:
         window.set_autostart(fresh_config.auto_start_enabled)
         assert window.settings_view._autostart_cb.isChecked() == fresh_config.auto_start_enabled
 
+    def test_mainwindow_displays_run_as_admin_state(self, qapp, fresh_config):
+        from ui.main_window import MainWindow
+        window = MainWindow()
+        window.set_run_as_admin(fresh_config.run_as_admin_enabled)
+        assert (
+            window.settings_view._run_as_admin_cb.isChecked()
+            == fresh_config.run_as_admin_enabled
+        )
+
 
 # ============================================================================
 # MAINWINDOW-VIEWS INTEGRATION TESTS
@@ -224,6 +233,23 @@ class TestSettingsViewRegistryIntegration:
         view.autostart_changed.connect(lambda v: signals.append(v))
         view._autostart_cb.setChecked(True)
         view._on_autostart_changed(Qt.CheckState.Checked.value)
+        assert True in signals
+
+    def test_run_as_admin_signal_emits(self, qapp):
+        from ui.views import SettingsView
+        view = SettingsView()
+        signals = []
+        view.run_as_admin_changed.connect(lambda v: signals.append(v))
+        view._run_as_admin_cb.setChecked(True)
+        view._on_run_as_admin_changed(Qt.CheckState.Checked.value)
+        assert True in signals
+
+    def test_restart_as_admin_signal_emits(self, qapp):
+        from ui.views import SettingsView
+        view = SettingsView()
+        signals = []
+        view.restart_as_admin_requested.connect(lambda: signals.append(True))
+        view._on_restart_as_admin_requested()
         assert True in signals
 
 

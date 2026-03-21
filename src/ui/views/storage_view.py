@@ -1,5 +1,7 @@
 """Storage View - Displays drive information and folder sizes (TreeSize-like)."""
 import logging
+import os
+import subprocess
 import time
 from typing import Optional, List
 from pathlib import Path
@@ -19,6 +21,7 @@ from PyQt6.QtGui import (
 from features.storage_monitor import DriveInfo
 from features.folder_scanner import FolderScanner, FolderInfo, FileEntry, format_size
 from shared.utils import is_protected_path
+import winshell
 
 logger = logging.getLogger(__name__)
 
@@ -1398,7 +1401,7 @@ class StorageView(QWidget):
             logger.error("Failed to handle expand completion: %s", e)
 
     def _on_tree_context_menu(self, position) -> None:
-        """Show context menu with 'Add to Cleanup' option."""
+        """Show context menu for the selected file system item."""
         try:
             item = self._tree.itemAt(position)
             if item is None:
@@ -1415,6 +1418,16 @@ class StorageView(QWidget):
             add_action.triggered.connect(
                 lambda: self._on_add_to_cleanup(path))
             menu.addAction(add_action)
+
+            delete_action = QAction("Delete", self)
+            delete_action.triggered.connect(
+                lambda: self._on_delete_item(path, item))
+            menu.addAction(delete_action)
+
+            open_location_action = QAction("Open file location", self)
+            open_location_action.triggered.connect(
+                lambda: self._on_open_file_location(path))
+            menu.addAction(open_location_action)
 
             menu.exec(self._tree.viewport().mapToGlobal(position))
         except Exception as e:
@@ -1444,6 +1457,92 @@ class StorageView(QWidget):
             self._status_label.setText(f"Added to cleanup: {path}")
         except Exception as e:
             logger.error("Failed to add to cleanup: %s", e)
+
+    def _on_delete_item(
+        self,
+        path: str,
+        item: Optional[QTreeWidgetItem] = None,
+    ) -> None:
+        """Move the selected file or folder to the Recycle Bin."""
+        try:
+            if is_protected_path(path):
+                QMessageBox.warning(
+                    self,
+                    "Protected Path",
+                    f"'{path}' is a protected system path and cannot be deleted.",
+                )
+                return
+
+            target = Path(path)
+            if not target.exists():
+                QMessageBox.information(
+                    self,
+                    "Item Not Found",
+                    f"'{path}' no longer exists.",
+                )
+                return
+
+            result = QMessageBox.warning(
+                self,
+                "Confirm Delete",
+                f"Move '{path}' to the Recycle Bin?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Cancel,
+            )
+            if result != QMessageBox.StandardButton.Yes:
+                return
+
+            winshell.delete_file(
+                path,
+                allow_undo=True,
+                no_confirm=True,
+                silent=False,
+            )
+
+            if item is not None:
+                parent = item.parent()
+                if parent is not None:
+                    parent.removeChild(item)
+                else:
+                    index = self._tree.indexOfTopLevelItem(item)
+                    if index >= 0:
+                        self._tree.takeTopLevelItem(index)
+
+            self._status_label.setText(f"Deleted: {path}")
+        except Exception as e:
+            logger.error("Failed to delete item: %s", e)
+            QMessageBox.warning(self, "Delete Failed", f"Failed to delete '{path}': {e}")
+
+    def _on_open_file_location(self, path: str) -> None:
+        """Open Explorer and select the file or folder."""
+        try:
+            target = Path(path)
+            if not target.exists():
+                QMessageBox.information(
+                    self,
+                    "Item Not Found",
+                    f"'{path}' no longer exists.",
+                )
+                return
+
+            if os.name == "nt":
+                subprocess.run(
+                    ["explorer", "/select,", str(target)],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+            else:
+                os.startfile(str(target.parent if target.parent.exists() else target))
+
+            self._status_label.setText(f"Opened file location: {path}")
+        except Exception as e:
+            logger.error("Failed to open file location: %s", e)
+            QMessageBox.warning(
+                self,
+                "Open Location Failed",
+                f"Failed to open file location for '{path}': {e}",
+            )
 
     def _update_drive_summary(self) -> None:
         """Update the drive summary display with capacity bars."""

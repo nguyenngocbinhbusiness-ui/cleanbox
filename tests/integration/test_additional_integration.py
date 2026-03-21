@@ -150,9 +150,24 @@ class TestConfigPersistenceIntegration:
     
     def test_autostart_change_persists(self, fresh_config):
         """Test autostart change is saved."""
+        from shared.config import ConfigManager
+
         fresh_config.auto_start_enabled = not fresh_config.auto_start_enabled
-        # Verify save was called (setter should call save)
-        assert fresh_config._config.get("auto_start_enabled") is not None
+        reloaded_config = ConfigManager()
+
+        assert reloaded_config.auto_start_enabled == fresh_config.auto_start_enabled
+
+    def test_run_as_admin_change_persists(self, fresh_config):
+        """Test run-as-admin change is saved."""
+        from shared.config import ConfigManager
+
+        fresh_config.run_as_admin_enabled = not fresh_config.run_as_admin_enabled
+        reloaded_config = ConfigManager()
+
+        assert (
+            reloaded_config.run_as_admin_enabled
+            == fresh_config.run_as_admin_enabled
+        )
 
 
 class TestFolderScannerViewIntegration:
