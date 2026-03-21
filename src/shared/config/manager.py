@@ -45,7 +45,6 @@ class ConfigManager:
                 "low_space_threshold_gb": DEFAULT_THRESHOLD_GB,
                 "polling_interval_seconds": DEFAULT_POLLING_INTERVAL_SECONDS,
                 "auto_start_enabled": True,
-                "run_as_admin_enabled": True,
                 "notified_drives": [],
             }
         except Exception as e:
@@ -71,6 +70,7 @@ class ConfigManager:
             try:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     self._config = json.load(f)
+                self._config.pop("run_as_admin_enabled", None)
                 self._filter_protected_paths()
                 logger.info("Configuration loaded from %s", CONFIG_FILE)
                 return
@@ -82,6 +82,7 @@ class ConfigManager:
                 try:
                     with open(bak_file, "r", encoding="utf-8") as f:
                         self._config = json.load(f)
+                    self._config.pop("run_as_admin_enabled", None)
                     self._filter_protected_paths()
                     logger.warning("Recovered config from backup %s", bak_file)
                     return
@@ -228,24 +229,6 @@ class ConfigManager:
             self.save()
         except Exception as e:
             logger.error("Failed to set auto start: %s", e)
-
-    @property
-    def run_as_admin_enabled(self) -> bool:
-        """Check if app should request elevation on startup."""
-        try:
-            return self._config.get("run_as_admin_enabled", True)
-        except Exception as e:
-            logger.error("Failed to check run as admin: %s", e)
-            return True
-
-    @run_as_admin_enabled.setter
-    def run_as_admin_enabled(self, value: bool) -> None:
-        """Set whether app should request elevation on startup."""
-        try:
-            self._config["run_as_admin_enabled"] = value
-            self.save()
-        except Exception as e:
-            logger.error("Failed to set run as admin: %s", e)
 
     def get_notified_drives(self) -> List[str]:
         """Get list of drives that have been notified."""

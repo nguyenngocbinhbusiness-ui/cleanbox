@@ -8,30 +8,6 @@ src_path = Path(__file__).parent
 sys.path.insert(0, str(src_path))
 
 from shared.constants import APP_NAME, CONFIG_DIR
-from shared.elevation import is_admin, request_admin_restart
-
-
-def should_request_admin() -> bool:
-    """Check persisted setting for whether startup should request admin."""
-    try:
-        from shared.config import ConfigManager
-        return ConfigManager().run_as_admin_enabled
-    except Exception:
-        return True
-
-
-def run_as_admin() -> bool:
-    """Re-launch the current process with administrator privileges.
-
-    Returns True if elevation was requested (caller should exit),
-    False if elevation failed or was declined by the user.
-    """
-    try:
-        ret = request_admin_restart()
-        # ShellExecuteW returns > 32 on success
-        return ret > 32
-    except Exception:
-        return False
 
 
 def setup_logging() -> None:
@@ -61,18 +37,9 @@ def main() -> int:
     setup_logging()
     logger = logging.getLogger(__name__)
 
-    # Request admin privileges if configured and not already elevated
-    if should_request_admin() and not is_admin():
-        logger.info("Not running as admin, requesting elevation...")
-        if run_as_admin():
-            logger.info("Elevation requested, exiting current process")
-            return 0
-        else:
-            logger.warning("Admin elevation failed or declined, continuing without admin")
-
     try:
         logger.info("=" * 50)
-        logger.info("Starting %s (admin=%s)", APP_NAME, is_admin())
+        logger.info("Starting %s", APP_NAME)
         logger.info("=" * 50)
 
         from app import App

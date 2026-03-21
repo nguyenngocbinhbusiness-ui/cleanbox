@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 from shared.constants import CHECKBOX_CHECK_ICON_PATH
+from shared.elevation import is_admin
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,6 @@ class SettingsView(QWidget):
     """View for application settings."""
 
     autostart_changed = pyqtSignal(bool)
-    run_as_admin_changed = pyqtSignal(bool)
     restart_as_admin_requested = pyqtSignal()
     threshold_changed = pyqtSignal(int)
     interval_changed = pyqtSignal(int)
@@ -82,38 +82,33 @@ class SettingsView(QWidget):
             self._autostart_cb.stateChanged.connect(self._on_autostart_changed)
             startup_layout.addWidget(self._autostart_cb)
 
-            self._run_as_admin_cb = QCheckBox("Start as admin")
-            self._run_as_admin_cb.setCursor(Qt.CursorShape.PointingHandCursor)
-            self._run_as_admin_cb.setChecked(True)
-            self._run_as_admin_cb.setStyleSheet(self._checkbox_style())
-            self._run_as_admin_cb.stateChanged.connect(
-                self._on_run_as_admin_changed)
-            startup_layout.addWidget(self._run_as_admin_cb)
-
-            self._restart_admin_btn = QPushButton("Restart now with admin")
-            self._restart_admin_btn.setCursor(
-                Qt.CursorShape.PointingHandCursor)
-            self._restart_admin_btn.setMinimumHeight(36)
-            self._restart_admin_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #FFFFFF;
-                    color: #0F172A;
-                    border: 1px solid #CBD5E1;
-                    border-radius: 6px;
-                    padding: 8px 14px;
-                    font-weight: 600;
-                }
-                QPushButton:hover {
-                    background-color: #F8FAFC;
-                    border-color: #94A3B8;
-                }
-                QPushButton:pressed {
-                    background-color: #EEF2F7;
-                }
-            """)
-            self._restart_admin_btn.clicked.connect(
-                self._on_restart_as_admin_requested)
-            startup_layout.addWidget(self._restart_admin_btn)
+            if not is_admin():
+                self._restart_admin_btn = QPushButton("Restart now with admin")
+                self._restart_admin_btn.setCursor(
+                    Qt.CursorShape.PointingHandCursor)
+                self._restart_admin_btn.setMinimumHeight(36)
+                self._restart_admin_btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: #FFFFFF;
+                        color: #0F172A;
+                        border: 1px solid #CBD5E1;
+                        border-radius: 6px;
+                        padding: 8px 14px;
+                        font-weight: 600;
+                    }
+                    QPushButton:hover {
+                        background-color: #F8FAFC;
+                        border-color: #94A3B8;
+                    }
+                    QPushButton:pressed {
+                        background-color: #EEF2F7;
+                    }
+                """)
+                self._restart_admin_btn.clicked.connect(
+                    self._on_restart_as_admin_requested)
+                startup_layout.addWidget(self._restart_admin_btn)
+            else:
+                self._restart_admin_btn = None
 
             layout.addWidget(startup_group)
 
@@ -206,15 +201,6 @@ class SettingsView(QWidget):
         except Exception as e:
             logger.error("Failed to set autostart: %s", e)
 
-    def set_run_as_admin(self, enabled: bool) -> None:
-        """Set the run-as-admin checkbox state."""
-        try:
-            self._run_as_admin_cb.blockSignals(True)
-            self._run_as_admin_cb.setChecked(enabled)
-            self._run_as_admin_cb.blockSignals(False)
-        except Exception as e:
-            logger.error("Failed to set run as admin: %s", e)
-
     def set_threshold(self, value: int) -> None:
         """Set the threshold spinbox value."""
         try:
@@ -241,15 +227,6 @@ class SettingsView(QWidget):
             logger.info("Autostart changed: %s", enabled)
         except Exception as e:
             logger.error("Failed to change autostart: %s", e)
-
-    def _on_run_as_admin_changed(self, state: int) -> None:
-        """Handle run-as-admin checkbox change."""
-        try:
-            enabled = state == Qt.CheckState.Checked.value
-            self.run_as_admin_changed.emit(enabled)
-            logger.info("Run as admin changed: %s", enabled)
-        except Exception as e:
-            logger.error("Failed to change run as admin: %s", e)
 
     def _on_restart_as_admin_requested(self) -> None:
         """Handle restart-as-admin button click."""

@@ -102,8 +102,6 @@ class App(QObject):
                 self._on_directory_removed)
             self._main_window.autostart_changed.connect(
                 self._on_autostart_changed)
-            self._main_window.run_as_admin_changed.connect(
-                self._on_run_as_admin_changed)
             self._main_window.restart_as_admin_requested.connect(
                 self._restart_with_admin)
             self._main_window.cleanup_requested.connect(self._do_cleanup)
@@ -114,8 +112,6 @@ class App(QObject):
             self._main_window.update_directories(
                 self._config.cleanup_directories)
             self._main_window.set_autostart(self._config.auto_start_enabled)
-            self._main_window.set_run_as_admin(
-                self._config.run_as_admin_enabled)
             self._main_window.set_threshold(self._config.threshold_gb)
             self._main_window.set_interval(self._config.polling_interval)
 
@@ -433,14 +429,6 @@ class App(QObject):
                 registry.disable_autostart()
         except Exception as e:
             logger.error("Failed to change autostart to %s: %s", enabled, e)
-
-    @pyqtSlot(bool)
-    def _on_run_as_admin_changed(self, enabled: bool) -> None:
-        """Handle run-as-admin toggle for future launches."""
-        try:
-            self._config.run_as_admin_enabled = enabled
-        except Exception as e:
-            logger.error("Failed to change run-as-admin to %s: %s", enabled, e)
 
     @pyqtSlot()
     def _restart_with_admin(self) -> None:

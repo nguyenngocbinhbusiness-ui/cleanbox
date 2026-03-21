@@ -25,7 +25,6 @@ class MainWindow(QMainWindow):
     directory_added = pyqtSignal(str)
     directory_removed = pyqtSignal(str)
     autostart_changed = pyqtSignal(bool)
-    run_as_admin_changed = pyqtSignal(bool)
     restart_as_admin_requested = pyqtSignal()
     cleanup_requested = pyqtSignal()
     refresh_storage = pyqtSignal()
@@ -156,8 +155,6 @@ class MainWindow(QMainWindow):
             self.settings_view = SettingsView()
             self.settings_view.autostart_changed.connect(
                 self.autostart_changed.emit)
-            self.settings_view.run_as_admin_changed.connect(
-                self.run_as_admin_changed.emit)
             self.settings_view.restart_as_admin_requested.connect(
                 self.restart_as_admin_requested.emit)
             self.views["settings"] = self.settings_view
@@ -195,13 +192,6 @@ class MainWindow(QMainWindow):
             self.settings_view.set_autostart(enabled)
         except Exception as e:
             logger.error("Failed to set autostart: %s", e)
-
-    def set_run_as_admin(self, enabled: bool):
-        """Set run-as-admin checkbox state in settings view."""
-        try:
-            self.settings_view.set_run_as_admin(enabled)
-        except Exception as e:
-            logger.error("Failed to set run as admin: %s", e)
 
     def set_threshold(self, value: int):
         """Set threshold value in settings view."""

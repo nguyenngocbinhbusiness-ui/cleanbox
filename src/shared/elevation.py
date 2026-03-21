@@ -15,12 +15,22 @@ def is_admin() -> bool:
         return False
 
 
+def _get_current_process_image_path() -> str:
+    """Return the full path to the current process image from Windows."""
+    buffer = ctypes.create_unicode_buffer(32768)
+    length = ctypes.windll.kernel32.GetModuleFileNameW(None, buffer, len(buffer))
+    if length == 0:
+        raise ctypes.WinError()
+    return os.path.abspath(buffer.value)
+
+
 def get_elevation_launch_args() -> tuple[str, Optional[str], str]:
     """Build stable launch arguments for requesting elevation."""
-    if getattr(sys, "frozen", False):
-        executable = os.path.abspath(sys.argv[0] or sys.executable)
-        if not executable.lower().endswith(".exe"):
-            executable = os.path.abspath(sys.executable)
+    argv0 = sys.argv[0] if sys.argv else ""
+    launched_as_exe = Path(argv0).suffix.lower() == ".exe"
+
+    if getattr(sys, "frozen", False) or launched_as_exe:
+        executable = _get_current_process_image_path()
         params = subprocess.list2cmdline(sys.argv[1:]) if len(sys.argv) > 1 else ""
     else:
         executable = os.path.abspath(sys.executable)
