@@ -1,7 +1,5 @@
 """CleanBox - Main entry point."""
-import ctypes
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -10,6 +8,7 @@ src_path = Path(__file__).parent
 sys.path.insert(0, str(src_path))
 
 from shared.constants import APP_NAME, CONFIG_DIR
+from shared.elevation import is_admin, request_admin_restart
 
 
 def should_request_admin() -> bool:
@@ -21,14 +20,6 @@ def should_request_admin() -> bool:
         return True
 
 
-def is_admin() -> bool:
-    """Check if the current process has administrator privileges."""
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin() != 0
-    except Exception:
-        return False
-
-
 def run_as_admin() -> bool:
     """Re-launch the current process with administrator privileges.
 
@@ -36,20 +27,7 @@ def run_as_admin() -> bool:
     False if elevation failed or was declined by the user.
     """
     try:
-        if getattr(sys, "frozen", False):
-            # Packaged exe
-            executable = sys.executable
-            params = " ".join(sys.argv[1:])
-        else:
-            # Running from source
-            executable = sys.executable
-            params = f'"{os.path.abspath(sys.argv[0])}"'
-            if len(sys.argv) > 1:
-                params += " " + " ".join(sys.argv[1:])
-
-        ret = ctypes.windll.shell32.ShellExecuteW(
-            None, "runas", executable, params, None, 1
-        )
+        ret = request_admin_restart()
         # ShellExecuteW returns > 32 on success
         return ret > 32
     except Exception:

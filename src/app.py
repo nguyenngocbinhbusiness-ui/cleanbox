@@ -1,8 +1,6 @@
 """CleanBox Application Orchestrator."""
 import atexit
-import ctypes
 import logging
-import os
 import sys
 from typing import Optional
 
@@ -12,6 +10,7 @@ from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 
 from shared.config import ConfigManager
 from shared.constants import APP_NAME
+from shared.elevation import request_admin_restart
 from shared import registry
 from features.cleanup import CleanupService, CleanupProgressWorker, get_default_directories
 from features.storage_monitor import StorageMonitor, DriveInfo
@@ -447,31 +446,15 @@ class App(QObject):
     def _restart_with_admin(self) -> None:
         """Restart the app and request admin rights for the new process."""
         try:
-            if getattr(sys, "frozen", False):
-                executable = sys.executable
-                params = " ".join(f'"{arg}"' for arg in sys.argv[1:])
-            else:
-                executable = sys.executable
-                params = f'"{os.path.abspath(sys.argv[0])}"'
-                if len(sys.argv) > 1:
-                    params += " " + " ".join(
-                        f'"{arg}"' if " " in arg else arg
-                        for arg in sys.argv[1:]
-                    )
-
-            ret = ctypes.windll.shell32.ShellExecuteW(
-                None,
-                "runas",
-                executable,
-                params,
-                None,
-                1,
-            )
+            ret = request_admin_restart()
             if ret <= 32:
                 QMessageBox.warning(
                     self._main_window,
                     "Restart Failed",
-                    "Could not restart CleanBox with administrator rights.",
+                    (
+                        "Could not restart CleanBox with administrator rights. "
+                        f"Windows error code: {ret}."
+                    ),
                 )
                 return
 

@@ -464,7 +464,30 @@ class TestStorageViewCoverage:
         )
 
         text = StorageView._build_scan_complete_text(result)
+        assert "\n" in text
         assert "scanned_files=3" in text
         assert "scanned_dirs=1" in text
         assert "skipped=2" in text
         assert "permission_denied:2" in text
+
+    def test_status_label_wraps_without_growing_horizontally(self, qtbot, app):
+        """Status label should wrap long scan summaries instead of stretching layout."""
+        from ui.views.storage_view import StorageView
+        view = StorageView()
+        qtbot.addWidget(view)
+
+        assert view._status_label.wordWrap() is True
+        max_height = view._status_label.maximumHeight()
+        assert max_height <= view._status_label.fontMetrics().lineSpacing() * 2 + 8
+
+        text = view._build_scan_complete_text(FolderInfo(
+            path="C:\\x",
+            name="x",
+            size_bytes=1024,
+            allocated_bytes=4096,
+            file_count=3,
+            folder_count=1,
+            last_modified='',
+            children=[],
+        ))
+        assert text.startswith("Scan complete:")

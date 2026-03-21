@@ -1,8 +1,7 @@
 
 import pytest
 import sys
-import logging
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from pathlib import Path
 
 # Import main (requires path hack manipulation if not installed as package, 
@@ -85,6 +84,14 @@ class TestMainEntry:
         with patch("shared.config.ConfigManager") as MockConfig:
             MockConfig.return_value.run_as_admin_enabled = False
             assert should_request_admin() is False
+
+    def test_run_as_admin_uses_shared_restart_helper(self):
+        """Elevation path should delegate to shared restart helper."""
+        from main import run_as_admin
+
+        with patch("main.request_admin_restart", return_value=33) as restart_mock:
+            assert run_as_admin() is True
+            restart_mock.assert_called_once()
 
     def test_main_skips_elevation_when_disabled(self):
         """Test main does not request elevation when setting is disabled."""

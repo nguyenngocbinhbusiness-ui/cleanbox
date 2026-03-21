@@ -132,8 +132,17 @@ class TestAppCoverageFinal:
 
     def test_restart_with_admin_success(self, app):
         """Cover restart-with-admin success path."""
-        with patch("app.ctypes.windll.shell32.ShellExecuteW", return_value=33), \
+        with patch("app.request_admin_restart", return_value=33), \
              patch.object(app, "_do_exit") as do_exit:
             app._restart_with_admin()
             do_exit.assert_called_once()
+
+    def test_restart_with_admin_shows_error_code(self, app):
+        """Failure path should surface the Windows error code."""
+        with patch("app.request_admin_restart", return_value=5), \
+             patch("app.QMessageBox.warning") as warning_mock:
+            app._restart_with_admin()
+
+        warning_mock.assert_called_once()
+        assert "Windows error code: 5" in warning_mock.call_args[0][2]
 

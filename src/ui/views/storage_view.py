@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTreeWidget, QTreeWidgetItem,
     QHeaderView, QProgressBar, QLabel, QFrame, QPushButton, QComboBox,
     QMenu, QMessageBox, QStyledItemDelegate, QStyleOptionViewItem,
-    QStyle, QApplication, QFileIconProvider
+    QStyle, QApplication, QFileIconProvider, QSizePolicy
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QThread, pyqtSlot, QRect, QFileInfo, QTimer
 from PyQt6.QtGui import (
@@ -514,6 +514,14 @@ class StorageView(QWidget):
             # Status label
             self._status_label = QLabel("")
             self._status_label.setStyleSheet("color: #666666; font-size: 11px;")
+            self._status_label.setWordWrap(True)
+            self._status_label.setSizePolicy(
+                QSizePolicy.Policy.Expanding,
+                QSizePolicy.Policy.Fixed,
+            )
+            self._status_label.setMaximumHeight(
+                self._status_label.fontMetrics().lineSpacing() * 2 + 4
+            )
             layout.addWidget(self._status_label)
 
             # Drive summary section with capacity bars
@@ -1015,13 +1023,16 @@ class StorageView(QWidget):
         if isinstance(skipped, int):
             parts.append(f"skipped={skipped}")
         if isinstance(reasons, dict) and reasons:
-            parts.append(
-                "skip_reasons=" + ", ".join(
-                    f"{k}:{v}" for k, v in sorted(reasons.items())))
+            reason_items = [f"{k}:{v}" for k, v in sorted(reasons.items())]
+            extra_count = max(0, len(reason_items) - 2)
+            compact_reasons = ", ".join(reason_items[:2])
+            if extra_count:
+                compact_reasons += f", +{extra_count} more"
+            parts.append(f"skip_reasons={compact_reasons}")
 
         if not parts:
             return base
-        return f"{base} ({'; '.join(parts)})"
+        return f"{base}\n{'; '.join(parts)}"
 
     @pyqtSlot(object)
     def _on_scan_finished(self, result: Optional[FolderInfo]) -> None:
@@ -1036,8 +1047,7 @@ class StorageView(QWidget):
                 return
 
             self._status_label.setText(
-                f"Scan complete: {result.size_formatted()} in "
-                f"{result.file_count:,} files")
+                self._build_scan_complete_text(result))
 
             # Cache result for back/forward navigation
             if self._current_scan_path:
