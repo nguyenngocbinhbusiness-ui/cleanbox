@@ -1,8 +1,7 @@
 
 import pytest
-from unittest.mock import MagicMock, patch, ANY
-from pathlib import Path
-from features.folder_scanner.service import FolderScanner, FolderInfo
+from unittest.mock import MagicMock, patch
+from features.folder_scanner.service import FolderScanner, FolderInfo, ScanStats
 
 class TestFolderScannerCoverage:
     
@@ -60,21 +59,11 @@ class TestFolderScannerCoverage:
         assert scanner._get_folder_size_fast("C:/Test") == (0, 0)
 
     def test_get_folder_size_fast_errors(self, scanner):
-        """Cover os.walk errors in fast scan."""
-        # 1. os.walk raises PermissionError
-        with patch("os.walk", side_effect=PermissionError("No Access")), \
+        """Cover scandir/stat errors in fast scan."""
+        with patch("os.scandir", side_effect=PermissionError("No Access")), \
              patch("features.folder_scanner.service.logger") as mock_log:
-            
             scanner._get_folder_size_fast("C:/Test")
             mock_log.debug.assert_called()
-            
-        # 2. os.stat raises OSError inside loop
-        with patch("os.walk", return_value=[("root", [], ["file1"])]), \
-             patch("os.stat", side_effect=OSError("Disk Error")), \
-             patch("features.folder_scanner.service.logger") as mock_log:
-             
-             scanner._get_folder_size_fast("C:/Test")
-             mock_log.debug.assert_called()
 
     def test_scan_recursive_max_depth_reached(self, scanner):
         """Cover max_depth logic calling _get_folder_size_fast."""
@@ -101,7 +90,9 @@ class TestFolderScannerCoverage:
              
              res = scanner.scan_folder("C:/Root", max_depth=1)
              
-             mock_fast.assert_called_with("C:/Root/Sub", ANY)
+             mock_fast.assert_called()
+             assert mock_fast.call_args.args[0] == "C:/Root/Sub"
+             assert isinstance(mock_fast.call_args.args[1], list)
              assert res.size_bytes == 500
              assert res.children[0].size_bytes == 500
 
@@ -119,3 +110,22 @@ class TestFolderScannerCoverage:
             with patch("features.folder_scanner.service.logger") as mock_log:
                 scanner.scan_folder("C:/Root")
                 mock_log.debug.assert_called()
+
+    def test_scan_stats_records_permission_skips(self, scanner):
+        """Permission denied should be reflected in scan stats."""
+        with patch("os.scandir", side_effect=PermissionError("Access denied")):
+            result = scanner.scan_folder("C:/Denied")
+        assert result is not None
+        assert result.scan_stats.skipped_count >= 1
+        assert result.scan_stats.skipped_reasons.get("permission_denied", 0) >= 1
+
+    def test_scan_stats_default_and_merge(self):
+        """ScanStats merge should aggregate deterministically."""
+        left = ScanStats(scanned_entries=1, skipped_count=1, skipped_reasons={"permission_denied": 1})
+        right = ScanStats(scanned_entries=2, scanned_files=3, skipped_count=2, skipped_reasons={"os_error": 2})
+        left.merge(right)
+        assert left.scanned_entries == 3
+        assert left.scanned_files == 3
+        assert left.skipped_count == 3
+        assert left.skipped_reasons["permission_denied"] == 1
+        assert left.skipped_reasons["os_error"] == 2

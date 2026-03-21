@@ -12,6 +12,15 @@ sys.path.insert(0, str(src_path))
 from shared.constants import APP_NAME, CONFIG_DIR
 
 
+def should_request_admin() -> bool:
+    """Check persisted setting for whether startup should request admin."""
+    try:
+        from shared.config import ConfigManager
+        return ConfigManager().run_as_admin_enabled
+    except Exception:
+        return True
+
+
 def is_admin() -> bool:
     """Check if the current process has administrator privileges."""
     try:
@@ -74,8 +83,8 @@ def main() -> int:
     setup_logging()
     logger = logging.getLogger(__name__)
 
-    # Request admin privileges if not already elevated
-    if not is_admin():
+    # Request admin privileges if configured and not already elevated
+    if should_request_admin() and not is_admin():
         logger.info("Not running as admin, requesting elevation...")
         if run_as_admin():
             logger.info("Elevation requested, exiting current process")

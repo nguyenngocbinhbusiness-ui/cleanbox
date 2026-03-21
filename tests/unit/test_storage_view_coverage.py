@@ -1,6 +1,7 @@
 """Tests for StorageView coverage - targeting exception paths and edge cases."""
 import pytest
 from unittest.mock import MagicMock, patch, PropertyMock
+from types import SimpleNamespace
 from PyQt6.QtWidgets import QApplication, QTreeWidgetItem
 
 from features.folder_scanner.service import FolderScanner, FolderInfo
@@ -250,6 +251,59 @@ class TestStorageViewCoverage:
         
         assert len(refresh_emitted) == 1
 
+    def test_context_menu_adds_delete_and_open_location_actions(self, qtbot, app):
+        """Context menu should expose add, delete, and open-location actions."""
+        from ui.views.storage_view import StorageView
+        view = StorageView()
+        qtbot.addWidget(view)
+
+        item = QTreeWidgetItem(view._tree)
+        item.setData(0, 0x0100, "C:\\test")
+        view._tree.setCurrentItem(item)
+
+        fake_menu = MagicMock()
+        with patch("ui.views.storage_view.QMenu", return_value=fake_menu), \
+             patch.object(view._tree, "itemAt", return_value=item):
+            view._on_tree_context_menu(view._tree.visualItemRect(item).center())
+
+        assert fake_menu.addAction.call_count == 3
+
+    def test_open_file_location_uses_explorer_select(self, qtbot, app, tmp_path):
+        """Open file location should invoke Explorer with /select."""
+        from ui.views.storage_view import StorageView
+        view = StorageView()
+        qtbot.addWidget(view)
+
+        target = tmp_path / "demo.txt"
+        target.write_text("x")
+
+        with patch("ui.views.storage_view.subprocess.run") as run_mock:
+            view._on_open_file_location(str(target))
+
+        run_mock.assert_called_once()
+        assert run_mock.call_args[0][0][0] == "explorer"
+        assert run_mock.call_args[0][0][1] == "/select,"
+
+    def test_delete_item_uses_recycle_bin_and_removes_tree_item(self, qtbot, app, tmp_path):
+        """Delete should move the selected item to recycle bin and remove it from tree."""
+        from ui.views.storage_view import StorageView
+        view = StorageView()
+        qtbot.addWidget(view)
+
+        target = tmp_path / "demo.txt"
+        target.write_text("x")
+
+        item = QTreeWidgetItem(view._tree)
+        item.setData(0, 0x0100, str(target))
+        assert view._tree.topLevelItemCount() == 1
+
+        with patch("ui.views.storage_view.QMessageBox.warning", return_value=16384), \
+             patch("ui.views.storage_view.winshell.delete_file") as delete_mock:
+            view._on_delete_item(str(target), item)
+
+        delete_mock.assert_called_once()
+        assert view._tree.topLevelItemCount() == 0
+
     def test_on_item_double_clicked_directory(self, qtbot, app, tmp_path):
         """Test _on_item_double_clicked with valid directory."""
         from ui.views.storage_view import StorageView
@@ -306,3 +360,111 @@ class TestStorageViewCoverage:
         view._populate_tree(folder)
         
         assert view._tree.topLevelItemCount() > 0
+
+    def test_stale_progress_signal_is_ignored(self, qtbot, app):
+        """Signals from old sessions must not update current UI state."""
+        from ui.views.storage_view import StorageView
+        view = StorageView()
+        qtbot.addWidget(view)
+
+        view._active_scan_session_id = 2
+        with patch.object(view, "_on_scan_progress") as on_progress:
+            view._on_scan_progress_session(1, "C:\\old", 100)
+            on_progress.assert_not_called()
+            view._on_scan_progress_session(2, "C:\\new", 200)
+            on_progress.assert_called_once_with("C:\\new", 200)
+
+    def test_stale_child_signal_is_ignored(self, qtbot, app):
+        """Child results from old sessions must be ignored."""
+        from ui.views.storage_view import StorageView
+        view = StorageView()
+        qtbot.addWidget(view)
+
+        child = FolderInfo(
+            path="C:\\x",
+            name="x",
+            size_bytes=1,
+            allocated_bytes=4096,
+            file_count=1,
+            folder_count=0,
+            last_modified='',
+            children=[],
+        )
+        view._active_scan_session_id = 7
+        with patch.object(view, "_on_child_scanned") as on_child:
+            view._on_child_scanned_session(6, child)
+            on_child.assert_not_called()
+            view._on_child_scanned_session(7, child)
+            on_child.assert_called_once_with(child)
+
+    def test_stale_finish_signal_is_ignored(self, qtbot, app):
+        """Finalization from stale sessions must not be applied."""
+        from ui.views.storage_view import StorageView
+        view = StorageView()
+        qtbot.addWidget(view)
+
+        result = FolderInfo(
+            path="C:\\x",
+            name="x",
+            size_bytes=1,
+            allocated_bytes=4096,
+            file_count=1,
+            folder_count=0,
+            last_modified='',
+            children=[],
+        )
+        view._active_scan_session_id = 10
+        with patch.object(view, "_on_realtime_finished") as on_finished:
+            view._on_realtime_finished_session(9, result, {})
+            on_finished.assert_not_called()
+            view._on_realtime_finished_session(10, result, {})
+            on_finished.assert_called_once_with(result, {})
+            assert view._active_scan_session_id is None
+
+    def test_cancel_clears_active_session_and_buffer(self, qtbot, app):
+        """Cancel should invalidate session and clear pending batch buffer."""
+        from ui.views.storage_view import StorageView
+        view = StorageView()
+        qtbot.addWidget(view)
+
+        view._active_scan_session_id = 3
+        view._child_buffer.append(FolderInfo(
+            path="C:\\x",
+            name="x",
+            size_bytes=1,
+            allocated_bytes=4096,
+            file_count=1,
+            folder_count=0,
+            last_modified='',
+            children=[],
+        ))
+
+        view._on_cancel()
+        assert view._active_scan_session_id is None
+        assert view._child_buffer == []
+
+    def test_build_scan_complete_text_includes_scan_stats(self, qtbot, app):
+        """Completion text should include completeness accounting if provided."""
+        from ui.views.storage_view import StorageView
+        result = FolderInfo(
+            path="C:\\x",
+            name="x",
+            size_bytes=1024,
+            allocated_bytes=4096,
+            file_count=3,
+            folder_count=1,
+            last_modified='',
+            children=[],
+        )
+        result.scan_stats = SimpleNamespace(
+            scanned_files=3,
+            scanned_dirs=1,
+            skipped_count=2,
+            skipped_reasons={"permission_denied": 2},
+        )
+
+        text = StorageView._build_scan_complete_text(result)
+        assert "scanned_files=3" in text
+        assert "scanned_dirs=1" in text
+        assert "skipped=2" in text
+        assert "permission_denied:2" in text

@@ -1,9 +1,9 @@
 """CleanBox Application Orchestrator."""
 import atexit
+import ctypes
 import logging
-import sys
-import tempfile
 import os
+import sys
 from typing import Optional
 
 from PyQt6.QtWidgets import QApplication, QMessageBox
@@ -103,6 +103,10 @@ class App(QObject):
                 self._on_directory_removed)
             self._main_window.autostart_changed.connect(
                 self._on_autostart_changed)
+            self._main_window.run_as_admin_changed.connect(
+                self._on_run_as_admin_changed)
+            self._main_window.restart_as_admin_requested.connect(
+                self._restart_with_admin)
             self._main_window.cleanup_requested.connect(self._do_cleanup)
             self._main_window.refresh_storage.connect(
                 self._refresh_storage_data)
@@ -111,6 +115,8 @@ class App(QObject):
             self._main_window.update_directories(
                 self._config.cleanup_directories)
             self._main_window.set_autostart(self._config.auto_start_enabled)
+            self._main_window.set_run_as_admin(
+                self._config.run_as_admin_enabled)
             self._main_window.set_threshold(self._config.threshold_gb)
             self._main_window.set_interval(self._config.polling_interval)
 
@@ -428,6 +434,56 @@ class App(QObject):
                 registry.disable_autostart()
         except Exception as e:
             logger.error("Failed to change autostart to %s: %s", enabled, e)
+
+    @pyqtSlot(bool)
+    def _on_run_as_admin_changed(self, enabled: bool) -> None:
+        """Handle run-as-admin toggle for future launches."""
+        try:
+            self._config.run_as_admin_enabled = enabled
+        except Exception as e:
+            logger.error("Failed to change run-as-admin to %s: %s", enabled, e)
+
+    @pyqtSlot()
+    def _restart_with_admin(self) -> None:
+        """Restart the app and request admin rights for the new process."""
+        try:
+            if getattr(sys, "frozen", False):
+                executable = sys.executable
+                params = " ".join(f'"{arg}"' for arg in sys.argv[1:])
+            else:
+                executable = sys.executable
+                params = f'"{os.path.abspath(sys.argv[0])}"'
+                if len(sys.argv) > 1:
+                    params += " " + " ".join(
+                        f'"{arg}"' if " " in arg else arg
+                        for arg in sys.argv[1:]
+                    )
+
+            ret = ctypes.windll.shell32.ShellExecuteW(
+                None,
+                "runas",
+                executable,
+                params,
+                None,
+                1,
+            )
+            if ret <= 32:
+                QMessageBox.warning(
+                    self._main_window,
+                    "Restart Failed",
+                    "Could not restart CleanBox with administrator rights.",
+                )
+                return
+
+            logger.info("Restarted CleanBox with admin request")
+            self._do_exit()
+        except Exception as e:
+            logger.error("Failed to restart with admin: %s", e)
+            QMessageBox.warning(
+                self._main_window,
+                "Restart Failed",
+                f"Could not restart CleanBox with administrator rights: {e}",
+            )
 
     @pyqtSlot()
     def _refresh_storage_data(self) -> None:

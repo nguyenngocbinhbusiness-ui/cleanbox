@@ -3,7 +3,7 @@ import pytest
 import os
 from unittest.mock import MagicMock, patch
 from pathlib import Path
-from features.folder_scanner.service import FolderScanner, FolderInfo
+from features.folder_scanner.service import FolderScanner, FolderInfo, ScanStats
 
 class TestFolderScanner:
     def test_scan_folder_valid(self, tmp_path):
@@ -59,7 +59,8 @@ class TestFolderScanner:
         
         # Try scanning while cancelled (call internal method that checks flag)
         # scan_folder clears flag, so we must test internal logic or mock side effect
-        result = scanner._scan_recursive(str(tmp_path), 1, 0, None, [0], [0.0])
+        result = scanner._scan_recursive(
+            str(tmp_path), 1, 0, None, [0], [0.0], ScanStats())
         # Logic says: if is_set, return None
         assert result is None
 

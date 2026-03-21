@@ -32,6 +32,8 @@ class TestCoverageApp:
         # Mock components to avoid full UI
         with patch("app.MainWindow"), patch("app.TrayIcon"), patch("app.ConfigManager"):
             app = App()
+            # Avoid opening real modal confirmation dialogs in unit test runs.
+            app._config.cleanup_directories = []
             
             # Hit _handle_first_run
             app._config.get.return_value = True  # first_run = True
@@ -103,7 +105,7 @@ class TestCoverageViews:
         # Hit _on_scan (needs combo selection)
         view._drive_combo.addItem("C:", "C:")
         view._drive_combo.setCurrentIndex(0)
-        with patch.object(view, "_start_scan") as mock_start:
+        with patch.object(view, "_start_realtime_scan") as mock_start:
             view._on_scan()
             mock_start.assert_called()
         

@@ -25,6 +25,7 @@ def _get_assets_dir() -> Path:
 # Shared icon path - USE THIS EVERYWHERE
 ASSETS_DIR = _get_assets_dir()
 ICON_PATH = ASSETS_DIR / "icon.png"
+CHECKBOX_CHECK_ICON_PATH = ASSETS_DIR / "checkbox-check.svg"
 
 # Default Configuration
 DEFAULT_THRESHOLD_GB = 10
