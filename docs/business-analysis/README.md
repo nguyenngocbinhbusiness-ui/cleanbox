@@ -1,21 +1,18 @@
-# Business Analysis Files
+# Chỉ mục Business Analysis
 
-Index of all business analysis document versions.
+Danh mục tài liệu phân tích nghiệp vụ của CleanBox.
 
-## Version History
+## Phiên bản
 
-| Version | Date | Status | Change Summary |
-|---------|------|--------|----------------|
-| [v1](./business_analysis_v1.md) | 2026-01-01 | draft | Initial business analysis for Storage Monitor & Directory Cleanup desktop app |
+| Phiên bản | Ngày | Trạng thái | Ghi chú |
+|----------|------|------------|--------|
+| [v5](./business_analysis_v5.md) | 2026-03-22 | active | Bản tiếng Việt, đồng bộ trạng thái phần mềm hiện tại (`1.0.18`) |
+| [v4](./business_analysis_v4.md) | 2026-01-04 | archived | Snapshot lịch sử |
+| [v3](./business_analysis_v3.md) | 2026-01-02 | archived | Snapshot lịch sử |
+| [v2](./business_analysis_v2.md) | 2026-01-01 | archived | Snapshot lịch sử |
+| [v1](./business_analysis_v1.md) | 2026-01-01 | archived | Snapshot lịch sử |
 
-## Active Version
+## Quy ước
 
-**Current**: [business_analysis_v1.md](./business_analysis_v1.md)
-
-## Projects/Features Covered
-
-- **CleanBox - Storage Monitor & Cleanup App** (v1)
-  - System tray app
-  - Storage monitoring
-  - One-click directory cleanup
-  - Persistent configuration
+- `active`: tài liệu đang được dùng làm chuẩn tham chiếu.
+- `archived`: tài liệu lịch sử, có thể không phản ánh đầy đủ trạng thái code hiện tại.

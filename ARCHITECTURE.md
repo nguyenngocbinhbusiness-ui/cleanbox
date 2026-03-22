@@ -1,14 +1,14 @@
-# Architecture
+# Kiến trúc CleanBox
 
-## Overview
+## Tổng quan
 
-CleanBox is a single-process Windows desktop application built on PyQt6. `src/main.py` bootstraps logging, then creates `App`, which owns configuration, background services, the main window, and the tray icon.
+CleanBox là ứng dụng desktop Windows chạy một tiến trình, dùng PyQt6 làm event loop/UI. `src/main.py` khởi tạo logging rồi chuyển quyền điều phối cho `App` trong `src/app.py`.
 
 ```mermaid
 flowchart TD
     A["src/main.py"] --> B["App"]
     B --> C["ConfigManager"]
-    B --> D["CleanupService"]
+    B --> D["CleanupService + CleanupProgressWorker"]
     B --> E["StorageMonitor"]
     B --> F["NotificationService"]
     B --> G["MainWindow"]
@@ -17,110 +17,78 @@ flowchart TD
     G --> J["CleanupView"]
     G --> K["SettingsView"]
     I --> L["FolderScanner"]
-    J --> M["CleanupProgressWorker"]
-    M --> D
     E --> F
-    H --> B
 ```
 
-## Runtime Model
+## Runtime model
 
-- `App.start()` creates the Qt application, acquires a single-instance lock with `QLocalServer`, and forwards `show` requests from later launches through `QLocalSocket`.
-- On first run, `get_default_directories()` seeds the cleanup list with the current user's `Downloads` folder plus the Recycle Bin marker.
-- The app enables auto-start when `ConfigManager.auto_start_enabled` is true.
-- `StorageMonitor` starts immediately and emits low-space signals to `NotificationService`.
-- `MainWindow` is shown on startup and remains available after close because `closeEvent()` hides the window instead of quitting the process.
-- `TrayIcon` runs on a separate thread and routes user actions back into Qt through thread-safe signals owned by `App`.
+- `App.start()`:
+  - Tạo `QApplication` và đặt `setQuitOnLastWindowClosed(False)` để tiếp tục chạy nền.
+  - Bảo đảm chạy một instance bằng `QLocalServer` (`SINGLE_INSTANCE_KEY`).
+  - Nếu mở app lần đầu: tự thêm thư mục mặc định qua `get_default_directories()`.
+  - Khởi tạo `StorageMonitor` theo giá trị threshold/interval từ config.
+  - Khởi tạo `MainWindow`, kết nối signal giữa UI và service.
+  - Khởi tạo `TrayIcon` và gắn fallback notification.
 
-## Module Map
+- Vòng đời cửa sổ:
+  - Đóng cửa sổ chính chỉ `hide()`, không thoát process.
+  - Lệnh `Exit` từ tray gọi `_do_exit()` để dừng monitor/tray và thoát Qt app.
 
-- `src/main.py`
-  Bootstraps logging to `%USERPROFILE%\.cleanbox\cleanbox.log`, adds `src` to `sys.path`, and starts the application.
+## Bản đồ module
 
-- `src/app.py`
-  Central coordinator for application startup, service construction, signal wiring, first-run behavior, cleanup execution, tray actions, and shutdown.
+- `src/main.py`: bootstrap logging (`%USERPROFILE%/.cleanbox/cleanbox.log`) và khởi động app.
+- `src/app.py`: orchestration tổng, xử lý signal, điều phối cleanup/storage monitor/notification/tray.
+- `src/shared/constants.py`: hằng số runtime, đường dẫn config, protected paths, marker Recycle Bin.
+- `src/shared/config/manager.py`: đọc/ghi config JSON, backup, atomic write, normalize dữ liệu notified drives.
+- `src/shared/registry.py`: bật/tắt auto-start qua Registry (fallback Task Scheduler).
+- `src/shared/elevation.py`: kiểm tra quyền admin và restart với quyền admin.
+- `src/features/cleanup/service.py`: dọn dẹp thư mục + Recycle Bin.
+- `src/features/cleanup/worker.py`: chạy cleanup nền, phát tiến độ.
+- `src/features/storage_monitor/service.py`: polling ổ đĩa, phát hiện low-space, cooldown thông báo.
+- `src/features/folder_scanner/service.py`: scan thư mục (single level/realtime/full), tối ưu hiệu năng scan.
+- `src/features/notifications/service.py`: toast Windows + fallback tray.
+- `src/ui/main_window.py`: shell UI, sidebar, view switching, signal forwarding.
+- `src/ui/views/storage_view.py`: Storage Analyzer (tree, realtime scan, lazy expand, context actions).
+- `src/ui/views/cleanup_view.py`: quản lý danh sách cleanup, nút Clean Now, progress bar.
+- `src/ui/views/settings_view.py`: auto-start, threshold, interval, restart as admin.
 
-- `src/shared/constants.py`
-  Defines app constants, asset paths, config paths, default thresholds, registry key, and the protected-path allowlist/blocklist inputs.
+## Luồng chính
 
-- `src/shared/config/manager.py`
-  Loads and saves JSON config, filters protected paths, performs atomic writes with backup recovery, and exposes typed accessors for persisted settings.
+### 1) Khởi động
+1. `main()` gọi `setup_logging()`.
+2. `App.start()` tạo Qt app và kiểm tra single-instance.
+3. Load config, xử lý first-run.
+4. Start `StorageMonitor`.
+5. Render `MainWindow` và start `TrayIcon`.
 
-- `src/shared/registry.py`
-  Implements Windows auto-start enable/disable checks using `winreg`, with `schtasks` fallback behavior when registry writes are unavailable.
+### 2) Dọn dẹp
+1. Người dùng bấm `Clean Now` từ tray hoặc Cleanup View.
+2. `App._do_cleanup()` kiểm tra đang có worker chạy hay chưa.
+3. Hiện hộp thoại xác nhận liệt kê thư mục sẽ dọn.
+4. Tạo `CleanupProgressWorker` chạy nền.
+5. UI/tray cập nhật tiến độ qua signal `progress_updated`.
+6. Khi xong, gửi notification tổng kết và reset trạng thái worker.
 
-- `src/shared/elevation.py`
-  Handles elevation checks and restart-with-admin requests used by the Settings view.
+### 3) Phân tích lưu trữ
+1. Storage View nhận ổ đĩa từ `StorageMonitor.get_all_drives()`.
+2. Khi scan, worker realtime phát dữ liệu từng child để hiển thị dần.
+3. Tree sử dụng cache/path index để điều hướng nhanh và lazy expand.
+4. Context menu hỗ trợ Add to Cleanup, Delete to Recycle Bin, Open location.
 
-- `src/features/cleanup/`
-  `service.py` empties configured directories and the Recycle Bin.
-  `worker.py` runs cleanup in the background and emits progress.
-  `directory_detector.py` resolves default cleanup targets.
+### 4) Cảnh báo low-space
+1. `StorageMonitor` poll ổ đĩa theo chu kỳ.
+2. Nếu `free_gb < threshold_gb`: emit `low_space_detected`.
+3. `App` gọi `NotificationService.notify_low_space()` và lưu timestamp vào config.
+4. Khi ổ hồi phục: emit `low_space_cleared` để xóa trạng thái notified.
 
-- `src/features/folder_scanner/`
-  Implements recursive and real-time directory scanning with `os.scandir()`, adaptive worker counts, cached metadata, skip accounting, and lazy expansion support.
+## Quyết định kiến trúc quan trọng
 
-- `src/features/storage_monitor/`
-  Polls local drives on a timer, emits low-space signals, tracks per-drive notification cooldowns, and periodically triggers GC plus RSS logging.
+- Dùng single-instance lock ở runtime, không phụ thuộc installer.
+- Tách UI và tác vụ nặng bằng QThread để giữ giao diện phản hồi.
+- Áp dụng bảo vệ đường dẫn hệ thống ở nhiều tầng để giảm rủi ro thao tác phá hủy.
+- Trạng thái cooldown cảnh báo ổ đĩa được persist để tránh spam sau khi restart app.
+- Hướng tối ưu scanner: stream + batching + cache điều hướng thay vì dựng full tree ngay lập tức.
 
-- `src/features/notifications/service.py`
-  Sends Windows toasts through `win11toast` and falls back to tray balloon notifications or logs.
+## Vấn đề kỹ thuật còn mở
 
-- `src/ui/main_window.py`
-  Hosts the split-view shell, sidebar navigation, and the `Storage`, `Cleanup`, and `Settings` views.
-
-- `src/ui/views/storage_view*.py`
-  Provide the Storage Analyzer tree, real-time scan workers, navigation history, context menu actions, and tree-item helpers.
-
-- `src/ui/views/cleanup_view.py`
-  Lets users manage cleanup directories and launch the cleanup workflow with progress feedback.
-
-- `src/ui/views/settings_view.py`
-  Exposes auto-start and elevation controls, and displays threshold/interval controls.
-
-## Main Flows
-
-### Startup
-
-1. `main()` configures logging and instantiates `App`.
-2. `App.start()` builds `QApplication`, enforces single-instance behavior, and loads config.
-3. First-run setup adds default cleanup targets.
-4. `StorageMonitor` starts polling drives.
-5. `MainWindow` and `TrayIcon` are initialized and shown/started.
-
-### Cleanup
-
-1. A cleanup request comes from the tray or `CleanupView`.
-2. `App._do_cleanup()` checks for an active worker and shows a confirmation dialog.
-3. `CleanupProgressWorker` runs the cleanup in the background.
-4. `CleanupService` empties configured directories or the Recycle Bin marker target.
-5. Progress is reflected in the main window and tray tooltip.
-6. Completion triggers a notification and clears worker state.
-
-### Storage Analysis
-
-1. `StorageView` requests a scan for the selected path.
-2. `FolderScanner` walks the filesystem with `os.scandir()` and adaptive parallelism for child directories.
-3. Real-time child results are buffered into the UI while scan-completeness stats are accumulated.
-4. The tree view caches scanned nodes for back/forward navigation and lazy expansion.
-5. Context-menu actions can add a directory to cleanup, move a target to the Recycle Bin, or open its location in Explorer.
-
-### Low-Space Notification
-
-1. `StorageMonitor` polls `get_all_drives()`.
-2. Drives below the configured threshold emit `low_space_detected`.
-3. `NotificationService` sends a toast or tray fallback notification.
-4. The monitor suppresses duplicate notifications for the same drive until the cooldown expires or space recovers.
-
-## Key Decisions
-
-- Single-instance behavior is enforced at runtime instead of relying on the installer.
-- Cleanup and scan work run off the main UI thread to keep the window responsive.
-- Protected-path checks exist in config management, cleanup operations, and storage-view actions to reduce destructive-user-error paths.
-- Auto-start prefers the current-user registry key and falls back to Task Scheduler when registry writes fail.
-- The storage analyzer favors streamed `os.scandir()` traversal and bounded parallelism over full directory materialization.
-
-## Observed Implementation Notes
-
-- `SettingsView` emits `threshold_changed` and `interval_changed`, but `App` currently wires only `autostart_changed` and `restart_as_admin_requested`. The docs therefore describe auto-start and elevation as the supported settings flow.
-- The Settings footer currently hardcodes `CleanBox v1.0.0`, while `pyproject.toml` and `VERSION` report `1.0.18`.
+- Footer trong Settings đang hardcode `CleanBox v1.0.0`, chưa lấy từ `VERSION`/metadata hiện hành (`1.0.18`).
