@@ -6,7 +6,7 @@ from pathlib import Path
 
 def run_command(cmd, cwd=None):
     print(f"Running: {' '.join(cmd)}")
-    result = subprocess.run(cmd, cwd=cwd, shell=True)
+    result = subprocess.run(cmd, cwd=cwd, shell=False)
     if result.returncode != 0:
         print(f"Error executing command: {cmd}")
         sys.exit(1)
@@ -95,7 +95,7 @@ def build_installer():
         # Run NSIS
         # Note: installer.nsi defines output as dist\CleanBox_Setup.exe
         # We pass absolute path for SRC_DIR to be safe
-        cmd = f'"{makensis_path}" /DSRC_DIR="{dist_dir.absolute()}" installer.nsi'
+        cmd = [makensis_path, f"/DSRC_DIR={dist_dir.absolute()}", "installer.nsi"]
         run_command(cmd)
         
     else:
