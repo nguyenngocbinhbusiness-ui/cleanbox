@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cleanbox"
-version = "1.0.18"
+version = "1.0.19"
 description = "Windows disk cleanup utility with system tray integration"
 readme = "README.md"
 license = {text = "MIT"}
@@ -79,4 +79,7 @@ skips = []
 
 [tool.flake8]
 max-line-length = 120
-exclude = [".venv", "__pycache__", ".git", ".pytest_cache"]
+exclude = [".venv", "__pycache__", ".git", ".pytest_cache", "tests"]
+per-file-ignores = [
+    "tests/*.py:E,F,W",
+]
