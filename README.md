@@ -1,11 +1,11 @@
 # CleanBox
 
-Windows-only desktop utility for storage monitoring, folder analysis, and one-click cleanup.
+Ứng dụng desktop Windows (PyQt6) giúp theo dõi dung lượng ổ đĩa, phân tích thư mục theo kiểu TreeSize và dọn dẹp nhanh các thư mục đã cấu hình.
 
-## Quick Start
+## Bắt đầu nhanh
 
-Requirements:
-- Windows 10 or Windows 11
+Yêu cầu:
+- Windows 10/11
 - Python 3.11+
 
 ```powershell
@@ -16,48 +16,56 @@ $env:PYTHONPATH = "src"
 python src/main.py
 ```
 
-After launch, CleanBox creates a single-instance tray app, shows the main window, seeds default cleanup targets on first run, and starts polling local drives for low-space warnings.
+Khi chạy từ source, ứng dụng sẽ:
+- Khởi tạo app một instance duy nhất bằng `QLocalServer`.
+- Tạo/cập nhật cấu hình tại `%USERPROFILE%\.cleanbox\config.json`.
+- Ở lần chạy đầu, tự thêm `Downloads` và Recycle Bin vào danh sách dọn dẹp.
+- Khởi chạy theo dõi dung lượng ổ đĩa định kỳ.
 
-## Features
+## Tính năng chính
 
-- System tray integration with `Cleanup Now`, `Settings`, and `Exit` actions
-- First-run setup that adds the current user's `Downloads` folder and the Windows Recycle Bin to the cleanup target list
-- Cleanup workflow with confirmation dialog, background progress worker, and completion notifications
-- Storage monitor with low-space notifications, per-drive cooldowns, and periodic maintenance
-- Storage Analyzer view for drive scanning, real-time folder results, lazy expansion, cached navigation, and context-menu actions
-- Protected-path safeguards that block cleanup or deletion of critical system locations
-- Auto-start support via Windows Registry, with a Task Scheduler fallback when registry writes fail
-- Restart-with-admin action when CleanBox is running without elevation
+- Chạy nền với khay hệ thống (tray): `Clean Now`, `Settings`, `Exit`.
+- Dọn dẹp thư mục theo danh sách người dùng cấu hình, có hộp thoại xác nhận trước khi xóa.
+- Chạy dọn dẹp nền qua `CleanupProgressWorker` và hiển thị tiến độ trên UI/tray.
+- Theo dõi dung lượng ổ đĩa, cảnh báo low-space theo ngưỡng cấu hình.
+- Cơ chế chống spam cảnh báo theo từng ổ (cooldown 24h) và reset khi ổ hồi phục dung lượng.
+- Storage Analyzer:
+  - Quét thư mục theo thời gian thực (`scan_children_realtime`).
+  - Lazy expand khi mở node cây.
+  - Bộ nhớ đệm điều hướng Back/Forward.
+  - Context menu: thêm vào danh sách dọn dẹp, xóa vào Recycle Bin, mở vị trí file.
+- Bảo vệ thư mục hệ thống ở nhiều lớp (`ConfigManager`, `CleanupService`, thao tác từ Storage View).
+- Tự khởi động cùng Windows bằng Registry, có fallback Task Scheduler nếu cần.
 
-## Tech Stack
+## Công nghệ
 
 - Python 3.11+
-- PyQt6 for the desktop UI and event loop
-- `pystray` + Pillow for system tray integration
-- `psutil` for drive and process metrics
-- `winshell` and Win32 APIs for Recycle Bin and Windows shell operations
-- `win11toast` for toast notifications with tray fallback
-- PyInstaller and NSIS in the release pipeline
+- PyQt6
+- pystray + Pillow
+- psutil
+- winshell + pywin32
+- win11toast
+- PyInstaller + NSIS (release pipeline)
 
-## Project Structure
+## Cấu trúc dự án
 
-- `src/main.py`: process entry point and logging bootstrap
-- `src/app.py`: application orchestrator, single-instance lock, service wiring, and lifecycle
-- `src/features/cleanup/`: cleanup service, worker, and default-directory detection
-- `src/features/folder_scanner/`: TreeSize-style folder scanning and scan helpers
-- `src/features/storage_monitor/`: drive polling and low-space detection
-- `src/features/notifications/`: toast and tray fallback notifications
-- `src/shared/`: configuration, constants, elevation, registry, and shared utilities
-- `src/ui/`: main window, tray integration, and view components
-- `tests/`: unit, component, integration, UI, and end-to-end coverage
-- `quality/`: release verification and quality reporting helpers
-- `docs/requirements.md`: user stories and acceptance criteria
+- `src/main.py`: entrypoint, thiết lập logging.
+- `src/app.py`: orchestration vòng đời ứng dụng, signal wiring, startup/shutdown.
+- `src/features/cleanup/`: dọn dẹp thư mục + worker nền.
+- `src/features/folder_scanner/`: engine quét thư mục và tính toán kích thước.
+- `src/features/storage_monitor/`: polling ổ đĩa, phát hiện low-space, cooldown.
+- `src/features/notifications/`: gửi toast/tray notification.
+- `src/shared/`: constants, config, auto-start registry, elevation, utils.
+- `src/ui/`: MainWindow, tray icon, các view Storage/Cleanup/Settings.
+- `tests/`: unit/component/integration/e2e/ui.
+- `quality/`: script kiểm tra chất lượng trước release.
+- `docs/`: tài liệu BA/TA/yêu cầu/API.
 
-## Configuration
+## Cấu hình runtime
 
-CleanBox stores configuration in `%USERPROFILE%\.cleanbox\config.json`.
+File cấu hình: `%USERPROFILE%\.cleanbox\config.json`
 
-Current persisted keys from `ConfigManager`:
+Các khóa chính:
 - `cleanup_directories`
 - `first_run_complete`
 - `low_space_threshold_gb`
@@ -65,13 +73,12 @@ Current persisted keys from `ConfigManager`:
 - `auto_start_enabled`
 - `notified_drives`
 
-Behavior enforced by the current code:
-- First launch populates cleanup targets with `Downloads` and the Recycle Bin marker
-- Protected system paths are filtered out when loading or adding cleanup directories
-- Config writes use an atomic temporary file with backup recovery fallback
-- Log output is written to `%USERPROFILE%\.cleanbox\cleanbox.log`
+Chi tiết hành vi:
+- `ConfigManager` ghi file theo cơ chế atomic + backup (`.json.bak`).
+- Tự lọc bỏ đường dẫn hệ thống được bảo vệ khỏi danh sách dọn dẹp.
+- Lưu trạng thái ổ đĩa đã cảnh báo để duy trì cooldown qua lần mở app sau.
 
-## Development
+## Phát triển
 
 ```powershell
 pytest
@@ -80,18 +87,23 @@ python quality/verify_release.py
 python build_local.py
 ```
 
-Notes:
-- `pytest` uses the settings in `pyproject.toml`
-- `build_local.py` builds local Windows artifacts with Nuitka and optionally NSIS
-- `.github/workflows/release.yml` builds tagged Windows releases with PyInstaller and NSIS
+Ghi chú:
+- `build_local.py` build artifact local bằng Nuitka (tùy chọn NSIS).
+- `.github/workflows/release.yml` dùng cho release theo tag `v*`.
 
-## Architecture
+## Tài liệu
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the runtime model, module map, and main data flows.
+- Kiến trúc: `ARCHITECTURE.md`
+- API cục bộ: `docs/API.md`
+- Yêu cầu: `docs/requirements.md`
+- Business Analysis: `docs/business-analysis/README.md`
+- Technical Analysis: `docs/technical-analysis/README.md`
 
-## API Reference
+## Giới hạn hiện tại
 
-CleanBox does not expose an HTTP or RPC API. It is a local Windows desktop application.
+- Ứng dụng chỉ hỗ trợ Windows.
+- Không có HTTP API public (chỉ desktop app local).
+- Nhãn version ở footer Settings hiện còn hardcode `v1.0.0` trong UI, chưa đồng bộ với `VERSION` (`1.0.18`).
 
 ## License
 

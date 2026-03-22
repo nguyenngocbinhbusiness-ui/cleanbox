@@ -1,114 +1,129 @@
-# Changelog
+# Lịch sử thay đổi
 
 ## [1.0.18] - 2026-03-20
 
 ### Added
-- Scan completeness accounting (`scanned_files`, `scanned_dirs`, skip counters and reasons) for folder scanning results.
-- Session isolation for real-time scan UI updates to ignore stale worker signals after cancel/restart.
-- Regression tests for scan stats aggregation and stale-session signal handling.
+- Bổ sung thống kê độ đầy đủ của kết quả quét thư mục (`scanned_files`, `scanned_dirs`, bộ đếm skip và lý do skip).
+- Thêm cơ chế session isolation cho realtime scan UI để bỏ qua signal cũ sau khi hủy/chạy lại.
+- Thêm test hồi quy cho tổng hợp scan stats và xử lý stale-session signal.
 
 ### Changed
-- Scanner now streams `os.scandir()` entries instead of materializing full lists, reducing memory spikes on large folders.
-- Parallel scanner worker count is adaptive by CPU and configurable via `CLEANBOX_SCANNER_WORKERS`.
-- Realtime completion status text now includes completeness counters when available.
+- Scanner chuyển sang stream `os.scandir()` thay vì materialize toàn bộ danh sách, giảm spike bộ nhớ với thư mục lớn.
+- Số worker scanner chạy song song được điều chỉnh theo CPU và có thể cấu hình qua `CLEANBOX_SCANNER_WORKERS`.
+- Text trạng thái hoàn tất realtime scan hiển thị thêm thống kê completeness khi có dữ liệu.
 
 ### Fixed
-- Cancel flow now invalidates active scan session and clears pending buffered child updates.
-- Unit tests stabilized by removing modal-dialog side effects and aligning main-entry mocks with admin path.
+- Luồng cancel scan hiện invalidates session đang chạy và xóa buffer child update đang chờ.
+- Ổn định unit test bằng cách loại bỏ side effect từ dialog modal và đồng bộ mock ở luồng entrypoint admin.
 
 ---
 
 ## [1.0.17] - 2026-01-09
 
 ### Fixed
-- **ROOT CAUSE FIXED**: Python 3.11 compatibility for f-strings
-- Multi-line f-strings (PEP 701, Python 3.12+) converted to single-line
-- Files fixed: `notifications/service.py`, `storage_view.py`
-- ✅ **Local build verified working**
+- Sửa tương thích Python 3.11 cho f-string (tránh cú pháp chỉ có ở Python 3.12+).
+- Chuyển multi-line f-string sang dạng single-line ở một số vị trí.
+- File đã chỉnh: `notifications/service.py`, `storage_view.py`.
 
 ---
 
 ## [1.0.16] - 2026-01-09
 
+### Changed
+- Bản phát hành nội bộ phục vụ đồng bộ pipeline.
+
+---
+
 ## [1.0.14] - 2026-01-09
+
+### Changed
+- Bản phát hành nội bộ phục vụ đồng bộ pipeline.
+
+---
 
 ## [1.0.12] - 2026-01-09
 
+### Changed
+- Bản phát hành nội bộ phục vụ đồng bộ pipeline.
+
+---
+
 ## [1.0.10] - 2026-01-08
+
+### Changed
+- Bản phát hành nội bộ phục vụ đồng bộ pipeline.
 
 ---
 
 ## [1.0.9] - 2026-01-08
 
 ### Fixed
-- Fixed build: assets now bundled correctly via `--add-data` flag
-- Application icon and resources now work in release builds
+- Sửa build để bundle assets đúng bằng `--add-data`.
+- Icon và tài nguyên hoạt động đúng trong release build.
 
 ---
 
 ## [1.0.8] - 2026-01-08
 
 ### Fixed
-- Fixed release workflow (Windows-only app, not cross-platform)
-- Improved artifact packaging with proper version naming
+- Sửa workflow release theo đúng phạm vi Windows-only.
+- Cải thiện đóng gói artifact theo quy ước tên bản phát hành.
 
 ---
 
 ## [1.0.7] - 2026-01-08
 
 ### Changed
-- Enhanced GitHub Actions release workflow
-- Improved artifact naming with version prefix
-- Added automatic release notes generation
+- Cải thiện GitHub Actions release workflow.
+- Chuẩn hóa tên artifact theo prefix phiên bản.
+- Thêm release notes tự động.
 
 ---
 
 ## [1.0.6] - 2026-01-08
 
 ### Added
-- Added application icon (`icon.ico`)
-- New unit tests for constants module
-- Comprehensive registry tests
+- Thêm icon ứng dụng (`icon.ico`).
+- Thêm test cho constants và registry.
 
 ### Changed
-- Improved app.py functionality
-- Enhanced constants configuration
+- Cải thiện logic trong `app.py` và cấu hình constants.
 
 ---
 
 ## [1.0.5] - 2026-01-06
 
 ### Changed
-- New release build with icon improvements
-- Synced all pending changes
+- Bản build mới với cải tiến icon.
+- Đồng bộ các thay đổi đang chờ.
 
 ---
 
 ## [1.0.3] - 2026-01-06
 
 ### Changed
-- Patch release with stability improvements
+- Bản vá ổn định.
 
 ---
 
 ## [1.0.2] - 2026-01-06
 
 ### Changed
-- Cleaned up workflow configuration
-- Fixed import ordering in main module
-- Removed unused Dockerfile
+- Dọn dẹp workflow.
+- Sửa thứ tự import ở entrypoint.
+- Loại bỏ Dockerfile không dùng.
 
 ---
 
 ## [1.0.1] - 2026-01-05
 
 ### Changed
-- Added GitHub Actions workflow for automated releases
+- Thêm GitHub Actions workflow cho release tự động.
 
 ---
 
 ## [1.0.0] - 2024-06-01
 
 ### Added
-- Initial release of CleanBox.
-- Disk cleanup utility with system tray support.
+- Bản phát hành đầu tiên của CleanBox.
+- Công cụ dọn dẹp ổ đĩa với khay hệ thống.
