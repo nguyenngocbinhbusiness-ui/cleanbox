@@ -108,14 +108,19 @@ class TestSettingsViewComponent:
     
     def test_settings_view_initialization(self, qapp):
         from ui.views import SettingsView
-        view = SettingsView()
+        with patch("ui.views.settings_view.is_admin", return_value=False):
+            view = SettingsView()
         assert view._autostart_cb is not None
         assert view._autostart_cb.isChecked()
-        assert view._run_as_admin_cb is not None
-        assert view._run_as_admin_cb.isChecked()
         assert view._restart_admin_btn is not None
         assert view._threshold_spin is not None
         assert view._interval_spin is not None
+
+    def test_settings_view_hides_restart_when_admin(self, qapp):
+        from ui.views import SettingsView
+        with patch("ui.views.settings_view.is_admin", return_value=True):
+            view = SettingsView()
+        assert view._restart_admin_btn is None
     
     def test_settings_view_set_autostart(self, qapp):
         from ui.views import SettingsView
@@ -141,14 +146,6 @@ class TestSettingsViewComponent:
         signals = []
         view.autostart_changed.connect(lambda v: signals.append(v))
         view._on_autostart_changed(Qt.CheckState.Checked.value)
-        assert len(signals) == 1
-
-    def test_settings_view_run_as_admin_signal(self, qapp):
-        from ui.views import SettingsView
-        view = SettingsView()
-        signals = []
-        view.run_as_admin_changed.connect(lambda v: signals.append(v))
-        view._on_run_as_admin_changed(Qt.CheckState.Checked.value)
         assert len(signals) == 1
 
     def test_settings_view_restart_as_admin_signal(self, qapp):
@@ -242,11 +239,9 @@ class TestMainWindowComponent:
         from ui.main_window import MainWindow
         window = MainWindow()
         window.set_autostart(True)
-        window.set_run_as_admin(False)
         window.set_threshold(25)
         window.set_interval(90)
         assert window.settings_view._autostart_cb.isChecked()
-        assert not window.settings_view._run_as_admin_cb.isChecked()
         assert window.settings_view._threshold_spin.value() == 25
         assert window.settings_view._interval_spin.value() == 90
 

@@ -23,16 +23,26 @@ class TestSettingsViewCoverage:
     def test_setup_ui_creates_widgets(self, qtbot, app):
         """Test _setup_ui creates all required widgets."""
         from ui.views.settings_view import SettingsView
-        view = SettingsView()
+        with patch("ui.views.settings_view.is_admin", return_value=False):
+            view = SettingsView()
         qtbot.addWidget(view)
         
         assert hasattr(view, '_autostart_cb')
         assert view._autostart_cb.isChecked()
-        assert hasattr(view, '_run_as_admin_cb')
-        assert view._run_as_admin_cb.isChecked()
+        assert not hasattr(view, '_run_as_admin_cb')
         assert hasattr(view, '_restart_admin_btn')
+        assert view._restart_admin_btn is not None
         assert hasattr(view, '_threshold_spin')
         assert hasattr(view, '_interval_spin')
+
+    def test_setup_ui_hides_restart_button_for_admin(self, qtbot, app):
+        """Test restart-as-admin button is omitted when already elevated."""
+        from ui.views.settings_view import SettingsView
+        with patch("ui.views.settings_view.is_admin", return_value=True):
+            view = SettingsView()
+        qtbot.addWidget(view)
+
+        assert view._restart_admin_btn is None
 
     def test_set_autostart_true(self, qtbot, app):
         """Test set_autostart with True value."""
@@ -60,24 +70,6 @@ class TestSettingsViewCoverage:
         
         with patch.object(view._autostart_cb, 'blockSignals', side_effect=Exception("Error")):
             view.set_autostart(True)  # Should not raise
-
-    def test_set_run_as_admin_false(self, qtbot, app):
-        """Test set_run_as_admin with False value."""
-        from ui.views.settings_view import SettingsView
-        view = SettingsView()
-        qtbot.addWidget(view)
-
-        view.set_run_as_admin(False)
-        assert not view._run_as_admin_cb.isChecked()
-
-    def test_set_run_as_admin_exception(self, qtbot, app):
-        """Test set_run_as_admin exception handling."""
-        from ui.views.settings_view import SettingsView
-        view = SettingsView()
-        qtbot.addWidget(view)
-
-        with patch.object(view._run_as_admin_cb, 'blockSignals', side_effect=Exception("Error")):
-            view.set_run_as_admin(True)  # Should not raise
 
     def test_set_threshold_value(self, qtbot, app):
         """Test set_threshold with valid value."""
@@ -140,19 +132,6 @@ class TestSettingsViewCoverage:
         view._on_threshold_changed(25)
         assert len(signals_received) == 1
         assert signals_received[0] == 25
-
-    def test_on_run_as_admin_changed_signal(self, qtbot, app):
-        """Test _on_run_as_admin_changed emits signal."""
-        from ui.views.settings_view import SettingsView
-        view = SettingsView()
-        qtbot.addWidget(view)
-
-        signals_received = []
-        view.run_as_admin_changed.connect(lambda v: signals_received.append(v))
-
-        view._on_run_as_admin_changed(2)
-        assert len(signals_received) == 1
-        assert signals_received[0] is True
 
     def test_on_restart_as_admin_requested_signal(self, qtbot, app):
         """Test restart-as-admin request emits signal."""

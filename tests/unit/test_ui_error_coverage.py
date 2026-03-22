@@ -67,14 +67,6 @@ class TestUIErrorCoverage:
             view._on_autostart_changed(2)
             mock_log.error.assert_called()
 
-        # Test _on_run_as_admin_changed error
-        view.run_as_admin_changed = MagicMock()
-        view.run_as_admin_changed.emit.side_effect = Exception("Signal Error")
-
-        with patch("ui.views.settings_view.logger") as mock_log:
-            view._on_run_as_admin_changed(2)
-            mock_log.error.assert_called()
-
         # Test _on_restart_as_admin_requested error
         view.restart_as_admin_requested = MagicMock()
         view.restart_as_admin_requested.emit.side_effect = Exception("Signal Error")

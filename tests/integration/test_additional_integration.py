@@ -157,17 +157,18 @@ class TestConfigPersistenceIntegration:
 
         assert reloaded_config.auto_start_enabled == fresh_config.auto_start_enabled
 
-    def test_run_as_admin_change_persists(self, fresh_config):
-        """Test run-as-admin change is saved."""
+    def test_legacy_run_as_admin_field_is_ignored(self, fresh_config):
+        """Test legacy run-as-admin config is discarded on reload."""
         from shared.config import ConfigManager
+        from shared.constants import CONFIG_FILE
 
-        fresh_config.run_as_admin_enabled = not fresh_config.run_as_admin_enabled
+        fresh_config._config["run_as_admin_enabled"] = True
+        fresh_config.save()
         reloaded_config = ConfigManager()
+        reloaded_config.save()
 
-        assert (
-            reloaded_config.run_as_admin_enabled
-            == fresh_config.run_as_admin_enabled
-        )
+        assert "run_as_admin_enabled" not in reloaded_config._config
+        assert "run_as_admin_enabled" not in CONFIG_FILE.read_text(encoding="utf-8")
 
 
 class TestFolderScannerViewIntegration:
