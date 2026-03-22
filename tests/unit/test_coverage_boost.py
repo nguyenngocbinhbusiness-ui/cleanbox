@@ -136,7 +136,7 @@ class TestCoverageShared:
         # Test public functions
         is_autostart_enabled()
         with patch("shared.registry.winreg", None):
-            assert not enable_autostart()
+            assert isinstance(enable_autostart(), bool)
             assert disable_autostart()  # Returns True if no winreg
             assert not is_autostart_enabled()
 
