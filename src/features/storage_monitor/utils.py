@@ -8,6 +8,11 @@ import psutil
 logger = logging.getLogger(__name__)
 
 
+def _is_windows_local_drive(device: str) -> bool:
+    """Return True for Windows local drive identifiers like C: or Z:."""
+    return len(device) >= 2 and device[1] == ":" and device[0].isalpha()
+
+
 @dataclass
 class DriveInfo:
     """Information about a drive."""
@@ -37,8 +42,7 @@ def get_all_drives() -> List[DriveInfo]:
             # Skip removable and network drives
             if "fixed" not in partition.opts.lower() and "cdrom" not in partition.opts.lower():
                 # On Windows, check if it's a local drive
-                if not partition.device.startswith(
-                        ("C:", "D:", "E:", "F:", "G:", "H:")):
+                if not _is_windows_local_drive(partition.device):
                     continue
 
             try:

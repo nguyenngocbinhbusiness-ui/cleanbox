@@ -1,5 +1,6 @@
 """Windows Registry operations for auto-start."""
 import logging
+import os
 import subprocess
 import sys
 try:
@@ -16,10 +17,17 @@ IS_WINDOWS = sys.platform == "win32"
 def get_executable_path() -> str:
     """Get the path to the main script or executable."""
     try:
-        return sys.executable + ' "' + sys.argv[0] + '"'
+        executable = os.path.abspath(sys.executable)
+        if getattr(sys, "frozen", False):
+            return f'"{executable}"'
+
+        script_path = os.path.abspath(sys.argv[0]) if sys.argv else ""
+        if script_path and os.path.normcase(script_path) != os.path.normcase(executable):
+            return f'"{executable}" "{script_path}"'
+        return f'"{executable}"'
     except Exception as e:
         logger.error("Failed to get executable path: %s", e)
-        return sys.executable
+        return f'"{sys.executable}"'
 
 
 def _create_scheduled_task() -> bool:

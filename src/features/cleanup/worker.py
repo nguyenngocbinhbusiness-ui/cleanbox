@@ -31,7 +31,7 @@ class CleanupProgressWorker(QThread):
         """
         try:
             super().__init__(parent)
-            self._directories = directories
+            self._directories = list(directories)
             self._service = CleanupService()
         except Exception as e:
             logger.error("Failed to init CleanupProgressWorker: %s", e)
@@ -42,10 +42,7 @@ class CleanupProgressWorker(QThread):
         total_result = CleanupResult()
 
         try:
-            for i, directory in enumerate(self._directories):
-                # Emit progress before processing
-                self.progress_updated.emit(i, total)
-
+            for completed, directory in enumerate(self._directories, start=1):
                 try:
                     if directory == RECYCLE_BIN_MARKER:
                         result = self._service.empty_recycle_bin()
@@ -66,9 +63,8 @@ class CleanupProgressWorker(QThread):
                 except Exception as e:
                     logger.error("Error cleaning directory %s: %s", directory, e)
                     total_result.errors.append(f"Error: {directory} - {e}")
-
-            # Final progress (100%)
-            self.progress_updated.emit(total, total)
+                finally:
+                    self.progress_updated.emit(completed, total)
 
         except Exception as e:
             logger.error("Cleanup worker failed: %s", e)

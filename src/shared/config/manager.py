@@ -3,7 +3,8 @@ import json
 import logging
 import os
 import shutil
-from typing import List
+import time
+from typing import Dict, List
 
 from shared.constants import (
     CONFIG_DIR,
@@ -45,7 +46,7 @@ class ConfigManager:
                 "low_space_threshold_gb": DEFAULT_THRESHOLD_GB,
                 "polling_interval_seconds": DEFAULT_POLLING_INTERVAL_SECONDS,
                 "auto_start_enabled": True,
-                "notified_drives": [],
+                "notified_drives": {},
             }
         except Exception as e:
             logger.error("Failed to get default config: %s", e)
@@ -71,6 +72,7 @@ class ConfigManager:
                 with open(CONFIG_FILE, "r", encoding="utf-8") as f:
                     self._config = json.load(f)
                 self._config.pop("run_as_admin_enabled", None)
+                self._normalize_notified_drives()
                 self._filter_protected_paths()
                 logger.info("Configuration loaded from %s", CONFIG_FILE)
                 return
@@ -83,6 +85,7 @@ class ConfigManager:
                     with open(bak_file, "r", encoding="utf-8") as f:
                         self._config = json.load(f)
                     self._config.pop("run_as_admin_enabled", None)
+                    self._normalize_notified_drives()
                     self._filter_protected_paths()
                     logger.warning("Recovered config from backup %s", bak_file)
                     return
@@ -94,6 +97,26 @@ class ConfigManager:
         else:
             logger.info("No config file found, using defaults")
             self._config = self._get_default_config()
+
+    def _normalize_notified_drives(self) -> None:
+        """Normalize notified drive state to a drive->timestamp mapping."""
+        raw = self._config.get("notified_drives", {})
+        normalized: Dict[str, float] = {}
+
+        if isinstance(raw, dict):
+            for drive, timestamp in raw.items():
+                if not isinstance(drive, str):
+                    continue
+                try:
+                    normalized[drive] = float(timestamp)
+                except (TypeError, ValueError):
+                    normalized[drive] = 0.0
+        elif isinstance(raw, list):
+            for drive in raw:
+                if isinstance(drive, str):
+                    normalized[drive] = 0.0
+
+        self._config["notified_drives"] = normalized
 
     def save(self) -> None:
         """Save configuration atomically with backup (DRBFM D-CB-011/012)."""
@@ -155,7 +178,10 @@ class ConfigManager:
     def cleanup_directories(self) -> List[str]:
         """Get list of cleanup directories."""
         try:
-            return self._config.get("cleanup_directories", [])
+            directories = self._config.get("cleanup_directories", [])
+            if isinstance(directories, list):
+                return list(directories)
+            return []
         except Exception as e:
             logger.error("Failed to get cleanup directories: %s", e)
             return []
@@ -201,6 +227,15 @@ class ConfigManager:
             logger.error("Failed to get threshold: %s", e)
             return DEFAULT_THRESHOLD_GB
 
+    @threshold_gb.setter
+    def threshold_gb(self, value: int) -> None:
+        """Persist low space threshold in GB."""
+        try:
+            self._config["low_space_threshold_gb"] = max(1, int(value))
+            self.save()
+        except Exception as e:
+            logger.error("Failed to set threshold: %s", e)
+
     @property
     def polling_interval(self) -> int:
         """Get polling interval in seconds."""
@@ -211,6 +246,15 @@ class ConfigManager:
         except Exception as e:
             logger.error("Failed to get polling interval: %s", e)
             return DEFAULT_POLLING_INTERVAL_SECONDS
+
+    @polling_interval.setter
+    def polling_interval(self, value: int) -> None:
+        """Persist polling interval in seconds."""
+        try:
+            self._config["polling_interval_seconds"] = max(1, int(value))
+            self.save()
+        except Exception as e:
+            logger.error("Failed to set polling interval: %s", e)
 
     @property
     def auto_start_enabled(self) -> bool:
@@ -233,28 +277,43 @@ class ConfigManager:
     def get_notified_drives(self) -> List[str]:
         """Get list of drives that have been notified."""
         try:
-            return self._config.get("notified_drives", [])
+            self._normalize_notified_drives()
+            return list(self._config.get("notified_drives", {}).keys())
         except Exception as e:
             logger.error("Failed to get notified drives: %s", e)
             return []
 
-    def add_notified_drive(self, drive: str) -> None:
+    def get_notified_drive_timestamps(self) -> Dict[str, float]:
+        """Get notified drives and last notification timestamps."""
+        try:
+            self._normalize_notified_drives()
+            return dict(self._config.get("notified_drives", {}))
+        except Exception as e:
+            logger.error("Failed to get notified drive timestamps: %s", e)
+            return {}
+
+    def add_notified_drive(
+        self,
+        drive: str,
+        timestamp: float | None = None,
+    ) -> None:
         """Add a drive to notified list."""
         try:
-            notified = self.get_notified_drives()
-            if drive not in notified:
-                notified.append(drive)
-                self._config["notified_drives"] = notified
-                self.save()
+            self._normalize_notified_drives()
+            notified = self._config.get("notified_drives", {})
+            notified[drive] = float(timestamp) if timestamp is not None else time.time()
+            self._config["notified_drives"] = notified
+            self.save()
         except Exception as e:
             logger.error("Failed to add notified drive %s: %s", drive, e)
 
     def remove_notified_drive(self, drive: str) -> None:
         """Remove a drive from notified list."""
         try:
-            notified = self.get_notified_drives()
+            self._normalize_notified_drives()
+            notified = self._config.get("notified_drives", {})
             if drive in notified:
-                notified.remove(drive)
+                del notified[drive]
                 self._config["notified_drives"] = notified
                 self.save()
         except Exception as e:

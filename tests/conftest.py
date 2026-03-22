@@ -26,8 +26,13 @@ if "winshell" not in sys.modules:
 
 # psutil is a real library that works in tests - don't mock it globally
 
-# Add src to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
+# Add project paths needed by tests regardless of how pytest is invoked.
+TESTS_DIR = os.path.dirname(__file__)
+PROJECT_ROOT = os.path.abspath(os.path.join(TESTS_DIR, '..'))
+SRC_ROOT = os.path.join(PROJECT_ROOT, 'src')
+
+sys.path.insert(0, PROJECT_ROOT)
+sys.path.insert(0, SRC_ROOT)
 
 from shared.constants import CONFIG_DIR, CONFIG_FILE
 from shared.config import ConfigManager

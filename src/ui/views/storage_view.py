@@ -306,6 +306,7 @@ class StorageView(QWidget):
             self._realtime_worker: Optional[RealtimeScanWorker] = None
             self._expand_worker: Optional[ExpandScanWorker] = None
             self._expanding_item: Optional[QTreeWidgetItem] = None
+            self._pending_expand_request: Optional[tuple[QTreeWidgetItem, str]] = None
             self._drive_total_bytes: int = 0
             self._root_item: Optional[QTreeWidgetItem] = None
             self._root_size_accumulator: int = 0
@@ -1084,9 +1085,6 @@ class StorageView(QWidget):
                     item.addChild(child_item)
 
                 self._add_file_entries(item, cached, parent_size)
-
-                item.setData(
-                    COL_ALLOCATED, Qt.ItemDataRole.UserRole, False)
             finally:
                 self._tree.setUpdatesEnabled(True)
 
@@ -1104,9 +1102,12 @@ class StorageView(QWidget):
             if (self._expand_worker is not None
                     and self._expand_worker.isRunning()):
                 self._scanner.cancel()
-                self._expand_worker.wait(2000)
+                self._pending_expand_request = (item, path)
+                self._status_label.setText("Cancelling previous expand scan...")
+                return
 
             self._expanding_item = item
+            self._pending_expand_request = None
             self._status_label.setText(f"Scanning: {path}...")
 
             self._expand_worker = ExpandScanWorker(self._scanner, path)
@@ -1121,9 +1122,16 @@ class StorageView(QWidget):
         try:
             item = self._expanding_item
             self._expanding_item = None
+            pending_request = self._pending_expand_request
+            self._pending_expand_request = None
+
+            if pending_request is not None:
+                pending_item, pending_path = pending_request
+                self._start_expand_scan(pending_item, pending_path)
 
             if item is None or result is None:
-                self._status_label.setText("Expand scan cancelled or failed.")
+                if pending_request is None:
+                    self._status_label.setText("Expand scan cancelled or failed.")
                 return
 
             self._tree.setUpdatesEnabled(False)
@@ -1140,9 +1148,6 @@ class StorageView(QWidget):
                     item.addChild(child_item)
 
                 self._add_file_entries(item, result, parent_size)
-
-                item.setData(
-                    COL_ALLOCATED, Qt.ItemDataRole.UserRole, False)
             finally:
                 self._tree.setUpdatesEnabled(True)
 

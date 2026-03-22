@@ -2,6 +2,7 @@
 import atexit
 import logging
 import sys
+import time
 from typing import Optional
 
 from PyQt6.QtWidgets import QApplication, QMessageBox
@@ -88,9 +89,11 @@ class App(QObject):
                 interval_seconds=self._config.polling_interval,
             )
             self._storage_monitor.set_notified_drives(
-                self._config.get_notified_drives())
+                self._config.get_notified_drive_timestamps())
             self._storage_monitor.low_space_detected.connect(
                 self._on_low_space)
+            self._storage_monitor.low_space_cleared.connect(
+                self._on_low_space_cleared)
             self._storage_monitor.start()
 
             # Initialize Main Window and show on startup
@@ -103,6 +106,10 @@ class App(QObject):
                 self._on_directory_removed)
             self._main_window.autostart_changed.connect(
                 self._on_autostart_changed)
+            self._main_window.threshold_changed.connect(
+                self._on_threshold_changed)
+            self._main_window.interval_changed.connect(
+                self._on_interval_changed)
             self._main_window.restart_as_admin_requested.connect(
                 self._restart_with_admin)
             self._main_window.cleanup_requested.connect(self._do_cleanup)
@@ -265,9 +272,17 @@ class App(QObject):
         try:
             self._notification_service.notify_low_space(
                 drive.letter, drive.free_gb)
-            self._config.add_notified_drive(drive.letter)
+            self._config.add_notified_drive(drive.letter, time.time())
         except Exception as e:
             logger.error("Failed to handle low space: %s", e)
+
+    @pyqtSlot(str)
+    def _on_low_space_cleared(self, drive_letter: str) -> None:
+        """Handle low space recovery and clear persisted notification state."""
+        try:
+            self._config.remove_notified_drive(drive_letter)
+        except Exception as e:
+            logger.error("Failed to handle low space recovery for %s: %s", drive_letter, e)
 
     # Signal emitters (called from pystray thread)
     def _emit_cleanup(self) -> None:
@@ -300,7 +315,7 @@ class App(QObject):
                 logger.warning("Cleanup already in progress")
                 return
 
-            directories = self._config.cleanup_directories
+            directories = list(self._config.cleanup_directories)
             if not directories:
                 logger.info("No directories to clean")
                 return
@@ -434,6 +449,26 @@ class App(QObject):
                 registry.disable_autostart()
         except Exception as e:
             logger.error("Failed to change autostart to %s: %s", enabled, e)
+
+    @pyqtSlot(int)
+    def _on_threshold_changed(self, value: int) -> None:
+        """Handle low-space threshold updates from settings."""
+        try:
+            self._config.threshold_gb = value
+            if self._storage_monitor:
+                self._storage_monitor.update_threshold(value)
+        except Exception as e:
+            logger.error("Failed to change threshold to %s: %s", value, e)
+
+    @pyqtSlot(int)
+    def _on_interval_changed(self, value: int) -> None:
+        """Handle polling interval updates from settings."""
+        try:
+            self._config.polling_interval = value
+            if self._storage_monitor:
+                self._storage_monitor.update_interval(value)
+        except Exception as e:
+            logger.error("Failed to change polling interval to %s: %s", value, e)
 
     @pyqtSlot()
     def _restart_with_admin(self) -> None:

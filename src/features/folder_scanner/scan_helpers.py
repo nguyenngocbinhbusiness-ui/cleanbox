@@ -18,8 +18,7 @@ class ScanAggregate:
     def add_file(self, size_bytes: int, allocated_bytes: int, modified_time: float) -> None:
         self.total_size += size_bytes
         self.total_allocated += allocated_bytes
-        if size_bytes > 0:
-            self.file_count += 1
+        self.file_count += 1
         if modified_time > self.max_mtime:
             self.max_mtime = modified_time
 

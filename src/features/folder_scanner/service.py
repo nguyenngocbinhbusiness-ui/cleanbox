@@ -265,10 +265,10 @@ class FolderScanner:
         entry: os.DirEntry,
         direct_files: List[FileEntry],
         stats: ScanStats,
-    ) -> Tuple[int, int, float]:
+    ) -> Tuple[int, int, float, bool]:
         """
-        Process a file entry and return (size, allocated, mtime).
-        Returns (0, 0, 0.0) when file cannot be accessed.
+        Process a file entry and return (size, allocated, mtime, success).
+        Returns success=False when file cannot be accessed.
         """
         try:
             st = entry.stat(follow_symlinks=False)
@@ -283,11 +283,11 @@ class FolderScanner:
                 )
             )
             stats.scanned_files += 1
-            return fsize, falloc, float(st.st_mtime)
+            return fsize, falloc, float(st.st_mtime), True
         except Exception as e:
             self._record_skip(stats, e)
             logger.debug("Cannot access file %s: %s", entry, e)
-            return 0, 0, 0.0
+            return 0, 0, 0.0, False
 
     def _scan_shallow_directory(
         self,
@@ -379,9 +379,10 @@ class FolderScanner:
         stats: ScanStats,
     ) -> bool:
         if entry.is_file(follow_symlinks=False):
-            fsize, falloc, mtime = self._process_file_entry(
+            fsize, falloc, mtime, file_processed = self._process_file_entry(
                 entry, direct_files, stats)
-            aggregate.add_file(fsize, falloc, mtime)
+            if file_processed:
+                aggregate.add_file(fsize, falloc, mtime)
             return False
         if not entry.is_dir(follow_symlinks=False):
             return False
@@ -540,8 +541,11 @@ class FolderScanner:
             stats.scanned_entries += 1
             try:
                 if entry.is_file(follow_symlinks=False):
-                    fsize, falloc, mtime = self._process_file_entry(entry, direct_files, stats)
-                    aggregate.add_file(fsize, falloc, mtime)
+                    fsize, falloc, mtime, file_processed = self._process_file_entry(
+                        entry, direct_files, stats
+                    )
+                    if file_processed:
+                        aggregate.add_file(fsize, falloc, mtime)
                 elif entry.is_dir(follow_symlinks=False):
                     dirs.append(entry)
                     aggregate.folder_count += 1

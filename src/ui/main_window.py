@@ -25,6 +25,8 @@ class MainWindow(QMainWindow):
     directory_added = pyqtSignal(str)
     directory_removed = pyqtSignal(str)
     autostart_changed = pyqtSignal(bool)
+    threshold_changed = pyqtSignal(int)
+    interval_changed = pyqtSignal(int)
     restart_as_admin_requested = pyqtSignal()
     cleanup_requested = pyqtSignal()
     refresh_storage = pyqtSignal()
@@ -155,6 +157,10 @@ class MainWindow(QMainWindow):
             self.settings_view = SettingsView()
             self.settings_view.autostart_changed.connect(
                 self.autostart_changed.emit)
+            self.settings_view.threshold_changed.connect(
+                self.threshold_changed.emit)
+            self.settings_view.interval_changed.connect(
+                self.interval_changed.emit)
             self.settings_view.restart_as_admin_requested.connect(
                 self.restart_as_admin_requested.emit)
             self.views["settings"] = self.settings_view

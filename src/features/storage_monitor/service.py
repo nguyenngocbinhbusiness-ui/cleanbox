@@ -19,6 +19,8 @@ class StorageMonitor(QObject):
 
     # Signal emitted when low space is detected
     low_space_detected = pyqtSignal(DriveInfo)
+    # Signal emitted when a drive recovers from low space
+    low_space_cleared = pyqtSignal(str)
 
     # Run gc.collect() and log RSS every N polling cycles (D-CB-015/017)
     _GC_INTERVAL = 100
@@ -66,13 +68,38 @@ class StorageMonitor(QObject):
             self._notified_drives.clear()
             logger.debug("Storage monitor resources cleaned up")
 
-    def set_notified_drives(self, drives: List[str]) -> None:
-        """Set list of already notified drives (stored with current timestamp)."""
+    def set_notified_drives(self, drives) -> None:
+        """Restore notified-drive cooldown state from persisted data."""
         try:
-            now = time.time()
-            self._notified_drives = {d: now for d in drives}
+            if isinstance(drives, dict):
+                self._notified_drives = {
+                    str(drive): float(ts) for drive, ts in drives.items()
+                }
+            elif isinstance(drives, list):
+                # Legacy config format (list only): allow immediate notifications.
+                self._notified_drives = {str(drive): 0.0 for drive in drives}
+            else:
+                raise TypeError("drives must be a dict or list")
         except Exception as e:
             logger.error("Failed to set notified drives: %s", e)
+            self._notified_drives = {}
+
+    def update_threshold(self, threshold_gb: int) -> None:
+        """Update low-space threshold at runtime and re-evaluate drives."""
+        try:
+            self._threshold_gb = max(1, int(threshold_gb))
+            self._check_drives()
+        except Exception as e:
+            logger.error("Failed to update threshold to %s: %s", threshold_gb, e)
+
+    def update_interval(self, interval_seconds: int) -> None:
+        """Update polling interval at runtime."""
+        try:
+            self._interval_ms = max(1, int(interval_seconds)) * 1000
+            if self._timer.isActive():
+                self._timer.start(self._interval_ms)
+        except Exception as e:
+            logger.error("Failed to update interval to %s: %s", interval_seconds, e)
 
     def get_low_space_drives(self) -> List[DriveInfo]:
         """Get all drives with low space."""
@@ -112,6 +139,7 @@ class StorageMonitor(QObject):
                     # Drive has enough space, remove from notified list
                     if drive.letter in self._notified_drives:
                         del self._notified_drives[drive.letter]
+                        self.low_space_cleared.emit(drive.letter)
                         logger.info(
                             "Drive %s now has sufficient space: %.1f GB",
                             drive.letter,

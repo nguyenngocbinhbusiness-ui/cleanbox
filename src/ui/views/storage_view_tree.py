@@ -67,8 +67,8 @@ class NumericSortItem(QTreeWidgetItem):
             other_val = other.data(COL_PERCENT, Qt.ItemDataRole.UserRole) or 0.0
             return float(self_val) < float(other_val)
         if column in (COL_SIZE, COL_ALLOCATED):
-            self_val = self.data(COL_SIZE, Qt.ItemDataRole.UserRole) or 0
-            other_val = other.data(COL_SIZE, Qt.ItemDataRole.UserRole) or 0
+            self_val = self.data(column, Qt.ItemDataRole.UserRole) or 0
+            other_val = other.data(column, Qt.ItemDataRole.UserRole) or 0
             return int(self_val) < int(other_val)
         if column in (COL_FILES, COL_FOLDERS):
             try:
@@ -109,12 +109,8 @@ def build_tree_item(
         item.setData(COL_NAME, ROLE_PERCENT_BAR, percent)
         item.setData(COL_NAME, ROLE_IS_ROOT, is_root)
         item.setData(COL_SIZE, Qt.ItemDataRole.UserRole, folder_info.size_bytes)
+        item.setData(COL_ALLOCATED, Qt.ItemDataRole.UserRole, folder_info.allocated_bytes)
         item.setData(COL_PERCENT, Qt.ItemDataRole.UserRole, percent)
-        item.setData(
-            COL_ALLOCATED,
-            Qt.ItemDataRole.UserRole,
-            folder_info.has_unscanned_children,
-        )
         item.setIcon(COL_NAME, _get_generic_folder_icon())
         _align_numeric_columns(item)
 
@@ -175,6 +171,7 @@ def add_file_entries(
         group_item.setData(COL_NAME, ROLE_PATH, "__files_group__")
         group_item.setData(COL_NAME, ROLE_PERCENT_BAR, percent)
         group_item.setData(COL_SIZE, Qt.ItemDataRole.UserRole, total_size)
+        group_item.setData(COL_ALLOCATED, Qt.ItemDataRole.UserRole, total_alloc)
         group_item.setData(COL_PERCENT, Qt.ItemDataRole.UserRole, percent)
         group_item.setIcon(COL_NAME, _get_generic_file_icon())
         _align_numeric_columns(group_item)
@@ -200,6 +197,7 @@ def add_file_entries(
             file_item.setData(COL_NAME, ROLE_PATH, fentry.path)
             file_item.setData(COL_NAME, ROLE_PERCENT_BAR, file_percent)
             file_item.setData(COL_SIZE, Qt.ItemDataRole.UserRole, fentry.size_bytes)
+            file_item.setData(COL_ALLOCATED, Qt.ItemDataRole.UserRole, fentry.allocated_bytes)
             file_item.setData(COL_PERCENT, Qt.ItemDataRole.UserRole, file_percent)
             file_item.setIcon(COL_NAME, _get_generic_file_icon())
             _align_numeric_columns(file_item)
@@ -218,6 +216,7 @@ def add_file_entries(
             more_item.setText(COL_FILES, f"{omitted:,}")
             more_item.setData(COL_NAME, ROLE_PATH, "__files_group__")
             more_item.setData(COL_SIZE, Qt.ItemDataRole.UserRole, omitted_size)
+            more_item.setData(COL_ALLOCATED, Qt.ItemDataRole.UserRole, omitted_size)
             more_item.setIcon(COL_NAME, _get_generic_file_icon())
             _align_numeric_columns(more_item)
             group_item.addChild(more_item)

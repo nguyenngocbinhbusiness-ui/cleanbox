@@ -229,6 +229,9 @@ class CleanupView(QWidget):
         try:
             self._progress_bar.setVisible(visible)
             self._cleanup_btn.setEnabled(not visible)
+            self._add_btn.setEnabled(not visible)
+            self._remove_btn.setEnabled(not visible)
+            self._dir_list.setEnabled(not visible)
             if not visible:
                 self._progress_bar.setValue(0)
         except Exception as e:
