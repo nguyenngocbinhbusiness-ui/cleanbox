@@ -26,7 +26,7 @@ class TestSettingsViewCoverage:
         with patch("ui.views.settings_view.is_admin", return_value=False):
             view = SettingsView()
         qtbot.addWidget(view)
-        
+
         assert hasattr(view, '_autostart_cb')
         assert view._autostart_cb.isChecked()
         assert not hasattr(view, '_run_as_admin_cb')
@@ -49,7 +49,7 @@ class TestSettingsViewCoverage:
         from ui.views.settings_view import SettingsView
         view = SettingsView()
         qtbot.addWidget(view)
-        
+
         view.set_autostart(True)
         assert view._autostart_cb.isChecked()
 
@@ -58,7 +58,7 @@ class TestSettingsViewCoverage:
         from ui.views.settings_view import SettingsView
         view = SettingsView()
         qtbot.addWidget(view)
-        
+
         view.set_autostart(False)
         assert not view._autostart_cb.isChecked()
 
@@ -67,7 +67,7 @@ class TestSettingsViewCoverage:
         from ui.views.settings_view import SettingsView
         view = SettingsView()
         qtbot.addWidget(view)
-        
+
         with patch.object(view._autostart_cb, 'blockSignals', side_effect=Exception("Error")):
             view.set_autostart(True)  # Should not raise
 
@@ -76,7 +76,7 @@ class TestSettingsViewCoverage:
         from ui.views.settings_view import SettingsView
         view = SettingsView()
         qtbot.addWidget(view)
-        
+
         view.set_threshold(15)
         assert view._threshold_spin.value() == 15
 
@@ -85,7 +85,7 @@ class TestSettingsViewCoverage:
         from ui.views.settings_view import SettingsView
         view = SettingsView()
         qtbot.addWidget(view)
-        
+
         with patch.object(view._threshold_spin, 'blockSignals', side_effect=Exception("Error")):
             view.set_threshold(20)  # Should not raise
 
@@ -94,7 +94,7 @@ class TestSettingsViewCoverage:
         from ui.views.settings_view import SettingsView
         view = SettingsView()
         qtbot.addWidget(view)
-        
+
         view.set_interval(120)
         assert view._interval_spin.value() == 120
 
@@ -103,7 +103,7 @@ class TestSettingsViewCoverage:
         from ui.views.settings_view import SettingsView
         view = SettingsView()
         qtbot.addWidget(view)
-        
+
         with patch.object(view._interval_spin, 'blockSignals', side_effect=Exception("Error")):
             view.set_interval(90)  # Should not raise
 
@@ -112,10 +112,10 @@ class TestSettingsViewCoverage:
         from ui.views.settings_view import SettingsView
         view = SettingsView()
         qtbot.addWidget(view)
-        
+
         signals_received = []
         view.autostart_changed.connect(lambda v: signals_received.append(v))
-        
+
         view._on_autostart_changed(2)  # Qt.Checked = 2
         assert len(signals_received) == 1
         assert signals_received[0] is True
@@ -125,10 +125,10 @@ class TestSettingsViewCoverage:
         from ui.views.settings_view import SettingsView
         view = SettingsView()
         qtbot.addWidget(view)
-        
+
         signals_received = []
         view.threshold_changed.connect(lambda v: signals_received.append(v))
-        
+
         view._on_threshold_changed(25)
         assert len(signals_received) == 1
         assert signals_received[0] == 25
@@ -151,10 +151,10 @@ class TestSettingsViewCoverage:
         from ui.views.settings_view import SettingsView
         view = SettingsView()
         qtbot.addWidget(view)
-        
+
         signals_received = []
         view.interval_changed.connect(lambda v: signals_received.append(v))
-        
+
         view._on_interval_changed(180)
         assert len(signals_received) == 1
         assert signals_received[0] == 180

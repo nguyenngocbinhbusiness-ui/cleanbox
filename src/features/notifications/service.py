@@ -92,4 +92,3 @@ class NotificationService:
             except Exception as e:
                 logger.warning("Tray icon fallback failed: %s", e)
         logger.info("Notification (fallback log): [%s] %s", title, message)
-

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch, PropertyMock
 from types import SimpleNamespace
 from PyQt6.QtWidgets import QApplication, QTreeWidgetItem
 
-from features.folder_scanner.service import FolderScanner, FolderInfo
+from features.folder_scanner.service import FolderScanner, FolderInfo, FileEntry
 from features.storage_monitor.utils import DriveInfo
 from ui.views.storage_view import COL_SIZE, COL_PERCENT
 
@@ -33,12 +33,12 @@ class TestScanWorkerCoverage:
         scanner = MagicMock(spec=FolderScanner)
         folder_info = FolderInfo(path="C:\\", name="C:", size_bytes=1000, allocated_bytes=1024, file_count=10, folder_count=2, last_modified='', children=[])
         scanner.scan_folder.return_value = folder_info
-        
+
         worker = ScanWorker(scanner, "C:\\")
         finished_results = []
         worker.finished.connect(lambda r: finished_results.append(r))
         worker.run()
-        
+
         assert len(finished_results) == 1
         assert finished_results[0] == folder_info
 
@@ -47,12 +47,12 @@ class TestScanWorkerCoverage:
         from ui.views.storage_view import ScanWorker
         scanner = MagicMock(spec=FolderScanner)
         scanner.scan_folder.side_effect = Exception("Scan failed")
-        
+
         worker = ScanWorker(scanner, "C:\\")
         finished_results = []
         worker.finished.connect(lambda r: finished_results.append(r))
         worker.run()
-        
+
         assert len(finished_results) == 1
         assert finished_results[0] is None
 
@@ -61,11 +61,11 @@ class TestScanWorkerCoverage:
         from ui.views.storage_view import ScanWorker
         scanner = MagicMock(spec=FolderScanner)
         worker = ScanWorker(scanner, "C:\\")
-        
+
         progress_updates = []
         worker.progress.connect(lambda p, c: progress_updates.append((p, c)))
         worker._on_progress("C:\\folder", 100)
-        
+
         assert len(progress_updates) == 1
         assert progress_updates[0] == ("C:\\folder", 100)
 
@@ -74,11 +74,11 @@ class TestScanWorkerCoverage:
         from ui.views.storage_view import ScanWorker
         scanner = MagicMock(spec=FolderScanner)
         worker = ScanWorker(scanner, "C:\\")
-        
+
         progress_updates = []
         worker.progress.connect(lambda p, c: progress_updates.append((p, c)))
         worker._on_progress("C:\\very\\long\\nested\\folder\\path", 999999)
-        
+
         assert len(progress_updates) == 1
         assert progress_updates[0][1] == 999999
 
@@ -98,7 +98,7 @@ class TestStorageViewCoverage:
         from ui.views.storage_view import StorageView
         view = StorageView()
         qtbot.addWidget(view)
-        
+
         assert hasattr(view, '_drive_combo')
         assert hasattr(view, '_scan_btn')
         assert hasattr(view, '_cancel_btn')
@@ -110,7 +110,7 @@ class TestStorageViewCoverage:
         from ui.views.storage_view import StorageView
         view = StorageView()
         qtbot.addWidget(view)
-        
+
         view.update_drives([])
         assert view._drive_combo.count() == 0
 
@@ -119,7 +119,7 @@ class TestStorageViewCoverage:
         from ui.views.storage_view import StorageView
         view = StorageView()
         qtbot.addWidget(view)
-        
+
         drives = [
             DriveInfo(letter="C:", total_gb=500.0, free_gb=100.0, used_gb=400.0, percent_used=80.0),
             DriveInfo(letter="D:", total_gb=1000.0, free_gb=800.0, used_gb=200.0, percent_used=20.0),
@@ -132,7 +132,7 @@ class TestStorageViewCoverage:
         from ui.views.storage_view import StorageView
         view = StorageView()
         qtbot.addWidget(view)
-        
+
         folder = FolderInfo(
             path="C:\\test",
             name="test",
@@ -144,7 +144,7 @@ class TestStorageViewCoverage:
             children=[]
         )
         item = view._create_tree_item(folder, 2048000)
-        
+
         # Name column now includes size prefix: "999.0 KB   test"
         assert "test" in item.text(0)
         assert "KB" in item.text(0) or "MB" in item.text(0)
@@ -154,7 +154,7 @@ class TestStorageViewCoverage:
         from ui.views.storage_view import StorageView
         view = StorageView()
         qtbot.addWidget(view)
-        
+
         child = FolderInfo(path="C:\\test\\child", name="child", size_bytes=512000, allocated_bytes=516096, file_count=5, folder_count=1, last_modified='', children=[])
         folder = FolderInfo(
             path="C:\\test",
@@ -167,7 +167,7 @@ class TestStorageViewCoverage:
             children=[child]
         )
         item = view._create_tree_item(folder, 2048000)
-        
+
         assert item.childCount() >= 1
 
     def test_create_tree_item_zero_parent_size(self, qtbot, app):
@@ -175,21 +175,48 @@ class TestStorageViewCoverage:
         from ui.views.storage_view import StorageView
         view = StorageView()
         qtbot.addWidget(view)
-        
+
         folder = FolderInfo(path="C:\\test", name="test", size_bytes=1024, allocated_bytes=4096, file_count=0, folder_count=0, last_modified='', children=[])
         item = view._create_tree_item(folder, 0)
-        
+
         assert item.text(COL_PERCENT) == "-"  # Percentage should be "-" when parent_size is 0
+
+    def test_build_tree_item_helper_groups_direct_files(self, qtbot, app):
+        """Tree helper should render grouped direct file entries."""
+        from ui.views.storage_view_tree import build_tree_item
+        folder = FolderInfo(
+            path="C:\\test",
+            name="test",
+            size_bytes=2048,
+            allocated_bytes=4096,
+            file_count=1,
+            folder_count=0,
+            last_modified='',
+            children=[],
+            direct_files=[
+                FileEntry(
+                    name="demo.txt",
+                    path="C:\\test\\demo.txt",
+                    size_bytes=1024,
+                    allocated_bytes=4096,
+                )
+            ],
+        )
+
+        item = build_tree_item(folder, 4096)
+
+        assert item.childCount() == 1
+        assert "[1 Files]" in item.child(0).text(0)
 
     def test_update_drive_summary_empty(self, qtbot, app):
         """Test _update_drive_summary with no drives."""
         from ui.views.storage_view import StorageView
         view = StorageView()
         qtbot.addWidget(view)
-        
+
         view._drives = []
         view._update_drive_summary()
-        
+
         # Should show "No drives detected" message
         assert view._drive_bars_layout.count() > 0
 
@@ -198,14 +225,14 @@ class TestStorageViewCoverage:
         from ui.views.storage_view import StorageView
         view = StorageView()
         qtbot.addWidget(view)
-        
+
         view._drives = [
             DriveInfo(letter="C:", total_gb=500.0, free_gb=50.0, used_gb=450.0, percent_used=90.0),  # 90% used - critical
             DriveInfo(letter="D:", total_gb=1000.0, free_gb=200.0, used_gb=800.0, percent_used=80.0),  # 80% used - warning
             DriveInfo(letter="E:", total_gb=500.0, free_gb=400.0, used_gb=100.0, percent_used=20.0),  # 20% used - normal
         ]
         view._update_drive_summary()
-        
+
         # Should create progress bars for each drive
         assert view._drive_bars_layout.count() >= 3
 
@@ -214,7 +241,7 @@ class TestStorageViewCoverage:
         from ui.views.storage_view import StorageView
         view = StorageView()
         qtbot.addWidget(view)
-        
+
         view._drives = [DriveInfo(letter="C:", total_gb=100.0, free_gb=5.0, used_gb=95.0, percent_used=95.0)]  # 95% used
         view._update_drive_summary()
 
@@ -223,10 +250,10 @@ class TestStorageViewCoverage:
         from ui.views.storage_view import StorageView
         view = StorageView()
         qtbot.addWidget(view)
-        
+
         drives = [DriveInfo(letter="C:", total_gb=500.0, free_gb=100.0, used_gb=400.0, percent_used=80.0)]
         view.update_drives(drives)
-        
+
         # Click scan - should start scanning
         with patch.object(view, '_start_realtime_scan'):
             view._on_scan()
@@ -236,7 +263,7 @@ class TestStorageViewCoverage:
         from ui.views.storage_view import StorageView
         view = StorageView()
         qtbot.addWidget(view)
-        
+
         view._on_cancel()  # Should not raise
 
     def test_on_refresh_clicked(self, qtbot, app):
@@ -244,11 +271,11 @@ class TestStorageViewCoverage:
         from ui.views.storage_view import StorageView
         view = StorageView()
         qtbot.addWidget(view)
-        
+
         refresh_emitted = []
         view.refresh_requested.connect(lambda: refresh_emitted.append(True))
         view._on_refresh()
-        
+
         assert len(refresh_emitted) == 1
 
     def test_context_menu_adds_delete_and_open_location_actions(self, qtbot, app):
@@ -277,12 +304,10 @@ class TestStorageViewCoverage:
         target = tmp_path / "demo.txt"
         target.write_text("x")
 
-        with patch("ui.views.storage_view.subprocess.run") as run_mock:
+        with patch("ui.views.storage_view.open_file_location") as open_mock:
             view._on_open_file_location(str(target))
 
-        run_mock.assert_called_once()
-        assert run_mock.call_args[0][0][0] == "explorer"
-        assert run_mock.call_args[0][0][1] == "/select,"
+        open_mock.assert_called_once_with(str(target))
 
     def test_delete_item_uses_recycle_bin_and_removes_tree_item(self, qtbot, app, tmp_path):
         """Delete should move the selected item to recycle bin and remove it from tree."""
@@ -298,10 +323,10 @@ class TestStorageViewCoverage:
         assert view._tree.topLevelItemCount() == 1
 
         with patch("ui.views.storage_view.QMessageBox.warning", return_value=16384), \
-             patch("ui.views.storage_view.winshell.delete_file") as delete_mock:
+             patch("ui.views.storage_view.recycle_path") as recycle_mock:
             view._on_delete_item(str(target), item)
 
-        delete_mock.assert_called_once()
+        recycle_mock.assert_called_once_with(str(target))
         assert view._tree.topLevelItemCount() == 0
 
     def test_on_item_double_clicked_directory(self, qtbot, app, tmp_path):
@@ -309,15 +334,15 @@ class TestStorageViewCoverage:
         from ui.views.storage_view import StorageView
         view = StorageView()
         qtbot.addWidget(view)
-        
+
         # Create a temp directory
         test_dir = tmp_path / "test_folder"
         test_dir.mkdir()
-        
+
         item = QTreeWidgetItem()
         from PyQt6.QtCore import Qt
         item.setData(0, Qt.ItemDataRole.UserRole, str(test_dir))
-        
+
         with patch.object(view, '_start_scan'):
             view._on_item_double_clicked(item, 0)
 
@@ -326,7 +351,7 @@ class TestStorageViewCoverage:
         from ui.views.storage_view import StorageView
         view = StorageView()
         qtbot.addWidget(view)
-        
+
         item = QTreeWidgetItem()
         # No path data set
         view._on_item_double_clicked(item, 0)  # Should not raise
@@ -336,7 +361,7 @@ class TestStorageViewCoverage:
         from ui.views.storage_view import StorageView
         view = StorageView()
         qtbot.addWidget(view)
-        
+
         # _populate_tree expects FolderInfo, not None
         # Test with empty tree first
         assert view._tree.topLevelItemCount() == 0
@@ -346,7 +371,7 @@ class TestStorageViewCoverage:
         from ui.views.storage_view import StorageView
         view = StorageView()
         qtbot.addWidget(view)
-        
+
         folder = FolderInfo(
             path="C:\\test",
             name="test",
@@ -358,7 +383,7 @@ class TestStorageViewCoverage:
             children=[]
         )
         view._populate_tree(folder)
-        
+
         assert view._tree.topLevelItemCount() > 0
 
     def test_stale_progress_signal_is_ignored(self, qtbot, app):

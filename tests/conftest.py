@@ -59,12 +59,12 @@ def fresh_config(temp_config_dir: Path, monkeypatch) -> ConfigManager:
     # Monkeypatch the config paths
     monkeypatch.setattr("shared.constants.CONFIG_DIR", temp_config_dir)
     monkeypatch.setattr("shared.constants.CONFIG_FILE", temp_config_dir / "config.json")
-    
+
     # Also patch in the config module
     import shared.config.manager as config_module
     monkeypatch.setattr(config_module, "CONFIG_DIR", temp_config_dir)
     monkeypatch.setattr(config_module, "CONFIG_FILE", temp_config_dir / "config.json")
-    
+
     return ConfigManager()
 
 
@@ -73,16 +73,16 @@ def temp_cleanup_dir(tmp_path: Path) -> Generator[Path, None, None]:
     """Create a temporary directory with test files for cleanup testing."""
     cleanup_dir = tmp_path / "cleanup_test"
     cleanup_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Create some test files
     (cleanup_dir / "file1.txt").write_text("test content 1")
     (cleanup_dir / "file2.txt").write_text("test content 2")
-    
+
     # Create a subdirectory with files
     subdir = cleanup_dir / "subdir"
     subdir.mkdir()
     (subdir / "nested_file.txt").write_text("nested content")
-    
+
     yield cleanup_dir
 
 
@@ -90,18 +90,18 @@ def temp_cleanup_dir(tmp_path: Path) -> Generator[Path, None, None]:
 def mock_drives(monkeypatch):
     """Mock drive information for testing."""
     from features.storage_monitor.utils import DriveInfo
-    
+
     mock_drive_list = [
         DriveInfo(letter="C:", total_gb=500.0, free_gb=100.0, used_gb=400.0, percent_used=80.0),
         DriveInfo(letter="D:", total_gb=1000.0, free_gb=5.0, used_gb=995.0, percent_used=99.5),  # Low space
     ]
-    
+
     def mock_get_all_drives():
         return mock_drive_list
-    
+
     from features.storage_monitor import utils
     monkeypatch.setattr(utils, "get_all_drives", mock_get_all_drives)
-    
+
     return mock_drive_list
 
 
@@ -111,16 +111,16 @@ class TestResult:
         self.passed = []
         self.failed = []
         self.skipped = []
-    
+
     def mark_passed(self, tc_id: str):
         self.passed.append(tc_id)
-    
+
     def mark_failed(self, tc_id: str, reason: str = ""):
         self.failed.append((tc_id, reason))
-    
+
     def mark_skipped(self, tc_id: str, reason: str = ""):
         self.skipped.append((tc_id, reason))
-    
+
     def summary(self) -> dict:
         return {
             "total": len(self.passed) + len(self.failed) + len(self.skipped),
@@ -142,16 +142,16 @@ def mock_toast(monkeypatch):
     sys.modules["win11toast"] = MagicMock()
     sys.modules["winshell"] = MagicMock()
     mock = MagicMock()
-    
+
     # Patch win11toast module function
     import win11toast
     monkeypatch.setattr(win11toast, "toast", mock)
-    
+
     # Patch local import in notification service if it's already imported
     try:
         import features.notifications.service as notification_service
         monkeypatch.setattr(notification_service, "toast", mock)
     except ImportError:
         pass
-        
+
     yield mock

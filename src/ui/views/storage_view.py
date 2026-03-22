@@ -1,7 +1,5 @@
 """Storage View - Displays drive information and folder sizes (TreeSize-like)."""
 import logging
-import os
-import subprocess
 import time
 from typing import Optional, List
 from pathlib import Path
@@ -10,67 +8,44 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTreeWidget, QTreeWidgetItem,
     QHeaderView, QProgressBar, QLabel, QFrame, QPushButton, QComboBox,
     QMenu, QMessageBox, QStyledItemDelegate, QStyleOptionViewItem,
-    QStyle, QApplication, QFileIconProvider, QSizePolicy
+    QStyle, QSizePolicy
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QThread, pyqtSlot, QRect, QFileInfo, QTimer
+from PyQt6.QtCore import Qt, pyqtSignal, QThread, pyqtSlot, QRect, QTimer
 from PyQt6.QtGui import (
-    QFont, QAction, QColor, QBrush, QPainter, QLinearGradient,
+    QFont, QAction, QColor, QLinearGradient,
     QPalette, QIcon
 )
 
 from features.storage_monitor import DriveInfo
-from features.folder_scanner import FolderScanner, FolderInfo, FileEntry, format_size
+from features.folder_scanner import FolderScanner, FolderInfo, format_size
 from shared.utils import is_protected_path
-import winshell
+from ui.views.storage_view_actions import (
+    open_file_location,
+    recycle_path,
+)
+from ui.views.storage_view_tree import (
+    COL_ALLOCATED,
+    COL_FILES,
+    COL_FOLDERS,
+    COL_NAME,
+    COL_PERCENT,
+    COL_SIZE,
+    NUM_COLUMNS,
+    ROLE_IS_ROOT,
+    ROLE_PERCENT_BAR,
+    _BOLD_FONT,
+    _ROOT_BG_BRUSH,
+    NumericSortItem,
+    _get_generic_folder_icon,
+    add_file_entries,
+    build_tree_item,
+)
 
 logger = logging.getLogger(__name__)
-
-# Column indices
-COL_NAME = 0
-COL_SIZE = 1
-COL_ALLOCATED = 2
-COL_FILES = 3
-COL_FOLDERS = 4
-COL_PERCENT = 5
-NUM_COLUMNS = 6
-
-# Custom data roles
-ROLE_PATH = Qt.ItemDataRole.UserRole          # path string (COL_NAME)
-ROLE_PERCENT_BAR = Qt.ItemDataRole.UserRole + 1  # percent for name bar
-ROLE_IS_ROOT = Qt.ItemDataRole.UserRole + 2      # bool: is root item
-
-# Shared icon provider
-_icon_provider = QFileIconProvider()
-
-# --- Cached constants (D8: avoid per-item allocation) ---
-_BOLD_FONT = QFont()
-_BOLD_FONT.setBold(True)
-_ROOT_BG_BRUSH = QBrush(QColor("#E8F0FE"))
-_GENERIC_FOLDER_ICON: Optional[QIcon] = None
-_GENERIC_FILE_ICON: Optional[QIcon] = None
 
 # Batch / throttle constants
 _BATCH_FLUSH_MS = 200       # D1: flush child buffer every 200ms
 _PROGRESS_TEXT_MS = 0.5     # D4: throttle progress text updates to 500ms
-_MAX_FILE_ENTRIES = 100     # D7: max individual file items per group
-
-
-def _get_generic_folder_icon() -> QIcon:
-    """Return cached generic folder icon (D3)."""
-    global _GENERIC_FOLDER_ICON
-    if _GENERIC_FOLDER_ICON is None:
-        _GENERIC_FOLDER_ICON = _icon_provider.icon(
-            QFileIconProvider.IconType.Folder)
-    return _GENERIC_FOLDER_ICON
-
-
-def _get_generic_file_icon() -> QIcon:
-    """Return cached generic file icon (D3)."""
-    global _GENERIC_FILE_ICON
-    if _GENERIC_FILE_ICON is None:
-        _GENERIC_FILE_ICON = _icon_provider.icon(
-            QFileIconProvider.IconType.File)
-    return _GENERIC_FILE_ICON
 
 
 class NameColumnDelegate(QStyledItemDelegate):
@@ -184,36 +159,6 @@ class PercentBarDelegate(QStyledItemDelegate):
             text)
 
         painter.restore()
-
-
-class NumericSortItem(QTreeWidgetItem):
-    """QTreeWidgetItem with numeric sorting for size/percent columns."""
-
-    def __lt__(self, other: QTreeWidgetItem) -> bool:
-        tw = self.treeWidget()
-        column = tw.sortColumn() if tw else 0
-        if column == COL_PERCENT:
-            self_val = self.data(
-                COL_PERCENT, Qt.ItemDataRole.UserRole) or 0.0
-            other_val = other.data(
-                COL_PERCENT, Qt.ItemDataRole.UserRole) or 0.0
-            return float(self_val) < float(other_val)
-        elif column in (COL_SIZE, COL_ALLOCATED):
-            self_val = self.data(
-                COL_SIZE, Qt.ItemDataRole.UserRole) or 0
-            other_val = other.data(
-                COL_SIZE, Qt.ItemDataRole.UserRole) or 0
-            return int(self_val) < int(other_val)
-        elif column in (COL_FILES, COL_FOLDERS):
-            try:
-                s_text = self.text(column).replace(',', '')
-                o_text = other.text(column).replace(',', '')
-                s_val = int(s_text) if s_text != '-' else 0
-                o_val = int(o_text) if o_text != '-' else 0
-                return s_val < o_val
-            except ValueError:
-                pass
-        return super().__lt__(other)
 
 
 class ScanWorker(QThread):
@@ -705,7 +650,6 @@ class StorageView(QWidget):
             self._root_folders_accumulator = 0
 
             # Create root item
-            reference_size = self._drive_total_bytes or 1
             self._root_item = NumericSortItem()
             self._root_item.setText(
                 COL_NAME, f"Scanning...   {path}")
@@ -1089,89 +1033,8 @@ class StorageView(QWidget):
         reference_size: int,
         is_root: bool = False,
     ) -> QTreeWidgetItem:
-        """Create a tree item from FolderInfo (D3/D8 optimized)."""
-        try:
-            item = NumericSortItem()
-
-            # Name with size prefix: "66.5 GB   Users"
-            display_name = folder_info.name or folder_info.path
-            size_prefix = folder_info.size_formatted()
-            item.setText(COL_NAME, f"{size_prefix}   {display_name}")
-            item.setText(COL_SIZE, folder_info.size_formatted())
-            item.setText(COL_ALLOCATED, folder_info.allocated_formatted())
-            item.setText(
-                COL_FILES,
-                f"{folder_info.file_count:,}" if folder_info.file_count else "-")
-            item.setText(
-                COL_FOLDERS,
-                f"{folder_info.folder_count:,}" if folder_info.folder_count else "-")
-
-            # % of reference (parent size)
-            percent = 0.0
-            if reference_size > 0:
-                percent = (folder_info.size_bytes / reference_size) * 100
-                item.setText(COL_PERCENT, f"{percent:.1f} %")
-            else:
-                item.setText(COL_PERCENT, "-")
-
-            # Store data for delegates and later use
-            item.setData(
-                COL_NAME, Qt.ItemDataRole.UserRole, folder_info.path)
-            item.setData(COL_NAME, ROLE_PERCENT_BAR, percent)
-            item.setData(COL_NAME, ROLE_IS_ROOT, is_root)
-            item.setData(
-                COL_SIZE, Qt.ItemDataRole.UserRole, folder_info.size_bytes)
-            item.setData(
-                COL_PERCENT, Qt.ItemDataRole.UserRole, percent)
-            item.setData(
-                COL_ALLOCATED, Qt.ItemDataRole.UserRole,
-                folder_info.has_unscanned_children)
-
-            # D3: Use generic folder icon (avoid per-item QFileInfo syscall)
-            item.setIcon(COL_NAME, _get_generic_folder_icon())
-
-            # Right-align numeric columns
-            for col in (COL_SIZE, COL_ALLOCATED, COL_FILES,
-                        COL_FOLDERS, COL_PERCENT):
-                item.setTextAlignment(
-                    col,
-                    Qt.AlignmentFlag.AlignRight
-                    | Qt.AlignmentFlag.AlignVCenter)
-
-            # D8: Use cached font/brush for root item
-            if is_root:
-                for col in range(NUM_COLUMNS):
-                    item.setFont(col, _BOLD_FONT)
-                for col in (COL_SIZE, COL_ALLOCATED, COL_FILES,
-                            COL_FOLDERS):
-                    item.setBackground(col, _ROOT_BG_BRUSH)
-
-            # Children use parent's size as reference for sub-level %
-            child_reference = (
-                folder_info.size_bytes if folder_info.size_bytes > 0 else 1)
-
-            for child in folder_info.children:
-                child_item = self._create_tree_item(
-                    child, child_reference)
-                item.addChild(child_item)
-
-            # Add grouped file entries for this level
-            if folder_info.children or folder_info.direct_files:
-                self._add_file_entries(
-                    item, folder_info, child_reference)
-
-            # If folder has unscanned children, add placeholder for expand
-            if folder_info.has_unscanned_children and not folder_info.children:
-                placeholder = NumericSortItem()
-                placeholder.setText(COL_NAME, "Loading...")
-                placeholder.setData(
-                    COL_NAME, Qt.ItemDataRole.UserRole, "__placeholder__")
-                item.addChild(placeholder)
-
-            return item
-        except Exception as e:
-            logger.error("Failed to create tree item: %s", e)
-            return NumericSortItem()
+        """Create a tree item from FolderInfo."""
+        return build_tree_item(folder_info, reference_size, is_root=is_root)
 
     def _add_file_entries(
         self,
@@ -1179,129 +1042,8 @@ class StorageView(QWidget):
         folder_info: FolderInfo,
         reference_size: int,
     ) -> None:
-        """Add file entries grouped as '[N Files]' expandable item (D7: capped)."""
-        try:
-            if not folder_info.direct_files:
-                return
-
-            file_count = len(folder_info.direct_files)
-            total_size = sum(f.size_bytes for f in folder_info.direct_files)
-            total_alloc = sum(
-                f.allocated_bytes for f in folder_info.direct_files)
-
-            # Group item: "[N Files]"
-            group_item = NumericSortItem()
-            group_label = f"[{file_count:,} Files]"
-            group_item.setText(
-                COL_NAME,
-                f"{format_size(total_size)}   {group_label}")
-            group_item.setText(COL_SIZE, format_size(total_size))
-            group_item.setText(COL_ALLOCATED, format_size(total_alloc))
-            group_item.setText(COL_FILES, f"{file_count:,}")
-            group_item.setText(COL_FOLDERS, "-")
-
-            percent = 0.0
-            if reference_size > 0:
-                percent = (total_size / reference_size) * 100
-                group_item.setText(COL_PERCENT, f"{percent:.1f} %")
-            else:
-                group_item.setText(COL_PERCENT, "-")
-
-            group_item.setData(
-                COL_NAME, Qt.ItemDataRole.UserRole, "__files_group__")
-            group_item.setData(COL_NAME, ROLE_PERCENT_BAR, percent)
-            group_item.setData(
-                COL_SIZE, Qt.ItemDataRole.UserRole, total_size)
-            group_item.setData(
-                COL_PERCENT, Qt.ItemDataRole.UserRole, percent)
-
-            # D3: Use cached generic file icon
-            group_item.setIcon(COL_NAME, _get_generic_file_icon())
-
-            # Right-align numeric columns
-            for col in (COL_SIZE, COL_ALLOCATED, COL_FILES,
-                        COL_FOLDERS, COL_PERCENT):
-                group_item.setTextAlignment(
-                    col,
-                    Qt.AlignmentFlag.AlignRight
-                    | Qt.AlignmentFlag.AlignVCenter)
-
-            # D7: Only show top _MAX_FILE_ENTRIES files to avoid widget explosion
-            shown_files = folder_info.direct_files[:_MAX_FILE_ENTRIES]
-            omitted = file_count - len(shown_files)
-
-            for fentry in shown_files:
-                file_item = NumericSortItem()
-                file_item.setText(
-                    COL_NAME,
-                    f"{format_size(fentry.size_bytes)}   {fentry.name}")
-                file_item.setText(
-                    COL_SIZE, format_size(fentry.size_bytes))
-                file_item.setText(
-                    COL_ALLOCATED,
-                    format_size(fentry.allocated_bytes))
-                file_item.setText(COL_FILES, "1")
-                file_item.setText(COL_FOLDERS, "-")
-
-                fpercent = 0.0
-                if reference_size > 0:
-                    fpercent = (fentry.size_bytes / reference_size) * 100
-                    file_item.setText(
-                        COL_PERCENT, f"{fpercent:.1f} %")
-                else:
-                    file_item.setText(COL_PERCENT, "-")
-
-                file_item.setData(
-                    COL_NAME, Qt.ItemDataRole.UserRole, fentry.path)
-                file_item.setData(
-                    COL_NAME, ROLE_PERCENT_BAR, fpercent)
-                file_item.setData(
-                    COL_SIZE, Qt.ItemDataRole.UserRole,
-                    fentry.size_bytes)
-                file_item.setData(
-                    COL_PERCENT, Qt.ItemDataRole.UserRole, fpercent)
-
-                # D3: Use cached generic file icon
-                file_item.setIcon(COL_NAME, _get_generic_file_icon())
-
-                # Right-align numeric columns
-                for col in (COL_SIZE, COL_ALLOCATED, COL_FILES,
-                            COL_FOLDERS, COL_PERCENT):
-                    file_item.setTextAlignment(
-                        col,
-                        Qt.AlignmentFlag.AlignRight
-                        | Qt.AlignmentFlag.AlignVCenter)
-
-                group_item.addChild(file_item)
-
-            # D7: Summary item for omitted files
-            if omitted > 0:
-                omitted_size = sum(
-                    f.size_bytes
-                    for f in folder_info.direct_files[_MAX_FILE_ENTRIES:])
-                more_item = NumericSortItem()
-                more_item.setText(
-                    COL_NAME,
-                    f"{format_size(omitted_size)}   "
-                    f"[{omitted:,} more files...]")
-                more_item.setText(COL_SIZE, format_size(omitted_size))
-                more_item.setText(COL_FILES, f"{omitted:,}")
-                more_item.setData(
-                    COL_NAME, Qt.ItemDataRole.UserRole, "__files_group__")
-                more_item.setData(
-                    COL_SIZE, Qt.ItemDataRole.UserRole, omitted_size)
-                more_item.setIcon(COL_NAME, _get_generic_file_icon())
-                for col in (COL_SIZE, COL_ALLOCATED, COL_FILES,
-                            COL_FOLDERS, COL_PERCENT):
-                    more_item.setTextAlignment(
-                        col,
-                        Qt.AlignmentFlag.AlignRight
-                        | Qt.AlignmentFlag.AlignVCenter)
-                group_item.addChild(more_item)
-
-            parent_item.addChild(group_item)
-        except Exception as e:
-            logger.error("Failed to add file entries: %s", e)
+        """Add grouped file entries under a folder tree item."""
+        add_file_entries(parent_item, folder_info, reference_size)
 
     def _on_item_expanded(self, item: QTreeWidgetItem) -> None:
         """Handle tree item expand - use cache or lazy scan sub-folders."""
@@ -1502,12 +1244,7 @@ class StorageView(QWidget):
             if result != QMessageBox.StandardButton.Yes:
                 return
 
-            winshell.delete_file(
-                path,
-                allow_undo=True,
-                no_confirm=True,
-                silent=False,
-            )
+            recycle_path(path)
 
             if item is not None:
                 parent = item.parent()
@@ -1526,26 +1263,14 @@ class StorageView(QWidget):
     def _on_open_file_location(self, path: str) -> None:
         """Open Explorer and select the file or folder."""
         try:
-            target = Path(path)
-            if not target.exists():
-                QMessageBox.information(
-                    self,
-                    "Item Not Found",
-                    f"'{path}' no longer exists.",
-                )
-                return
-
-            if os.name == "nt":
-                subprocess.run(
-                    ["explorer", "/select,", str(target)],
-                    check=False,
-                    capture_output=True,
-                    text=True,
-                )
-            else:
-                os.startfile(str(target.parent if target.parent.exists() else target))
-
+            open_file_location(path)
             self._status_label.setText(f"Opened file location: {path}")
+        except FileNotFoundError:
+            QMessageBox.information(
+                self,
+                "Item Not Found",
+                f"'{path}' no longer exists.",
+            )
         except Exception as e:
             logger.error("Failed to open file location: %s", e)
             QMessageBox.warning(

@@ -105,13 +105,13 @@ class TestIMPSEC001InputValidation:
 
 class TestIMPSEC002PathTraversal:
     def test_tc_imp_sec_002_n(self): s = CleanupService(); s.cleanup_directory("C:\\Normal")
-    def test_tc_imp_sec_002_e(self, temp_cleanup_dir): 
+    def test_tc_imp_sec_002_e(self, temp_cleanup_dir):
         s = CleanupService()
         # Create a structure to traverse
         target = temp_cleanup_dir / "target"
         target.mkdir()
-        # Traverse to it using relative path from a sibling (if possible) or just .. 
-        # But we pass absolute path. 
+        # Traverse to it using relative path from a sibling (if possible) or just ..
+        # But we pass absolute path.
         # "C:\..\..\Windows" was the test.
         # Let's use a path that resolves to target but uses ..
         # e.g. temp_cleanup_dir / "subdir" / ".." / "target"

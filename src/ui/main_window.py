@@ -209,7 +209,7 @@ class MainWindow(QMainWindow):
 
     def show_cleanup_progress(self, visible: bool) -> None:
         """Show or hide cleanup progress bar.
-        
+
         Args:
             visible: True to show progress bar, False to hide.
         """
@@ -220,7 +220,7 @@ class MainWindow(QMainWindow):
 
     def set_cleanup_progress(self, current: int, total: int) -> None:
         """Update cleanup progress bar value.
-        
+
         Args:
             current: Current progress (0 to total).
             total: Total number of items.
@@ -250,4 +250,3 @@ class MainWindow(QMainWindow):
                     self.cleanup_view.update_directories(dirs)
         except Exception as e:
             logger.error("Failed to add to cleanup from scan: %s", e)
-

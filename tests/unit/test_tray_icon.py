@@ -5,8 +5,9 @@ import threading
 
 from ui.tray_icon import TrayIcon, load_icon
 
+
 class TestTrayIcon:
-    
+
     @pytest.fixture
     def mock_callbacks(self):
         return {
@@ -14,7 +15,7 @@ class TestTrayIcon:
             "settings": MagicMock(),
             "exit": MagicMock()
         }
-    
+
     @pytest.fixture
     def tray_icon(self, mock_callbacks):
         return TrayIcon(
@@ -28,9 +29,9 @@ class TestTrayIcon:
         with patch("ui.tray_icon.ICON_PATH") as mock_path, \
              patch("ui.tray_icon.Image.open") as mock_open:
             mock_path.exists.return_value = True
-            
+
             icon = load_icon()
-            
+
             mock_open.assert_called_once()
             assert icon == mock_open.return_value
 
@@ -42,7 +43,7 @@ class TestTrayIcon:
             mock_path.exists.return_value = False
             load_icon()
             mock_new.assert_called()
-            
+
             # Case 2: Error loading file
             mock_path.exists.return_value = True
             with patch("ui.tray_icon.Image.open", side_effect=Exception("Load Error")):
@@ -79,9 +80,9 @@ class TestTrayIcon:
         with patch("ui.tray_icon.Icon") as MockIcon, \
              patch("ui.tray_icon.load_icon"), \
              patch("ui.tray_icon.threading.Thread") as MockThread:
-            
+
             tray_icon.start()
-            
+
             MockIcon.assert_called_once()
             MockThread.assert_called_once()
             MockThread.return_value.start.assert_called_once()
@@ -100,9 +101,9 @@ class TestTrayIcon:
         mock_icon = MagicMock()
         tray_icon._icon = mock_icon
         tray_icon._thread = MagicMock()
-        
+
         tray_icon.stop()
-        
+
         mock_icon.stop.assert_called_once()
         assert tray_icon._icon is None
         assert tray_icon._thread is None
@@ -112,7 +113,7 @@ class TestTrayIcon:
         mock_icon = MagicMock()
         mock_icon.stop.side_effect = Exception("Stop Error")
         tray_icon._icon = mock_icon
-        
+
         with patch("ui.tray_icon.logger") as mock_logger:
             tray_icon.stop()
             # Should still cleanup resources
@@ -124,11 +125,11 @@ class TestTrayIcon:
         # Cleanup
         tray_icon._handle_cleanup(None, None)
         mock_callbacks["cleanup"].assert_called_once()
-        
+
         # Settings
         tray_icon._handle_settings(None, None)
         mock_callbacks["settings"].assert_called_once()
-        
+
         # Exit
         with patch.object(tray_icon, "stop") as mock_stop:
             tray_icon._handle_exit(None, None)
@@ -140,11 +141,11 @@ class TestTrayIcon:
         mock_callbacks["cleanup"].side_effect = Exception("Callback Error")
         mock_callbacks["settings"].side_effect = Exception("Callback Error")
         mock_callbacks["exit"].side_effect = Exception("Callback Error")
-        
+
         with patch("ui.tray_icon.logger") as mock_logger:
             tray_icon._handle_cleanup(None, None)
             tray_icon._handle_settings(None, None)
             with patch.object(tray_icon, "stop"):
                 tray_icon._handle_exit(None, None)
-            
+
             assert mock_logger.error.call_count == 3

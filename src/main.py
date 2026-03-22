@@ -7,7 +7,7 @@ from pathlib import Path
 src_path = Path(__file__).parent
 sys.path.insert(0, str(src_path))
 
-from shared.constants import APP_NAME, CONFIG_DIR
+from shared.constants import APP_NAME, CONFIG_DIR  # noqa: E402
 
 
 def setup_logging() -> None:

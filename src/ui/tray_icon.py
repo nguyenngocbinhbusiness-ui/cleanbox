@@ -124,7 +124,7 @@ class TrayIcon:
 
     def set_status(self, status: Optional[str] = None) -> None:
         """Update tray icon tooltip to show current status.
-        
+
         Args:
             status: Status text to show (e.g., "Cleaning 2/5...").
                     Pass None to reset to default app name.

@@ -52,6 +52,7 @@ class App(QObject):
             self._tray_icon: Optional[TrayIcon] = None
             self._qt_app: Optional[QApplication] = None
             self._cleanup_worker: Optional[CleanupProgressWorker] = None
+            self._startup_error: Optional[str] = None
         except Exception as e:
             logger.error("Failed to init App: %s", e)
 
@@ -71,7 +72,7 @@ class App(QObject):
             # Check for existing instance
             if not self._acquire_single_instance():
                 logger.warning("Another instance is already running")
-                return 0
+                return 1 if self._startup_error else 0
 
             # Handle first run - detect default directories
             if self._config.is_first_run:
@@ -142,17 +143,18 @@ class App(QObject):
 
     def _acquire_single_instance(self) -> bool:
         """Check if this is the only instance running.
-        
+
         Uses QLocalServer to ensure only one instance runs at a time.
         If another instance exists, sends a 'show' command to it.
         Detects and removes stale locks left by crashed instances (R-008, FM-CB-012).
         Returns True if this is the first instance, False otherwise.
         """
+        self._startup_error = None
         try:
             # Try to connect to existing server
             socket = QLocalSocket()
             socket.connectToServer(SINGLE_INSTANCE_KEY)
-            
+
             if socket.waitForConnected(500):
                 # Another instance is running - send 'show' command
                 socket.write(b"show")
@@ -160,26 +162,26 @@ class App(QObject):
                 socket.close()
                 logger.info("Sent 'show' command to existing instance")
                 return False
-            
+
             socket.close()
-            
+
             # No other instance responding - create server
             self._local_server = QLocalServer()
-            
+
             if self._local_server.listen(SINGLE_INSTANCE_KEY):
                 logger.info("Single instance lock acquired")
                 self._local_server.newConnection.connect(self._handle_new_connection)
                 return True
-            
+
             # Listen failed — possible stale lock from a previous crash.
             # Verify with a longer timeout before removing.
             logger.warning(
                 "Cannot listen on '%s': %s. Checking for stale lock...",
                 SINGLE_INSTANCE_KEY, self._local_server.errorString())
-            
+
             stale_check = QLocalSocket()
             stale_check.connectToServer(SINGLE_INSTANCE_KEY)
-            
+
             if stale_check.waitForConnected(2000):
                 # Another instance IS actually running
                 stale_check.write(b"show")
@@ -187,28 +189,31 @@ class App(QObject):
                 stale_check.close()
                 logger.info("Confirmed another instance is running")
                 return False
-            
+
             stale_check.close()
-            
+
             # No response — stale lock confirmed. Remove and retry.
             logger.warning(
                 "Stale lock detected for '%s'. Removing and retrying...",
                 SINGLE_INSTANCE_KEY)
             QLocalServer.removeServer(SINGLE_INSTANCE_KEY)
-            
+
             if self._local_server.listen(SINGLE_INSTANCE_KEY):
                 logger.info("Single instance lock acquired after stale lock cleanup")
                 self._local_server.newConnection.connect(self._handle_new_connection)
                 return True
-            
-            logger.error(
-                "Failed to acquire lock after stale lock cleanup: %s",
-                self._local_server.errorString())
-            return True  # Allow running anyway
-                
+
+            self._startup_error = (
+                "Failed to acquire single-instance lock after stale lock cleanup: "
+                f"{self._local_server.errorString()}"
+            )
+            logger.error(self._startup_error)
+            return False
+
         except Exception as e:
-            logger.error("Single instance check failed: %s", e)
-            return True  # Allow running on error
+            self._startup_error = f"Single instance check failed: {e}"
+            logger.error(self._startup_error)
+            return False
 
     def _handle_new_connection(self) -> None:
         """Handle incoming connection from another instance."""
@@ -218,7 +223,7 @@ class App(QObject):
                 socket.waitForReadyRead(1000)
                 data = socket.readAll().data().decode()
                 socket.close()
-                
+
                 if data == "show":
                     logger.info("Received 'show' command from another instance")
                     self._do_show_settings()  # Show the main window
@@ -294,12 +299,12 @@ class App(QObject):
             if self._cleanup_worker is not None and self._cleanup_worker.isRunning():
                 logger.warning("Cleanup already in progress")
                 return
-            
+
             directories = self._config.cleanup_directories
             if not directories:
                 logger.info("No directories to clean")
                 return
-            
+
             # Confirmation dialog (DRBFM D-CB-001..005, STPA UCA-2)
             dir_list = "\n".join(f"  • {d}" for d in directories)
             result = QMessageBox.warning(
@@ -314,15 +319,15 @@ class App(QObject):
             if result != QMessageBox.StandardButton.Ok:
                 logger.info("Cleanup cancelled by user")
                 return
-            
+
             logger.info("Starting cleanup with %d directories", len(directories))
-            
+
             # Show progress UI
             if self._main_window:
                 self._main_window.show_cleanup_progress(True)
             if self._tray_icon:
                 self._tray_icon.set_status("Starting cleanup...")
-            
+
             # Create and start worker
             self._cleanup_worker = CleanupProgressWorker(
                 directories, parent=self
@@ -330,7 +335,7 @@ class App(QObject):
             self._cleanup_worker.progress_updated.connect(self._on_cleanup_progress)
             self._cleanup_worker.cleanup_finished.connect(self._on_cleanup_finished)
             self._cleanup_worker.start()
-            
+
         except Exception as e:
             logger.error("Failed to start cleanup: %s", e)
             # Reset UI on error
@@ -355,14 +360,14 @@ class App(QObject):
         """Handle cleanup completion from worker."""
         try:
             logger.info("Cleanup finished: %d files, %d folders, %.2f MB",
-                       result.total_files, result.total_folders, result.total_size_mb)
-            
+                        result.total_files, result.total_folders, result.total_size_mb)
+
             # Hide progress UI
             if self._main_window:
                 self._main_window.show_cleanup_progress(False)
             if self._tray_icon:
                 self._tray_icon.set_status(None)
-            
+
             # Show result notification
             self._notification_service.notify_cleanup_result(
                 files_deleted=result.total_files,
@@ -370,10 +375,10 @@ class App(QObject):
                 size_mb=result.total_size_mb,
                 errors=len(result.errors),
             )
-            
+
             # Cleanup worker reference
             self._cleanup_worker = None
-            
+
         except Exception as e:
             logger.error("Failed to handle cleanup completion: %s", e)
 

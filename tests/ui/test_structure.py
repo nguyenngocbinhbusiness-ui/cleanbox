@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 from ui.main_window import MainWindow
 from ui.components.sidebar import SidebarWidget
 
+
 class TestUIStructure(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -26,12 +27,12 @@ class TestUIStructure(unittest.TestCase):
     def test_mainwindow_creation(self):
         window = MainWindow()
         self.assertIsNotNone(window)
-        
+
         # Check structure
         self.assertIsInstance(window.sidebar, SidebarWidget)
         self.assertIsNotNone(window.splitter)
         self.assertIsNotNone(window.content_stack)
-        
+
         # Check default view count (Drives, Cleanup, Settings)
         self.assertEqual(window.content_stack.count(), 3)
 

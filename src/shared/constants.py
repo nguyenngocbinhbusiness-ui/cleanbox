@@ -80,4 +80,3 @@ def _build_protected_paths() -> frozenset:
 
 
 PROTECTED_PATHS: frozenset = _build_protected_paths()
-

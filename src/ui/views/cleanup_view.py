@@ -222,7 +222,7 @@ class CleanupView(QWidget):
 
     def show_progress_bar(self, visible: bool) -> None:
         """Show or hide the progress bar and toggle button state.
-        
+
         Args:
             visible: True to show progress bar and disable button.
         """
@@ -236,7 +236,7 @@ class CleanupView(QWidget):
 
     def set_progress(self, current: int, total: int) -> None:
         """Update the progress bar value.
-        
+
         Args:
             current: Current progress (0 to total).
             total: Total number of items.

@@ -3,8 +3,9 @@ import pytest
 from unittest.mock import MagicMock, patch
 from features.folder_scanner.service import FolderScanner, FolderInfo, ScanStats
 
+
 class TestFolderScannerCoverage:
-    
+
     @pytest.fixture
     def scanner(self):
         return FolderScanner()
@@ -13,15 +14,15 @@ class TestFolderScannerCoverage:
         """Cover FolderInfo property errors."""
         # Create info with "bad" size (though int can't really fail, we can mock it)
         info = FolderInfo("path", "name", 0, 0, 0, 0, '', [])
-        
+
         # Test size_mb error
         # We can't easily force float division to fail unless size_bytes is non-numeric,
-        # but type hinting says int. 
+        # but type hinting says int.
         # However, we can patch the properties or use a mock object.
-        pass # The properties are simple try/except blocks around division.
+        pass  # The properties are simple try/except blocks around division.
              # Hard to fail unless we pass invalid types, which python allows.
-        
-        info.size_bytes = "not an int" 
+
+        info.size_bytes = "not an int"
         assert info.size_mb == 0.0
         assert info.size_gb == 0.0
         assert info.size_formatted() == "0 Bytes"
@@ -31,7 +32,7 @@ class TestFolderScannerCoverage:
         # Patch _scan_recursive to raise generic exception
         with patch.object(scanner, "_scan_recursive", side_effect=Exception("Recursive Error")), \
              patch("features.folder_scanner.service.logger") as mock_log:
-            
+
             res = scanner.scan_folder("C:/Test")
             assert res is None
             mock_log.error.assert_called()
@@ -45,9 +46,9 @@ class TestFolderScannerCoverage:
             bad_entry.is_file.side_effect = Exception("Access Error")
             bad_entry.path = "C:/Test/Bad"
             bad_entry.__str__.return_value = "C:/Test/Bad"
-            
+
             mock_scandir.return_value = [bad_entry]
-            
+
             with patch("features.folder_scanner.service.logger") as mock_log:
                 scanner.scan_folder("C:/Test")
                 # Should catch exception and log debug
@@ -69,32 +70,32 @@ class TestFolderScannerCoverage:
         """Cover max_depth logic calling _get_folder_size_fast."""
         # max_depth=0 means we scan root but for children we use fast scan if we were to recurse?
         # Actually logic is: if current_depth < max_depth: recurse, else: fast scan.
-        
+
         # Let's say max_depth=1. Root is depth 0.
-        # Root has child "subdir". 
+        # Root has child "subdir".
         # current_depth for subdir is 1. 1 < 1 is False.
         # So it should call fast scan for subdir.
-        
+
         with patch("os.scandir") as mock_scandir, \
              patch.object(scanner, "_get_folder_size_fast", return_value=(500, 512)) as mock_fast:
-             
-             # Mock DirEntry for subdirectory
-             sub = MagicMock()
-             sub.is_file.return_value = False
-             sub.is_dir.return_value = True
-             sub.name = "Sub"
-             sub.path = "C:/Root/Sub"
-             sub.__str__.return_value = "C:/Root/Sub"
-             
-             mock_scandir.return_value = [sub]
-             
-             res = scanner.scan_folder("C:/Root", max_depth=1)
-             
-             mock_fast.assert_called()
-             assert mock_fast.call_args.args[0] == "C:/Root/Sub"
-             assert isinstance(mock_fast.call_args.args[1], list)
-             assert res.size_bytes == 500
-             assert res.children[0].size_bytes == 500
+
+            # Mock DirEntry for subdirectory
+            sub = MagicMock()
+            sub.is_file.return_value = False
+            sub.is_dir.return_value = True
+            sub.name = "Sub"
+            sub.path = "C:/Root/Sub"
+            sub.__str__.return_value = "C:/Root/Sub"
+
+            mock_scandir.return_value = [sub]
+
+            res = scanner.scan_folder("C:/Root", max_depth=1)
+
+            mock_fast.assert_called()
+            assert mock_fast.call_args.args[0] == "C:/Root/Sub"
+            assert isinstance(mock_fast.call_args.args[1], list)
+            assert res.size_bytes == 500
+            assert res.children[0].size_bytes == 500
 
     def test_scan_file_stat_error(self, scanner):
         """Cover file stat permission error."""
@@ -104,9 +105,9 @@ class TestFolderScannerCoverage:
             f.stat.side_effect = PermissionError("Restricted")
             f.path = "C:/File"
             f.__str__.return_value = "C:/File"
-            
+
             mock_scandir.return_value = [f]
-            
+
             with patch("features.folder_scanner.service.logger") as mock_log:
                 scanner.scan_folder("C:/Root")
                 mock_log.debug.assert_called()

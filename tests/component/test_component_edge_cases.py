@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 class TestComponentEdgeCases:
     """Component tests for edge cases and error states."""
-    
+
     def test_cleanup_view_empty_state(self, qapp):
         """Test CleanupView displays correctly with no directories."""
         from ui.views import CleanupView
@@ -24,7 +24,7 @@ class TestComponentEdgeCases:
         assert view._dir_list.count() == 0
         # Cleanup button should still be clickable
         assert view._cleanup_btn.isEnabled()
-    
+
     def test_storage_view_no_drives(self, qapp):
         """Test StorageView handles zero drives gracefully."""
         from ui.views import StorageView

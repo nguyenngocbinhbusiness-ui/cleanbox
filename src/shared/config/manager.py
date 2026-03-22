@@ -259,4 +259,3 @@ class ConfigManager:
                 self.save()
         except Exception as e:
             logger.error("Failed to remove notified drive %s: %s", drive, e)
-

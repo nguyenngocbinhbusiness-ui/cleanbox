@@ -18,14 +18,14 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 # ============================================================================
 class TestStorageViewComponent:
     """Component tests for StorageView widget."""
-    
+
     def test_storage_view_initialization(self, qapp):
         from ui.views import StorageView
         view = StorageView()
         assert view._tree is not None
         assert view._drive_combo is not None
         assert view._scan_btn is not None
-    
+
     def test_storage_view_update_drives(self, qapp):
         from ui.views import StorageView
         from features.storage_monitor.utils import DriveInfo
@@ -33,7 +33,7 @@ class TestStorageViewComponent:
         drives = [DriveInfo("C:", 500, 100, 400, 80)]
         view.update_drives(drives)
         assert view._drive_combo.count() == 1
-    
+
     def test_storage_view_refresh_signal(self, qapp):
         from ui.views import StorageView
         view = StorageView()
@@ -41,13 +41,13 @@ class TestStorageViewComponent:
         view.refresh_requested.connect(lambda: signals.append(1))
         view._on_refresh()
         assert len(signals) == 1
-    
+
     def test_storage_view_progress_bar(self, qapp):
         from ui.views import StorageView
         view = StorageView()
         assert view._progress_bar is not None
         assert hasattr(view._progress_bar, "setValue")
-    
+
     def test_storage_view_cancel_button(self, qapp):
         from ui.views import StorageView
         view = StorageView()
@@ -60,27 +60,27 @@ class TestStorageViewComponent:
 # ============================================================================
 class TestCleanupViewComponent:
     """Component tests for CleanupView widget."""
-    
+
     def test_cleanup_view_initialization(self, qapp):
         from ui.views import CleanupView
         view = CleanupView()
         assert view._add_btn is not None
         assert view._remove_btn is not None
         assert view._cleanup_btn is not None
-    
+
     def test_cleanup_view_update_directories(self, qapp):
         from ui.views import CleanupView
         view = CleanupView()
         view.update_directories(["C:\\Test", "D:\\Folder"])
         assert view._dir_list.count() == 2
-    
+
     def test_cleanup_view_recycle_bin_display(self, qapp):
         from ui.views import CleanupView
         view = CleanupView()
         view.update_directories(["__RECYCLE_BIN__"])
         item = view._dir_list.item(0)
         assert "[Recycle Bin]" in item.text()
-    
+
     def test_cleanup_view_add_signal(self, qapp):
         from ui.views import CleanupView
         view = CleanupView()
@@ -90,7 +90,7 @@ class TestCleanupViewComponent:
         view._directories.append("C:\\New")
         view.directory_added.emit("C:\\New")
         assert len(signals) == 1
-    
+
     def test_cleanup_view_cleanup_signal(self, qapp):
         from ui.views import CleanupView
         view = CleanupView()
@@ -105,7 +105,7 @@ class TestCleanupViewComponent:
 # ============================================================================
 class TestSettingsViewComponent:
     """Component tests for SettingsView widget."""
-    
+
     def test_settings_view_initialization(self, qapp):
         from ui.views import SettingsView
         with patch("ui.views.settings_view.is_admin", return_value=False):
@@ -121,25 +121,25 @@ class TestSettingsViewComponent:
         with patch("ui.views.settings_view.is_admin", return_value=True):
             view = SettingsView()
         assert view._restart_admin_btn is None
-    
+
     def test_settings_view_set_autostart(self, qapp):
         from ui.views import SettingsView
         view = SettingsView()
         view.set_autostart(True)
         assert view._autostart_cb.isChecked()
-    
+
     def test_settings_view_set_threshold(self, qapp):
         from ui.views import SettingsView
         view = SettingsView()
         view.set_threshold(20)
         assert view._threshold_spin.value() == 20
-    
+
     def test_settings_view_set_interval(self, qapp):
         from ui.views import SettingsView
         view = SettingsView()
         view.set_interval(120)
         assert view._interval_spin.value() == 120
-    
+
     def test_settings_view_autostart_signal(self, qapp):
         from ui.views import SettingsView
         view = SettingsView()
@@ -162,25 +162,25 @@ class TestSettingsViewComponent:
 # ============================================================================
 class TestSidebarWidgetComponent:
     """Component tests for SidebarWidget."""
-    
+
     def test_sidebar_initialization(self, qapp):
         from ui.components.sidebar import SidebarWidget
         sidebar = SidebarWidget()
         assert sidebar.buttons == {}
-    
+
     def test_sidebar_add_item(self, qapp):
         from ui.components.sidebar import SidebarWidget
         sidebar = SidebarWidget()
         sidebar.add_item("Test", "test_id")
         assert "test_id" in sidebar.buttons
-    
+
     def test_sidebar_select_item(self, qapp):
         from ui.components.sidebar import SidebarWidget
         sidebar = SidebarWidget()
         sidebar.add_item("Test", "test_id")
         sidebar.select_item("test_id")
         assert sidebar.buttons["test_id"].isChecked()
-    
+
     def test_sidebar_selection_signal(self, qapp):
         from ui.components.sidebar import SidebarWidget
         sidebar = SidebarWidget()
@@ -196,7 +196,7 @@ class TestSidebarWidgetComponent:
 # ============================================================================
 class TestMainWindowComponent:
     """Component tests for MainWindow."""
-    
+
     def test_main_window_initialization(self, qapp):
         from ui.main_window import MainWindow
         window = MainWindow()
@@ -205,13 +205,13 @@ class TestMainWindowComponent:
         assert window.storage_view is not None
         assert window.cleanup_view is not None
         assert window.settings_view is not None
-    
+
     def test_main_window_switch_view(self, qapp):
         from ui.main_window import MainWindow
         window = MainWindow()
         window.switch_view("cleanup")
         assert window.content_stack.currentWidget() == window.cleanup_view
-    
+
     def test_main_window_update_drives(self, qapp):
         from ui.main_window import MainWindow
         from features.storage_monitor.utils import DriveInfo
@@ -219,13 +219,13 @@ class TestMainWindowComponent:
         drives = [DriveInfo("C:", 500, 100, 400, 80)]
         window.update_drives(drives)
         assert window.storage_view._drive_combo.count() == 1
-    
+
     def test_main_window_update_directories(self, qapp):
         from ui.main_window import MainWindow
         window = MainWindow()
         window.update_directories(["C:\\Test"])
         assert window.cleanup_view._dir_list.count() == 1
-    
+
     def test_main_window_close_hides(self, qapp):
         from ui.main_window import MainWindow
         from PyQt6.QtGui import QCloseEvent
@@ -234,7 +234,7 @@ class TestMainWindowComponent:
         event = MagicMock(spec=QCloseEvent)
         window.closeEvent(event)
         event.ignore.assert_called_once()
-    
+
     def test_main_window_set_settings(self, qapp):
         from ui.main_window import MainWindow
         window = MainWindow()
@@ -251,17 +251,17 @@ class TestMainWindowComponent:
 # ============================================================================
 class TestSidebarButtonComponent:
     """Component tests for SidebarButton."""
-    
+
     def test_sidebar_button_checkable(self, qapp):
         from ui.components.sidebar import SidebarButton
         btn = SidebarButton("Test")
         assert btn.isCheckable()
-    
+
     def test_sidebar_button_cursor(self, qapp):
         from ui.components.sidebar import SidebarButton
         btn = SidebarButton("Test")
         assert btn.cursor().shape() == Qt.CursorShape.PointingHandCursor
-    
+
     def test_sidebar_button_check_toggle(self, qapp):
         from ui.components.sidebar import SidebarButton
         btn = SidebarButton("Test")

@@ -9,11 +9,16 @@ import logging
 import time
 import math
 import ctypes
-import datetime
 from dataclasses import dataclass, field
 from typing import Optional, Callable, List, Tuple, Dict, Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
+
+from features.folder_scanner.scan_helpers import (
+    ScanAggregate,
+    format_last_modified,
+    parse_last_modified,
+)
 
 
 @dataclass
@@ -23,6 +28,7 @@ class FileEntry:
     path: str
     size_bytes: int
     allocated_bytes: int
+
 
 logger = logging.getLogger(__name__)
 
@@ -195,6 +201,50 @@ class FolderScanner:
     def _record_skip(self, stats: ScanStats, exc: Exception) -> None:
         stats.record_skip(self._skip_reason(exc))
 
+    @staticmethod
+    def _empty_folder_info(path: str, folder_name: str, stats: ScanStats) -> FolderInfo:
+        """Return a safe empty FolderInfo for inaccessible paths."""
+        return FolderInfo(
+            path=path,
+            name=folder_name,
+            size_bytes=0,
+            allocated_bytes=0,
+            file_count=0,
+            folder_count=0,
+            last_modified="",
+            children=[],
+            scan_stats=stats,
+        )
+
+    @staticmethod
+    def _record_timestamp_parse_failure(stats: ScanStats, timestamp_value: str) -> None:
+        """Record timestamp parse failures only when a value was present."""
+        if timestamp_value:
+            stats.record_skip("mtime_parse_error")
+
+    @staticmethod
+    def _emit_progress(
+        progress_callback: Optional[Callable[[str, int], None]],
+        path: str,
+        items_scanned: List[int],
+    ) -> None:
+        if progress_callback:
+            progress_callback(path, items_scanned[0])
+
+    def _maybe_emit_progress(
+        self,
+        progress_callback: Optional[Callable[[str, int], None]],
+        path: str,
+        items_scanned: List[int],
+        last_progress_time: List[float],
+    ) -> None:
+        if not progress_callback:
+            return
+        now = time.monotonic()
+        if now - last_progress_time[0] >= _PROGRESS_INTERVAL:
+            last_progress_time[0] = now
+            self._emit_progress(progress_callback, path, items_scanned)
+
     def _iter_dir_entries(self, path: str, stats: ScanStats) -> Iterator[os.DirEntry]:
         """Iterate directory entries while capturing scandir errors deterministically."""
         try:
@@ -238,6 +288,114 @@ class FolderScanner:
             self._record_skip(stats, e)
             logger.debug("Cannot access file %s: %s", entry, e)
             return 0, 0, 0.0
+
+    def _scan_shallow_directory(
+        self,
+        entry: os.DirEntry,
+        aggregate: ScanAggregate,
+        children: List[FolderInfo],
+        items_scanned: List[int],
+        stats: ScanStats,
+    ) -> bool:
+        child_size, child_alloc = self._get_folder_size_fast(
+            entry.path, items_scanned, stats)
+        aggregate.total_size += child_size
+        aggregate.total_allocated += child_alloc
+
+        entry_mtime = 0.0
+        try:
+            entry_mtime = float(entry.stat(follow_symlinks=False).st_mtime)
+        except Exception as e:
+            self._record_skip(stats, e)
+
+        children.append(
+            FolderInfo(
+                path=entry.path,
+                name=entry.name,
+                size_bytes=child_size,
+                allocated_bytes=child_alloc,
+                file_count=0,
+                folder_count=0,
+                last_modified=format_last_modified(entry_mtime),
+                children=[],
+                has_unscanned_children=True,
+                scan_stats=ScanStats(),
+            )
+        )
+        if entry_mtime > aggregate.max_mtime:
+            aggregate.max_mtime = entry_mtime
+        return True
+
+    def _scan_recursive_directory(
+        self,
+        entry: os.DirEntry,
+        max_depth: int,
+        current_depth: int,
+        progress_callback: Optional[Callable[[str, int], None]],
+        items_scanned: List[int],
+        last_progress_time: List[float],
+        aggregate: ScanAggregate,
+        children: List[FolderInfo],
+        stats: ScanStats,
+    ) -> bool:
+        aggregate.folder_count += 1
+        stats.scanned_dirs += 1
+
+        if current_depth >= max_depth:
+            return self._scan_shallow_directory(
+                entry, aggregate, children, items_scanned, stats)
+
+        child_info = self._scan_recursive(
+            entry.path,
+            max_depth,
+            current_depth + 1,
+            progress_callback,
+            items_scanned,
+            last_progress_time,
+            ScanStats(),
+        )
+        if not child_info:
+            return False
+
+        children.append(child_info)
+        stats.merge(child_info.scan_stats)
+        child_mtime = parse_last_modified(child_info.last_modified)
+        if child_mtime is None:
+            self._record_timestamp_parse_failure(stats, child_info.last_modified)
+        aggregate.add_child(child_info, child_mtime)
+        return False
+
+    def _scan_recursive_entry(
+        self,
+        entry: os.DirEntry,
+        max_depth: int,
+        current_depth: int,
+        progress_callback: Optional[Callable[[str, int], None]],
+        items_scanned: List[int],
+        last_progress_time: List[float],
+        aggregate: ScanAggregate,
+        children: List[FolderInfo],
+        direct_files: List[FileEntry],
+        stats: ScanStats,
+    ) -> bool:
+        if entry.is_file(follow_symlinks=False):
+            fsize, falloc, mtime = self._process_file_entry(
+                entry, direct_files, stats)
+            aggregate.add_file(fsize, falloc, mtime)
+            return False
+        if not entry.is_dir(follow_symlinks=False):
+            return False
+        return self._scan_recursive_directory(
+            entry,
+            max_depth,
+            current_depth,
+            progress_callback,
+            items_scanned,
+            last_progress_time,
+            aggregate,
+            children,
+            stats,
+        )
 
     def scan_folder(
         self,
@@ -313,15 +471,9 @@ class FolderScanner:
         self._cancel_flag.clear()
         self._cluster_size = _get_cluster_size(path)
         items_scanned = [0]
-        last_progress_time = [0.0]
         stats = ScanStats()
         folder_name = os.path.basename(path) or path
-
-        total_size = 0
-        total_allocated = 0
-        file_count = 0
-        folder_count = 0
-        max_mtime = 0.0
+        aggregate = ScanAggregate()
         children: List[FolderInfo] = []
         dirs = []
         direct_files: List[FileEntry] = []
@@ -329,137 +481,155 @@ class FolderScanner:
             entry_iter = self._iter_dir_entries(path, stats)
         except Exception as e:
             logger.debug("Cannot access %s: %s", path, e)
-            return FolderInfo(
-                path=path, name=folder_name,
-                size_bytes=0, allocated_bytes=0,
-                file_count=0, folder_count=0,
-                last_modified='', children=[],
-                scan_stats=stats)
+            return self._empty_folder_info(path, folder_name, stats)
 
-        # Separate files and directories using streaming iteration
         try:
-            for entry in entry_iter:
-                if self._cancel_flag.is_set():
-                    return None
-                items_scanned[0] += 1
-                stats.scanned_entries += 1
-                try:
-                    if entry.is_file(follow_symlinks=False):
-                        fsize, falloc, mtime = self._process_file_entry(
-                            entry, direct_files, stats)
-                        total_size += fsize
-                        total_allocated += falloc
-                        if fsize > 0:
-                            file_count += 1
-                        if mtime > max_mtime:
-                            max_mtime = mtime
-                    elif entry.is_dir(follow_symlinks=False):
-                        dirs.append(entry)
-                        folder_count += 1
-                        stats.scanned_dirs += 1
-                except Exception as e:
-                    self._record_skip(stats, e)
-                    logger.debug("Error processing entry %s: %s", entry, e)
+            self._scan_realtime_entries(
+                entry_iter, dirs, direct_files, items_scanned, stats, aggregate
+            )
+        except RuntimeError:
+            return None
         except Exception as e:
             logger.debug("Cannot iterate realtime entries for %s: %s", path, e)
-            return FolderInfo(
-                path=path, name=folder_name,
-                size_bytes=0, allocated_bytes=0,
-                file_count=0, folder_count=0,
-                last_modified='', children=[],
-                scan_stats=stats)
+            return self._empty_folder_info(path, folder_name, stats)
 
-        # TreeSize Layer 2: parallel subdirectory scanning
         if dirs and not self._cancel_flag.is_set():
             try:
-                with ThreadPoolExecutor(
-                    max_workers=self._parallel_workers
-                ) as executor:
-                    future_to_dir = {}
-                    for entry in dirs:
-                        if self._cancel_flag.is_set():
-                            break
-                        fut = executor.submit(
-                            self._scan_subtree,
-                            entry.path, progress_callback, stats)
-                        future_to_dir[fut] = entry
-
-                    # Collect results sequentially via as_completed,
-                    # emit child_callback on calling thread (DRBFM D6)
-                    for future in as_completed(future_to_dir):
-                        if self._cancel_flag.is_set():
-                            executor.shutdown(
-                                wait=False, cancel_futures=True)
-                            return None
-
-                        child_info = future.result()
-                        if child_info is None:
-                            continue
-
-                        children.append(child_info)
-                        total_size += child_info.size_bytes
-                        total_allocated += child_info.allocated_bytes
-                        file_count += child_info.file_count
-                        folder_count += child_info.folder_count
-                        stats.merge(child_info.scan_stats)
-
-                        # Aggregate items_scanned from subtree
-                        with self._progress_lock:
-                            if progress_callback:
-                                progress_callback(
-                                    child_info.path, items_scanned[0])
-
-                        try:
-                            if child_info.last_modified:
-                                child_mtime = datetime.datetime.strptime(
-                                    child_info.last_modified, '%m/%d/%Y'
-                                ).timestamp()
-                                if child_mtime > max_mtime:
-                                    max_mtime = child_mtime
-                        except Exception:
-                            pass
-
-                        child_callback(child_info)
-            except Exception as e:
-                logger.error("Parallel scan failed: %s", e)
-                self._record_skip(stats, e)
-                # Fallback: sequential scan for remaining dirs
-                for entry in dirs:
-                    if self._cancel_flag.is_set():
-                        return None
-                    already = {c.path for c in children}
-                    if entry.path in already:
-                        continue
-                    child_info = self._scan_subtree(
-                        entry.path, progress_callback, stats)
-                    if child_info is None:
-                        continue
-                    children.append(child_info)
-                    total_size += child_info.size_bytes
-                    total_allocated += child_info.allocated_bytes
-                    file_count += child_info.file_count
-                    folder_count += child_info.folder_count
-                    stats.merge(child_info.scan_stats)
-                    child_callback(child_info)
+                self._scan_realtime_directories(
+                    dirs,
+                    children,
+                    child_callback,
+                    progress_callback,
+                    items_scanned,
+                    stats,
+                    aggregate,
+                )
+            except RuntimeError:
+                return None
 
         children.sort(key=lambda x: x.size_bytes, reverse=True)
         direct_files.sort(key=lambda x: x.size_bytes, reverse=True)
-        root_modified = (
-            datetime.datetime.fromtimestamp(max_mtime).strftime('%m/%d/%Y')
-            if max_mtime > 0 else '')
 
         return FolderInfo(
             path=path,
             name=folder_name,
-            size_bytes=total_size,
-            allocated_bytes=total_allocated,
-            file_count=file_count,
-            folder_count=folder_count,
-            last_modified=root_modified,
+            size_bytes=aggregate.total_size,
+            allocated_bytes=aggregate.total_allocated,
+            file_count=aggregate.file_count,
+            folder_count=aggregate.folder_count,
+            last_modified=format_last_modified(aggregate.max_mtime),
             children=children,
             direct_files=direct_files,
             scan_stats=stats,
         )
+
+    def _scan_realtime_entries(
+        self,
+        entry_iter: Iterator[os.DirEntry],
+        dirs: List[os.DirEntry],
+        direct_files: List[FileEntry],
+        items_scanned: List[int],
+        stats: ScanStats,
+        aggregate: ScanAggregate,
+    ) -> None:
+        """Process realtime scandir entries into file and directory buckets."""
+        for entry in entry_iter:
+            if self._cancel_flag.is_set():
+                raise RuntimeError("scan cancelled")
+            items_scanned[0] += 1
+            stats.scanned_entries += 1
+            try:
+                if entry.is_file(follow_symlinks=False):
+                    fsize, falloc, mtime = self._process_file_entry(entry, direct_files, stats)
+                    aggregate.add_file(fsize, falloc, mtime)
+                elif entry.is_dir(follow_symlinks=False):
+                    dirs.append(entry)
+                    aggregate.folder_count += 1
+                    stats.scanned_dirs += 1
+            except Exception as e:
+                self._record_skip(stats, e)
+                logger.debug("Error processing entry %s: %s", entry, e)
+
+    def _merge_realtime_child(
+        self,
+        child_info: FolderInfo,
+        children: List[FolderInfo],
+        child_callback: Callable[[FolderInfo], None],
+        progress_callback: Optional[Callable[[str, int], None]],
+        items_scanned: List[int],
+        stats: ScanStats,
+        aggregate: ScanAggregate,
+    ) -> None:
+        """Merge a realtime child result into root aggregates."""
+        children.append(child_info)
+        stats.merge(child_info.scan_stats)
+        child_mtime = parse_last_modified(child_info.last_modified)
+        if child_mtime is None:
+            self._record_timestamp_parse_failure(stats, child_info.last_modified)
+        aggregate.add_child(child_info, child_mtime)
+        with self._progress_lock:
+            self._emit_progress(progress_callback, child_info.path, items_scanned)
+        child_callback(child_info)
+
+    def _scan_realtime_directories(
+        self,
+        dirs: List[os.DirEntry],
+        children: List[FolderInfo],
+        child_callback: Callable[[FolderInfo], None],
+        progress_callback: Optional[Callable[[str, int], None]],
+        items_scanned: List[int],
+        stats: ScanStats,
+        aggregate: ScanAggregate,
+    ) -> None:
+        """Scan child directories using parallel-first, sequential fallback behavior."""
+        try:
+            with ThreadPoolExecutor(max_workers=self._parallel_workers) as executor:
+                future_to_dir = {}
+                for entry in dirs:
+                    if self._cancel_flag.is_set():
+                        break
+                    future = executor.submit(self._scan_subtree, entry.path, progress_callback, stats)
+                    future_to_dir[future] = entry
+
+                for future in as_completed(future_to_dir):
+                    if self._cancel_flag.is_set():
+                        executor.shutdown(wait=False, cancel_futures=True)
+                        raise RuntimeError("scan cancelled")
+                    child_info = future.result()
+                    if child_info is None:
+                        continue
+                    self._merge_realtime_child(
+                        child_info,
+                        children,
+                        child_callback,
+                        progress_callback,
+                        items_scanned,
+                        stats,
+                        aggregate,
+                    )
+        except RuntimeError:
+            raise
+        except Exception as e:
+            logger.error("Parallel scan failed: %s", e)
+            self._record_skip(stats, e)
+            already = {child.path for child in children}
+            for entry in dirs:
+                if self._cancel_flag.is_set():
+                    raise RuntimeError("scan cancelled")
+                if entry.path in already:
+                    continue
+                child_info = self._scan_subtree(entry.path, progress_callback, stats)
+                if child_info is None:
+                    continue
+                self._merge_realtime_child(
+                    child_info,
+                    children,
+                    child_callback,
+                    progress_callback,
+                    items_scanned,
+                    stats,
+                    aggregate,
+                )
 
     def _scan_subtree(
         self,
@@ -479,8 +649,6 @@ class FolderScanner:
             result = self._scan_recursive(
                 path, 999, 0, progress_callback,
                 local_scanned, local_progress_time, local_stats)
-            if result and parent_stats:
-                parent_stats.merge(result.scan_stats)
             return result
         except Exception as e:
             logger.error("Subtree scan failed for %s: %s", path, e)
@@ -504,12 +672,7 @@ class FolderScanner:
             return None
 
         folder_name = os.path.basename(path) or path
-
-        total_size = 0
-        total_allocated = 0
-        file_count = 0
-        folder_count = 0
-        max_mtime = 0.0
+        aggregate = ScanAggregate()
         children: List[FolderInfo] = []
         direct_files: List[FileEntry] = []
         has_unscanned = False
@@ -518,12 +681,7 @@ class FolderScanner:
             entries = self._iter_dir_entries(path, stats)
         except Exception as e:
             logger.debug("Cannot access %s: %s", path, e)
-            return FolderInfo(
-                path=path, name=folder_name,
-                size_bytes=0, allocated_bytes=0,
-                file_count=0, folder_count=0,
-                last_modified='', children=[],
-                scan_stats=stats)
+            return self._empty_folder_info(path, folder_name, stats)
 
         try:
             for entry in entries:
@@ -532,119 +690,41 @@ class FolderScanner:
 
                 items_scanned[0] += 1
                 stats.scanned_entries += 1
-
-                if progress_callback:
-                    now = time.monotonic()
-                    if now - last_progress_time[0] >= _PROGRESS_INTERVAL:
-                        last_progress_time[0] = now
-                        progress_callback(entry.path, items_scanned[0])
+                self._maybe_emit_progress(
+                    progress_callback, entry.path, items_scanned, last_progress_time)
 
                 try:
-                    # Cached attributes from os.scandir – no extra syscalls
-                    if entry.is_file(follow_symlinks=False):
-                        fsize, falloc, mtime = self._process_file_entry(
-                            entry, direct_files, stats)
-                        total_size += fsize
-                        total_allocated += falloc
-                        if fsize > 0:
-                            file_count += 1
-                        if mtime > max_mtime:
-                            max_mtime = mtime
-
-                    elif entry.is_dir(follow_symlinks=False):
-                        folder_count += 1
-                        stats.scanned_dirs += 1
-
-                        if current_depth < max_depth:
-                            child_info = self._scan_recursive(
-                                entry.path,
-                                max_depth,
-                                current_depth + 1,
-                                progress_callback,
-                                items_scanned,
-                                last_progress_time,
-                                ScanStats(),
-                            )
-                            if child_info:
-                                children.append(child_info)
-                                total_size += child_info.size_bytes
-                                total_allocated += child_info.allocated_bytes
-                                file_count += child_info.file_count
-                                folder_count += child_info.folder_count
-                                stats.merge(child_info.scan_stats)
-                                try:
-                                    if child_info.last_modified:
-                                        child_mt = datetime.datetime.strptime(
-                                            child_info.last_modified, '%m/%d/%Y'
-                                        ).timestamp()
-                                        if child_mt > max_mtime:
-                                            max_mtime = child_mt
-                                except Exception:
-                                    stats.record_skip("mtime_parse_error")
-                        else:
-                            child_size, child_alloc = self._get_folder_size_fast(
-                                entry.path, items_scanned, stats)
-                            entry_mtime = 0.0
-                            try:
-                                entry_mtime = float(
-                                    entry.stat(
-                                        follow_symlinks=False).st_mtime)
-                            except Exception as e:
-                                self._record_skip(stats, e)
-                            try:
-                                child_modified = (
-                                    datetime.datetime.fromtimestamp(
-                                        entry_mtime).strftime('%m/%d/%Y')
-                                    if entry_mtime > 0 else '')
-                            except Exception:
-                                stats.record_skip("mtime_format_error")
-                                child_modified = ''
-                            child_info = FolderInfo(
-                                path=entry.path,
-                                name=entry.name,
-                                size_bytes=child_size,
-                                allocated_bytes=child_alloc,
-                                file_count=0,
-                                folder_count=0,
-                                last_modified=child_modified,
-                                children=[],
-                                has_unscanned_children=True,
-                                scan_stats=ScanStats(),
-                            )
-                            children.append(child_info)
-                            total_size += child_size
-                            total_allocated += child_alloc
-                            has_unscanned = True
-                            if entry_mtime > max_mtime:
-                                max_mtime = entry_mtime
+                    has_unscanned = self._scan_recursive_entry(
+                        entry,
+                        max_depth,
+                        current_depth,
+                        progress_callback,
+                        items_scanned,
+                        last_progress_time,
+                        aggregate,
+                        children,
+                        direct_files,
+                        stats,
+                    ) or has_unscanned
                 except Exception as e:
                     self._record_skip(stats, e)
                     logger.debug("Error processing entry %s: %s", entry, e)
         except Exception as e:
             logger.debug("Cannot iterate entries for %s: %s", path, e)
-            return FolderInfo(
-                path=path, name=folder_name,
-                size_bytes=0, allocated_bytes=0,
-                file_count=0, folder_count=0,
-                last_modified='', children=[],
-                scan_stats=stats)
+            return self._empty_folder_info(path, folder_name, stats)
 
         # Sort children by size (largest first)
         children.sort(key=lambda x: x.size_bytes, reverse=True)
         direct_files.sort(key=lambda x: x.size_bytes, reverse=True)
 
-        folder_modified = (
-            datetime.datetime.fromtimestamp(max_mtime).strftime('%m/%d/%Y')
-            if max_mtime > 0 else '')
-
         return FolderInfo(
             path=path,
             name=folder_name,
-            size_bytes=total_size,
-            allocated_bytes=total_allocated,
-            file_count=file_count,
-            folder_count=folder_count,
-            last_modified=folder_modified,
+            size_bytes=aggregate.total_size,
+            allocated_bytes=aggregate.total_allocated,
+            file_count=aggregate.file_count,
+            folder_count=aggregate.folder_count,
+            last_modified=format_last_modified(aggregate.max_mtime),
             children=children,
             has_unscanned_children=has_unscanned,
             direct_files=direct_files,
