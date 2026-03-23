@@ -2,8 +2,8 @@
 
 - health_score_baseline: 53.77
 - health_score_current: 53.77
-- current_phase: SURGERY complete (slice: shared.config.manager)
-- sessions_used: 4
+- current_phase: SURGERY complete (slice: features.folder_scanner.service)
+- sessions_used: 5
 - autopsy_artifact: `quality/reports/rescue_autopsy.json`
 
 ## Modules To Rescue (Worst First)
@@ -26,6 +26,11 @@
 - Blast radius: 3 files
 - Characterization tests: pass
 - Full suite: pass (`586 passed`)
+- Completed slice: `features.folder_scanner.service`
+- Pattern used: `Strangler Fig` via parallel execution helper seam (`folder_scanner.parallel_executor`)
+- Blast radius: 3 files
+- Characterization tests: pass
+- Full suite: pass (`588 passed`)
 
 ## Dependency Report
 
@@ -49,3 +54,4 @@
 - Next surgery slice: `ui.views.cleanup_view` (3 src files depend on it), pattern `Strangler Fig`.
 - Surgery commit for this slice: pending (current session)
 - Shared surgery slice completed: `shared.config.manager` (schema extraction seam).
+- Folder scanner surgery slice completed: `features.folder_scanner.service` (parallel executor seam).

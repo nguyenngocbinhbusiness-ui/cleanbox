@@ -29,3 +29,10 @@
 - Changes: extracted notified-drive normalization and protected-path filtering into `shared.config.schema`.
 - Blast radius: 3 files (`manager.py`, `schema.py`, `test_config_schema.py`).
 - Verification: characterization tests + full pytest suite passing.
+
+## [2026-03-23 21:48] rune-rescue surgery: features.folder_scanner.service
+
+- Pattern: Strangler Fig (parallel execution helper extraction seam).
+- Changes: extracted realtime parallel orchestration into `folder_scanner.parallel_executor`.
+- Blast radius: 3 files (`service.py`, `parallel_executor.py`, `test_folder_scanner_parallel_executor.py`).
+- Verification: characterization tests + full pytest suite passing.

@@ -11,9 +11,10 @@ import math
 import ctypes
 from dataclasses import dataclass, field
 from typing import Optional, Callable, List, Tuple, Dict, Iterator
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 import threading
 
+from features.folder_scanner.parallel_executor import scan_realtime_directories
 from features.folder_scanner.scan_helpers import (
     ScanAggregate,
     format_last_modified,
@@ -589,54 +590,35 @@ class FolderScanner:
         aggregate: ScanAggregate,
     ) -> None:
         """Scan child directories using parallel-first, sequential fallback behavior."""
-        try:
-            with ThreadPoolExecutor(max_workers=self._parallel_workers) as executor:
-                future_to_dir = {}
-                for entry in dirs:
-                    if self._cancel_flag.is_set():
-                        break
-                    future = executor.submit(self._scan_subtree, entry.path, progress_callback, stats)
-                    future_to_dir[future] = entry
+        def _is_cancelled() -> bool:
+            return self._cancel_flag.is_set()
 
-                for future in as_completed(future_to_dir):
-                    if self._cancel_flag.is_set():
-                        executor.shutdown(wait=False, cancel_futures=True)
-                        raise RuntimeError("scan cancelled")
-                    child_info = future.result()
-                    if child_info is None:
-                        continue
-                    self._merge_realtime_child(
-                        child_info,
-                        children,
-                        child_callback,
-                        progress_callback,
-                        items_scanned,
-                        stats,
-                        aggregate,
-                    )
-        except RuntimeError:
-            raise
-        except Exception as e:
-            logger.error("Parallel scan failed: %s", e)
-            self._record_skip(stats, e)
-            already = {child.path for child in children}
-            for entry in dirs:
-                if self._cancel_flag.is_set():
-                    raise RuntimeError("scan cancelled")
-                if entry.path in already:
-                    continue
-                child_info = self._scan_subtree(entry.path, progress_callback, stats)
-                if child_info is None:
-                    continue
-                self._merge_realtime_child(
-                    child_info,
-                    children,
-                    child_callback,
-                    progress_callback,
-                    items_scanned,
-                    stats,
-                    aggregate,
-                )
+        def _scan_entry(entry: os.DirEntry) -> Optional[FolderInfo]:
+            return self._scan_subtree(entry.path, progress_callback, stats)
+
+        def _merge_child(child_info: FolderInfo) -> None:
+            self._merge_realtime_child(
+                child_info,
+                children,
+                child_callback,
+                progress_callback,
+                items_scanned,
+                stats,
+                aggregate,
+            )
+
+        def _on_parallel_error(exc: Exception) -> None:
+            logger.error("Parallel scan failed: %s", exc)
+            self._record_skip(stats, exc)
+
+        scan_realtime_directories(
+            dirs=dirs,
+            parallel_workers=self._parallel_workers,
+            is_cancelled=_is_cancelled,
+            scan_entry=_scan_entry,
+            merge_child=_merge_child,
+            on_parallel_error=_on_parallel_error,
+        )
 
     def _scan_subtree(
         self,

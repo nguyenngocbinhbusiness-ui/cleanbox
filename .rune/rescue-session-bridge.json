@@ -1,6 +1,6 @@
 {
   "skill": "rune-rescue",
-  "phase": "SURGERY partial complete",
+  "phase": "SURGERY queue complete",
   "baseline_health": 53.77,
   "surgery_queue": [
     {
@@ -32,16 +32,16 @@
     }
   ],
   "last_updated_utc": "2026-03-23T14:12:33.630854+00:00",
-  "resume_hint": "Next surgery module: features.folder_scanner (choose <=5-file slice).",
+  "resume_hint": "Run CLEANUP phase: remove @legacy/@bridge markers, then final VERIFY autopsy.",
   "next_surgery_slice": {
     "module": "ui.views.cleanup_view",
     "blast_radius_src_files": 3,
     "status": "ready"
   },
   "last_completed_slice": {
-    "module": "shared.config.manager",
+    "module": "features.folder_scanner.service",
     "pattern": "Strangler Fig",
     "blast_radius_src_files": 3,
-    "tests": "586 passed"
+    "tests": "588 passed"
   }
 }
