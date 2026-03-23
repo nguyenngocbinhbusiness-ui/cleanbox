@@ -62,4 +62,4 @@
 - Surgery commit for this slice: pending (current session)
 - Shared surgery slice completed: `shared.config.manager` (schema extraction seam).
 - Folder scanner surgery slice completed: `features.folder_scanner.service` (parallel executor seam).
-- Final rescue tag: pending (`rune-rescue-complete`)
+- Final rescue tag: `rune-rescue-complete`
