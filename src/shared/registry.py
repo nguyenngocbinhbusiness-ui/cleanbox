@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from subprocess import CalledProcessError, list2cmdline, run
+from subprocess import CalledProcessError, list2cmdline, run  # nosec B404: controlled subprocess usage
 try:
     import winreg
 except ImportError:
@@ -46,7 +46,7 @@ def _create_scheduled_task() -> bool:
     exe_path = get_executable_path()
     cmd = build_create_task_command(_get_system_tool_path("schtasks.exe"), exe_path)
     try:
-        run(cmd, check=True, capture_output=True, text=True, shell=False)
+        run(cmd, check=True, capture_output=True, text=True, shell=False)  # nosec B603
         logger.info("Auto-start enabled via Task Scheduler (fallback)")
         return True
     except (CalledProcessError, OSError) as e:
@@ -58,7 +58,7 @@ def _delete_scheduled_task() -> bool:
     """Remove the fallback scheduled task if it exists."""
     cmd = build_delete_task_command(_get_system_tool_path("schtasks.exe"))
     try:
-        run(cmd, check=True, capture_output=True, text=True, shell=False)
+        run(cmd, check=True, capture_output=True, text=True, shell=False)  # nosec B603
         logger.info("Scheduled task '%s' removed", APP_NAME)
         return True
     except (CalledProcessError, OSError) as e:

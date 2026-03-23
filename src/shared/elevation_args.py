@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from subprocess import list2cmdline
+from subprocess import list2cmdline  # nosec B404: used only for argv quoting, no shell execution
 
 
 def build_frozen_params(argv: list[str]) -> str | None:

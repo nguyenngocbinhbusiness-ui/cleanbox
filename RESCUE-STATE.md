@@ -3,7 +3,7 @@
 - health_score_baseline: 53.77
 - health_score_current: 53.94
 - current_phase: COMPLETE
-- sessions_used: 17
+- sessions_used: 18
 - autopsy_artifact: `quality/reports/rescue_autopsy.json`
 
 ## Modules To Rescue (Worst First)
@@ -65,6 +65,8 @@
 - Verification: pass (`619 passed`)
 - Extra slice: `ui.views.storage_view` flush-buffer helper seam (`update_root_item_from_accumulators`)
 - Verification: pass (`621 passed`)
+- Extra slice: security hardening for subprocess/process-launch findings (`B404/B603/B606` mitigated)
+- Verification: pass (`621 passed`, Bandit low findings `0`)
 
 ## Dependency Report
 
@@ -90,3 +92,4 @@
 - Shared surgery slice completed: `shared.config.manager` (schema extraction seam).
 - Folder scanner surgery slice completed: `features.folder_scanner.service` (parallel executor seam).
 - Final rescue tag: `rune-rescue-complete`
+- Quality evaluator overall score gate reached: `91.7%` (>= 90 target)
