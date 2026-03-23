@@ -2,7 +2,7 @@
 
 - health_score_baseline: 53.77
 - health_score_current: 53.77
-- current_phase: SAFETY NET complete
+- current_phase: SAFETY NET complete (ready for SURGERY)
 - sessions_used: 2
 - autopsy_artifact: `quality/reports/rescue_autopsy.json`
 
@@ -32,3 +32,5 @@
 - Surgery must wait until safety net checkpoint (characterization tests + rune-rescue-safety-net tag).
 - Safety net checkpoint commit: `f5e4108`
 - Safety net tag: `rune-rescue-safety-net`
+- Blast radius check: `ui.views` touched 18 files (>5), so full-module surgery is blocked.
+- Next surgery slice: `ui.views.cleanup_view` (3 src files depend on it), pattern `Strangler Fig`.

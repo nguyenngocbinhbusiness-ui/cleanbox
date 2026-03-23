@@ -9,3 +9,9 @@
 - Queue: ui.views, shared, features.folder_scanner
 - Dependency audit: 4 outdated req packages; pip_audit_available=False
 
+
+## [2026-03-23 21:18] rune-rescue surgery pre-check
+
+- Safety net gate satisfied (`rune-rescue-safety-net`).
+- Full `ui.views` surgery blocked by blast radius (18 files > 5).
+- Selected initial slice: `ui.views.cleanup_view` (3 src files).

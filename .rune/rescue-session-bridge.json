@@ -32,5 +32,10 @@
     }
   ],
   "last_updated_utc": "2026-03-23T14:12:33.630854+00:00",
-  "resume_hint": "Start SURGERY session for module ui.views only. Keep blast radius <= 5 files."
+  "resume_hint": "Begin surgery with ui.views.cleanup_view (blast radius 3 src files). Avoid full ui.views module for now.",
+  "next_surgery_slice": {
+    "module": "ui.views.cleanup_view",
+    "blast_radius_src_files": 3,
+    "status": "ready"
+  }
 }
