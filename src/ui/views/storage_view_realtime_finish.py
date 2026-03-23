@@ -17,6 +17,7 @@ from ui.views.storage_view_tree import (
     COL_SIZE,
     ROLE_PERCENT_BAR,
 )
+from features.folder_scanner import format_size
 
 
 def update_root_item_from_result(
@@ -71,3 +72,26 @@ def cache_scan_result(
         oldest_key = next(iter(scan_cache))
         del scan_cache[oldest_key]
     scan_cache[current_scan_path] = result
+
+
+def update_root_item_from_accumulators(
+    root_item: QTreeWidgetItem,
+    size_bytes: int,
+    allocated_bytes: int,
+    file_count: int,
+    folder_count: int,
+) -> None:
+    """Apply in-progress accumulated values to the root item row."""
+    root_path = root_item.data(COL_NAME, Qt.ItemDataRole.UserRole) or ""
+    root_size_str = format_size(size_bytes)
+    root_item.setText(COL_NAME, f"{root_size_str}   {root_path}")
+    root_item.setText(COL_SIZE, root_size_str)
+    root_item.setText(COL_ALLOCATED, format_size(allocated_bytes))
+    root_item.setText(COL_FILES, f"{file_count:,}")
+    root_item.setText(COL_FOLDERS, f"{folder_count:,}")
+    root_item.setData(COL_SIZE, Qt.ItemDataRole.UserRole, size_bytes)
+
+
+def build_scanned_status_text(name: str, size_formatted: str) -> str:
+    """Build the scan progress text for the latest buffered child."""
+    return f"Scanned: {name} ({size_formatted})"

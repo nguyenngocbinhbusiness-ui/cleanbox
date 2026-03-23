@@ -5,8 +5,10 @@ from PyQt6.QtWidgets import QTreeWidgetItem
 
 from features.folder_scanner.service import FileEntry, FolderInfo
 from ui.views.storage_view_realtime_finish import (
+    build_scanned_status_text,
     cache_scan_result,
     update_child_percentages,
+    update_root_item_from_accumulators,
     update_root_item_from_result,
 )
 from ui.views.storage_view_tree import (
@@ -82,3 +84,26 @@ def test_cache_scan_result_ignores_empty_path():
     cache_scan_result(scan_cache, None, result, max_entries=20)
 
     assert list(scan_cache.keys()) == ["path-1"]
+
+
+def test_update_root_item_from_accumulators_sets_expected_fields(qtbot):
+    root = QTreeWidgetItem()
+    root.setData(COL_NAME, Qt.ItemDataRole.UserRole, "C:/demo")
+
+    update_root_item_from_accumulators(
+        root_item=root,
+        size_bytes=300,
+        allocated_bytes=512,
+        file_count=12,
+        folder_count=3,
+    )
+
+    assert root.text(COL_NAME) == "300 Bytes   C:/demo"
+    assert root.text(COL_SIZE) == "300 Bytes"
+    assert root.text(COL_FILES) == "12"
+    assert root.text(COL_FOLDERS) == "3"
+    assert root.data(COL_SIZE, Qt.ItemDataRole.UserRole) == 300
+
+
+def test_build_scanned_status_text():
+    assert build_scanned_status_text("demo", "1.0 KB") == "Scanned: demo (1.0 KB)"

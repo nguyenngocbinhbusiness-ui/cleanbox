@@ -109,3 +109,10 @@
 - Reduced `scan_realtime_directories` complexity from rank `C` to rank `A` (radon live check).
 - Preserved cancellation and fallback semantics.
 - Verification: full pytest + flake8 + verify_release all passing (`619 passed`).
+
+## [2026-03-23 23:34] post-completion optimization: ui.views.storage_view (flush buffer)
+
+- Extracted accumulator-based root row update into `update_root_item_from_accumulators`.
+- Extracted scan-progress status text composition into `build_scanned_status_text`.
+- Reduced `_flush_child_buffer` complexity (radon: 10 -> 9) while preserving behavior.
+- Verification: full pytest + flake8 + verify_release all passing (`621 passed`).

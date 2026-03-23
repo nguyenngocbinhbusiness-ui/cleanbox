@@ -17,7 +17,7 @@ from PyQt6.QtGui import (
 )
 
 from features.storage_monitor import DriveInfo
-from features.folder_scanner import FolderScanner, FolderInfo, format_size
+from features.folder_scanner import FolderScanner, FolderInfo
 from shared.utils import is_protected_path
 from ui.views.storage_view_actions import (
     open_file_location,
@@ -47,7 +47,9 @@ from ui.views.storage_view_navigation import (
     resolve_cached_node,
 )
 from ui.views.storage_view_realtime_finish import (
+    build_scanned_status_text,
     cache_scan_result,
+    update_root_item_from_accumulators,
     update_child_percentages,
     update_root_item_from_result,
 )
@@ -859,22 +861,13 @@ class StorageView(QWidget):
                     self._root_item.addChild(child_item)
 
                 # Update root item totals once
-                root_path = self._root_item.data(
-                    COL_NAME, Qt.ItemDataRole.UserRole) or ""
-                root_size_str = format_size(self._root_size_accumulator)
-                self._root_item.setText(
-                    COL_NAME, f"{root_size_str}   {root_path}")
-                self._root_item.setText(COL_SIZE, root_size_str)
-                self._root_item.setText(
-                    COL_ALLOCATED,
-                    format_size(self._root_alloc_accumulator))
-                self._root_item.setText(
-                    COL_FILES, f"{self._root_files_accumulator:,}")
-                self._root_item.setText(
-                    COL_FOLDERS, f"{self._root_folders_accumulator:,}")
-                self._root_item.setData(
-                    COL_SIZE, Qt.ItemDataRole.UserRole,
-                    self._root_size_accumulator)
+                update_root_item_from_accumulators(
+                    root_item=self._root_item,
+                    size_bytes=self._root_size_accumulator,
+                    allocated_bytes=self._root_alloc_accumulator,
+                    file_count=self._root_files_accumulator,
+                    folder_count=self._root_folders_accumulator,
+                )
             finally:
                 # D2: Always re-enable updates
                 self._tree.setUpdatesEnabled(True)
@@ -882,8 +875,7 @@ class StorageView(QWidget):
             if batch:
                 last = batch[-1]
                 self._status_label.setText(
-                    f"Scanned: {last.name} "
-                    f"({last.size_formatted()})")
+                    build_scanned_status_text(last.name, last.size_formatted()))
         except Exception as e:
             logger.error("Failed to flush child buffer: %s", e)
 
