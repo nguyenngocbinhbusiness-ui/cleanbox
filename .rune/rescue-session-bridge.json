@@ -32,16 +32,16 @@
     }
   ],
   "last_updated_utc": "2026-03-23T14:12:33.630854+00:00",
-  "resume_hint": "Next surgery module: shared (one slice only, <=5 files).",
+  "resume_hint": "Next surgery module: features.folder_scanner (choose <=5-file slice).",
   "next_surgery_slice": {
     "module": "ui.views.cleanup_view",
     "blast_radius_src_files": 3,
     "status": "ready"
   },
   "last_completed_slice": {
-    "module": "ui.views.cleanup_view",
+    "module": "shared.config.manager",
     "pattern": "Strangler Fig",
     "blast_radius_src_files": 3,
-    "tests": "582 passed"
+    "tests": "586 passed"
   }
 }

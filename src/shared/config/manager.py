@@ -12,6 +12,10 @@ from shared.constants import (
     DEFAULT_THRESHOLD_GB,
     DEFAULT_POLLING_INTERVAL_SECONDS,
 )
+from shared.config.schema import (
+    filter_protected_cleanup_directories,
+    normalize_notified_drives,
+)
 from shared.utils import is_protected_path
 
 logger = logging.getLogger(__name__)
@@ -104,22 +108,7 @@ class ConfigManager:
     def _normalize_notified_drives(self) -> None:
         """Normalize notified drive state to a drive->timestamp mapping."""
         raw = self._config.get("notified_drives", {})
-        normalized: Dict[str, float] = {}
-
-        if isinstance(raw, dict):
-            for drive, timestamp in raw.items():
-                if not isinstance(drive, str):
-                    continue
-                try:
-                    normalized[drive] = float(timestamp)
-                except (TypeError, ValueError):
-                    normalized[drive] = 0.0
-        elif isinstance(raw, list):
-            for drive in raw:
-                if isinstance(drive, str):
-                    normalized[drive] = 0.0
-
-        self._config["notified_drives"] = normalized
+        self._config["notified_drives"] = normalize_notified_drives(raw)
 
     def save(self) -> None:
         """Save configuration atomically with backup (DRBFM D-CB-011/012)."""
@@ -151,9 +140,9 @@ class ConfigManager:
 
     def _filter_protected_paths(self) -> None:
         """Remove any protected system paths from cleanup_directories."""
-        dirs = self._config.get("cleanup_directories", [])
-        filtered = [d for d in dirs if not is_protected_path(d)]
-        removed = set(dirs) - set(filtered)
+        filtered, removed = filter_protected_cleanup_directories(
+            self._config.get("cleanup_directories", [])
+        )
         if removed:
             for p in removed:
                 logger.warning("Removed protected path from config: %s", p)

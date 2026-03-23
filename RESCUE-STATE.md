@@ -2,8 +2,8 @@
 
 - health_score_baseline: 53.77
 - health_score_current: 53.77
-- current_phase: SURGERY complete (slice: ui.views.cleanup_view)
-- sessions_used: 3
+- current_phase: SURGERY complete (slice: shared.config.manager)
+- sessions_used: 4
 - autopsy_artifact: `quality/reports/rescue_autopsy.json`
 
 ## Modules To Rescue (Worst First)
@@ -21,6 +21,11 @@
 - Blast radius: 3 files
 - Characterization tests: pass
 - Full suite: pass (`582 passed`)
+- Completed slice: `shared.config.manager`
+- Pattern used: `Strangler Fig` via schema helper extraction (`shared.config.schema`)
+- Blast radius: 3 files
+- Characterization tests: pass
+- Full suite: pass (`586 passed`)
 
 ## Dependency Report
 
@@ -43,3 +48,4 @@
 - Blast radius check: `ui.views` touched 18 files (>5), so full-module surgery is blocked.
 - Next surgery slice: `ui.views.cleanup_view` (3 src files depend on it), pattern `Strangler Fig`.
 - Surgery commit for this slice: pending (current session)
+- Shared surgery slice completed: `shared.config.manager` (schema extraction seam).

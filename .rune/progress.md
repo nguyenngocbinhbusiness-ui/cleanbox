@@ -49,3 +49,10 @@
 - Changes: extracted directory-display/add-validation policy from `CleanupView` into `ui.views.cleanup_policy`.
 - Blast radius: 3 files (`cleanup_view.py`, `cleanup_policy.py`, `test_cleanup_policy.py`).
 - Verification: characterization tests + full pytest suite passing.
+
+## [2026-03-23 21:41] rune-rescue surgery: shared.config.manager
+
+- Pattern: Strangler Fig (schema helper extraction seam).
+- Changes: extracted notified-drive normalization and protected-path filtering into `shared.config.schema`.
+- Blast radius: 3 files (`manager.py`, `schema.py`, `test_config_schema.py`).
+- Verification: characterization tests + full pytest suite passing.
