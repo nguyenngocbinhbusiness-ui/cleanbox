@@ -115,3 +115,10 @@
 - Simplified `NumericSortItem.__lt__` by delegating column-specific numeric comparisons to helper.
 - Added helper-level tests for percent/size/count/unsupported-column branches.
 - Verification: full pytest + flake8 + verify_release all passing (`618 passed`).
+
+## [2026-03-23 23:24] post-completion optimization: ui.views.storage_view_tree (row builder seam)
+
+- Extracted folder row text/data preparation into `build_folder_row_values` and count formatter `format_count`.
+- Reduced inline formatting logic inside `build_tree_item` and reused count formatting in grouped-file rows.
+- Added helper-level test coverage for row value generation and count formatting.
+- Verification: full pytest + flake8 + verify_release all passing (`619 passed`).

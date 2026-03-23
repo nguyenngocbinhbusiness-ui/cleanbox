@@ -7,8 +7,10 @@ from PyQt6.QtWidgets import QFileIconProvider, QTreeWidgetItem
 
 from features.folder_scanner import FolderInfo, format_size
 from ui.views.storage_view_tree_helpers import (
+    build_folder_row_values,
     calculate_percent,
     compare_sort_values,
+    format_count,
     summarize_direct_files,
 )
 
@@ -93,22 +95,20 @@ def build_tree_item(
     """Create a tree item from FolderInfo."""
     try:
         item = NumericSortItem()
-        display_name = folder_info.name or folder_info.path
-        size_prefix = folder_info.size_formatted()
-        item.setText(COL_NAME, f"{size_prefix}   {display_name}")
-        item.setText(COL_SIZE, folder_info.size_formatted())
-        item.setText(COL_ALLOCATED, folder_info.allocated_formatted())
-        item.setText(COL_FILES, f"{folder_info.file_count:,}" if folder_info.file_count else "-")
-        item.setText(COL_FOLDERS, f"{folder_info.folder_count:,}" if folder_info.folder_count else "-")
+        row = build_folder_row_values(folder_info, reference_size)
+        item.setText(COL_NAME, row["name_text"])
+        item.setText(COL_SIZE, row["size_text"])
+        item.setText(COL_ALLOCATED, row["allocated_text"])
+        item.setText(COL_FILES, row["files_text"])
+        item.setText(COL_FOLDERS, row["folders_text"])
+        item.setText(COL_PERCENT, row["percent_text"])
 
-        percent = calculate_percent(folder_info.size_bytes, reference_size)
-        item.setText(COL_PERCENT, f"{percent:.1f} %" if reference_size > 0 else "-")
-
-        item.setData(COL_NAME, ROLE_PATH, folder_info.path)
+        percent = row["percent"]
+        item.setData(COL_NAME, ROLE_PATH, row["path"])
         item.setData(COL_NAME, ROLE_PERCENT_BAR, percent)
         item.setData(COL_NAME, ROLE_IS_ROOT, is_root)
-        item.setData(COL_SIZE, Qt.ItemDataRole.UserRole, folder_info.size_bytes)
-        item.setData(COL_ALLOCATED, Qt.ItemDataRole.UserRole, folder_info.allocated_bytes)
+        item.setData(COL_SIZE, Qt.ItemDataRole.UserRole, row["size_bytes"])
+        item.setData(COL_ALLOCATED, Qt.ItemDataRole.UserRole, row["allocated_bytes"])
         item.setData(COL_PERCENT, Qt.ItemDataRole.UserRole, percent)
         item.setIcon(COL_NAME, _get_generic_folder_icon())
         _align_numeric_columns(item)
@@ -158,8 +158,8 @@ def add_file_entries(
         group_item.setText(COL_NAME, f"{format_size(total_size)}   {group_label}")
         group_item.setText(COL_SIZE, format_size(total_size))
         group_item.setText(COL_ALLOCATED, format_size(total_alloc))
-        group_item.setText(COL_FILES, f"{file_count:,}")
-        group_item.setText(COL_FOLDERS, "-")
+        group_item.setText(COL_FILES, format_count(file_count))
+        group_item.setText(COL_FOLDERS, format_count(0))
 
         percent = calculate_percent(total_size, reference_size)
         group_item.setText(COL_PERCENT, f"{percent:.1f} %" if reference_size > 0 else "-")
@@ -177,8 +177,8 @@ def add_file_entries(
             file_item.setText(COL_NAME, f"{format_size(fentry.size_bytes)}   {fentry.name}")
             file_item.setText(COL_SIZE, format_size(fentry.size_bytes))
             file_item.setText(COL_ALLOCATED, format_size(fentry.allocated_bytes))
-            file_item.setText(COL_FILES, "1")
-            file_item.setText(COL_FOLDERS, "-")
+            file_item.setText(COL_FILES, format_count(1))
+            file_item.setText(COL_FOLDERS, format_count(0))
 
             file_percent = calculate_percent(fentry.size_bytes, reference_size)
             file_item.setText(COL_PERCENT, f"{file_percent:.1f} %" if reference_size > 0 else "-")

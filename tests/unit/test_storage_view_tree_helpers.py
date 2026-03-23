@@ -15,8 +15,10 @@ from ui.views.storage_view_tree import (
     build_tree_item,
 )
 from ui.views.storage_view_tree_helpers import (
+    build_folder_row_values,
     calculate_percent,
     compare_sort_values,
+    format_count,
     parse_display_int,
     summarize_direct_files,
 )
@@ -157,3 +159,15 @@ def test_compare_sort_values_returns_none_for_unsupported_column():
         other_user_value=None,
     )
     assert result is None
+
+
+def test_format_count_and_build_folder_row_values():
+    folder = _make_folder()
+    row = build_folder_row_values(folder, folder.size_bytes)
+
+    assert format_count(0) == "-"
+    assert format_count(1234) == "1,234"
+    assert row["name_text"] == "300 Bytes   demo"
+    assert row["files_text"] == "3"
+    assert row["folders_text"] == "1"
+    assert row["percent_text"] == "100.0 %"

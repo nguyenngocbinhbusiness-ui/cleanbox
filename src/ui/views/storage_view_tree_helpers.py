@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Sequence
 
-from features.folder_scanner import FileEntry
+from features.folder_scanner import FileEntry, FolderInfo
 
 
 def parse_display_int(text: str) -> int:
@@ -51,6 +51,33 @@ def compare_sort_values(
         return self_val < other_val
 
     return None
+
+
+def format_count(value: int) -> str:
+    """Format count fields using tree conventions."""
+    return f"{value:,}" if value else "-"
+
+
+def build_folder_row_values(
+    folder_info: FolderInfo,
+    reference_size: int,
+) -> dict[str, object]:
+    """Build row texts and user-role values for a folder item."""
+    percent = calculate_percent(folder_info.size_bytes, reference_size)
+    display_name = folder_info.name or folder_info.path
+    size_text = folder_info.size_formatted()
+    return {
+        "name_text": f"{size_text}   {display_name}",
+        "size_text": size_text,
+        "allocated_text": folder_info.allocated_formatted(),
+        "files_text": format_count(folder_info.file_count),
+        "folders_text": format_count(folder_info.folder_count),
+        "percent_text": f"{percent:.1f} %" if reference_size > 0 else "-",
+        "percent": percent,
+        "size_bytes": folder_info.size_bytes,
+        "allocated_bytes": folder_info.allocated_bytes,
+        "path": folder_info.path,
+    }
 
 
 @dataclass(frozen=True)
