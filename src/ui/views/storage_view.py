@@ -41,6 +41,11 @@ from ui.views.storage_view_tree import (
     build_tree_item,
 )
 from ui.views.storage_view_status import build_scan_complete_text
+from ui.views.storage_view_navigation import (
+    navigate_back_state,
+    navigate_forward_state,
+    resolve_cached_node,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1399,16 +1404,21 @@ class StorageView(QWidget):
     def _on_navigate_back(self) -> None:
         """Navigate back to the previous folder (cached if available)."""
         try:
-            if not self._nav_history:
+            next_path, new_history, new_forward = navigate_back_state(
+                self._current_scan_path,
+                self._nav_history,
+                self._nav_forward,
+            )
+            if not next_path:
                 return
-            if self._current_scan_path:
-                self._nav_forward.append(self._current_scan_path)
-            prev_path = self._nav_history.pop()
-            self._current_scan_path = prev_path
+
+            self._current_scan_path = next_path
+            self._nav_history = new_history
+            self._nav_forward = new_forward
             self._update_nav_buttons()
 
             # Use cache if available for instant navigation
-            cached = self._path_index.get(prev_path) or self._scan_cache.get(prev_path)
+            cached = resolve_cached_node(next_path, self._path_index, self._scan_cache)
             if cached:
                 self._populate_tree(cached)
                 self._status_label.setText(
@@ -1416,23 +1426,28 @@ class StorageView(QWidget):
                     f"{cached.file_count:,} files, "
                     f"{cached.folder_count:,} folders")
             else:
-                self._start_realtime_scan(prev_path)
+                self._start_realtime_scan(next_path)
         except Exception as e:
             logger.error("Failed to navigate back: %s", e)
 
     def _on_navigate_forward(self) -> None:
         """Navigate forward to the next folder (cached if available)."""
         try:
-            if not self._nav_forward:
+            next_path, new_history, new_forward = navigate_forward_state(
+                self._current_scan_path,
+                self._nav_history,
+                self._nav_forward,
+            )
+            if not next_path:
                 return
-            if self._current_scan_path:
-                self._nav_history.append(self._current_scan_path)
-            next_path = self._nav_forward.pop()
+
             self._current_scan_path = next_path
+            self._nav_history = new_history
+            self._nav_forward = new_forward
             self._update_nav_buttons()
 
             # Use cache if available for instant navigation
-            cached = self._path_index.get(next_path) or self._scan_cache.get(next_path)
+            cached = resolve_cached_node(next_path, self._path_index, self._scan_cache)
             if cached:
                 self._populate_tree(cached)
                 self._status_label.setText(

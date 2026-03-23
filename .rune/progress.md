@@ -88,3 +88,9 @@
 - Extracted Task Scheduler command builders into `shared.registry_tasks`.
 - Preserved `enable_autostart`/`disable_autostart` behavior.
 - Verification: full pytest suite passing (`597 passed`).
+
+## [2026-03-23 22:34] post-completion optimization: ui.views.storage_view (navigation)
+
+- Extracted navigation state transitions into `ui.views.storage_view_navigation`.
+- Preserved existing `StorageView` UI behavior using bridge calls.
+- Verification: full pytest + flake8 + verify_release all passing (`602 passed`).

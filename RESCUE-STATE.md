@@ -3,7 +3,7 @@
 - health_score_baseline: 53.77
 - health_score_current: 53.77
 - current_phase: COMPLETE
-- sessions_used: 9
+- sessions_used: 10
 - autopsy_artifact: `quality/reports/rescue_autopsy.json`
 
 ## Modules To Rescue (Worst First)
@@ -47,6 +47,8 @@
 - Verification: pass (`595 passed`)
 - Extra slice: `shared.registry` task-command builder seam (`shared.registry_tasks`)
 - Verification: pass (`597 passed`)
+- Extra slice: `ui.views.storage_view` navigation-state seam (`storage_view_navigation`)
+- Verification: pass (`602 passed`)
 
 ## Dependency Report
 
