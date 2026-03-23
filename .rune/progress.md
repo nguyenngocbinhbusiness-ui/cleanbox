@@ -28,3 +28,11 @@
 - mypy: N/A
 - Coverage: N/A
 - Migration: N/A
+
+## [2026-03-23 21:12] rune-rescue RECON baseline
+
+- Baseline health score: 53.77
+- Modules queued for surgery (health < 60): 3
+- Queue: ui.views, shared, features.folder_scanner
+- Dependency audit: 4 outdated req packages; pip_audit_available=False
+

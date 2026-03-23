@@ -19,6 +19,9 @@ logger = logging.getLogger(__name__)
 
 class ConfigManager:
     """Manages application configuration with JSON persistence."""
+    # @legacy: persistence, schema normalization, and safety filtering are tightly coupled.
+    # @bridge: preserve public property/setter contract during internals extraction.
+    # @new-v2: target split => repository (io) + schema normalizer + policy validator.
 
     def __init__(self):
         """Initialize and load configuration."""
