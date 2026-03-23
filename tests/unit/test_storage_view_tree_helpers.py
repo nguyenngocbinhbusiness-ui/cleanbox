@@ -16,6 +16,7 @@ from ui.views.storage_view_tree import (
 )
 from ui.views.storage_view_tree_helpers import (
     calculate_percent,
+    compare_sort_values,
     parse_display_int,
     summarize_direct_files,
 )
@@ -103,3 +104,56 @@ def test_numeric_sort_item_uses_display_parser_for_file_counts(qtbot):
     left.setText(COL_FILES, "1,200")
     right.setText(COL_FILES, "900")
     assert parse_display_int(left.text(COL_FILES)) > parse_display_int(right.text(COL_FILES))
+
+
+def test_compare_sort_values_for_percent_column():
+    result = compare_sort_values(
+        column=COL_PERCENT,
+        percent_column=COL_PERCENT,
+        size_columns=(COL_SIZE, COL_ALLOCATED),
+        count_columns=(COL_FILES, COL_FOLDERS),
+        self_text="",
+        other_text="",
+        self_user_value=20.0,
+        other_user_value=30.0,
+    )
+    assert result is True
+
+
+def test_compare_sort_values_for_size_and_count_columns():
+    size_result = compare_sort_values(
+        column=COL_SIZE,
+        percent_column=COL_PERCENT,
+        size_columns=(COL_SIZE, COL_ALLOCATED),
+        count_columns=(COL_FILES, COL_FOLDERS),
+        self_text="",
+        other_text="",
+        self_user_value=100,
+        other_user_value=90,
+    )
+    count_result = compare_sort_values(
+        column=COL_FILES,
+        percent_column=COL_PERCENT,
+        size_columns=(COL_SIZE, COL_ALLOCATED),
+        count_columns=(COL_FILES, COL_FOLDERS),
+        self_text="12",
+        other_text="20",
+        self_user_value=None,
+        other_user_value=None,
+    )
+    assert size_result is False
+    assert count_result is True
+
+
+def test_compare_sort_values_returns_none_for_unsupported_column():
+    result = compare_sort_values(
+        column=COL_NAME,
+        percent_column=COL_PERCENT,
+        size_columns=(COL_SIZE, COL_ALLOCATED),
+        count_columns=(COL_FILES, COL_FOLDERS),
+        self_text="a",
+        other_text="b",
+        self_user_value=None,
+        other_user_value=None,
+    )
+    assert result is None

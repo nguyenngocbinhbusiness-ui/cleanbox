@@ -23,6 +23,36 @@ def calculate_percent(value: int, reference_size: int) -> float:
     return (value / reference_size) * 100
 
 
+def compare_sort_values(
+    *,
+    column: int,
+    percent_column: int,
+    size_columns: tuple[int, ...],
+    count_columns: tuple[int, ...],
+    self_text: str,
+    other_text: str,
+    self_user_value: object,
+    other_user_value: object,
+) -> bool | None:
+    """Return numeric comparison result for supported tree columns."""
+    if column == percent_column:
+        self_val = self_user_value or 0.0
+        other_val = other_user_value or 0.0
+        return float(self_val) < float(other_val)
+
+    if column in size_columns:
+        self_val = self_user_value or 0
+        other_val = other_user_value or 0
+        return int(self_val) < int(other_val)
+
+    if column in count_columns:
+        self_val = parse_display_int(self_text)
+        other_val = parse_display_int(other_text)
+        return self_val < other_val
+
+    return None
+
+
 @dataclass(frozen=True)
 class DirectFileSummary:
     """Aggregated direct-file metrics for a folder node."""

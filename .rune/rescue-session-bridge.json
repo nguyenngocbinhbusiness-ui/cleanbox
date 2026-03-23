@@ -31,7 +31,7 @@
       "status": "complete"
     }
   ],
-  "last_updated_utc": "2026-03-23T16:18:00+00:00",
+  "last_updated_utc": "2026-03-23T16:22:00+00:00",
   "resume_hint": "Continue optional optimization slices if desired; rescue baseline remains complete.",
   "next_surgery_slice": {
     "module": "ui.views.cleanup_view",
@@ -39,10 +39,10 @@
     "status": "ready"
   },
   "last_completed_slice": {
-    "module": "ui.views.storage_view",
+    "module": "ui.views.storage_view_tree",
     "pattern": "Extract & Simplify",
     "blast_radius_src_files": 3,
-    "tests": "615 passed"
+    "tests": "618 passed"
   },
   "final_health": 53.94,
   "health_delta": 0.17

@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import QFileIconProvider, QTreeWidgetItem
 from features.folder_scanner import FolderInfo, format_size
 from ui.views.storage_view_tree_helpers import (
     calculate_percent,
-    parse_display_int,
+    compare_sort_values,
     summarize_direct_files,
 )
 
@@ -67,21 +67,21 @@ class NumericSortItem(QTreeWidgetItem):
     def __lt__(self, other: QTreeWidgetItem) -> bool:
         tw = self.treeWidget()
         column = tw.sortColumn() if tw else 0
-        if column == COL_PERCENT:
-            self_val = self.data(COL_PERCENT, Qt.ItemDataRole.UserRole) or 0.0
-            other_val = other.data(COL_PERCENT, Qt.ItemDataRole.UserRole) or 0.0
-            return float(self_val) < float(other_val)
-        if column in (COL_SIZE, COL_ALLOCATED):
-            self_val = self.data(column, Qt.ItemDataRole.UserRole) or 0
-            other_val = other.data(column, Qt.ItemDataRole.UserRole) or 0
-            return int(self_val) < int(other_val)
-        if column in (COL_FILES, COL_FOLDERS):
-            try:
-                s_val = parse_display_int(self.text(column))
-                o_val = parse_display_int(other.text(column))
-                return s_val < o_val
-            except ValueError:
-                pass
+        try:
+            result = compare_sort_values(
+                column=column,
+                percent_column=COL_PERCENT,
+                size_columns=(COL_SIZE, COL_ALLOCATED),
+                count_columns=(COL_FILES, COL_FOLDERS),
+                self_text=self.text(column),
+                other_text=other.text(column),
+                self_user_value=self.data(column, Qt.ItemDataRole.UserRole),
+                other_user_value=other.data(column, Qt.ItemDataRole.UserRole),
+            )
+            if result is not None:
+                return result
+        except (TypeError, ValueError):
+            pass
         return super().__lt__(other)
 
 

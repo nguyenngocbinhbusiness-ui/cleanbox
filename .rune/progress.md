@@ -108,3 +108,10 @@
 - Moved root item final-field updates, child percentage recomputation, and bounded cache insertion to dedicated helpers.
 - Preserved existing `StorageView._on_realtime_finished` behavior with delegation seam.
 - Verification: full pytest + flake8 + verify_release all passing (`615 passed`).
+
+## [2026-03-23 23:22] post-completion optimization: ui.views.storage_view_tree (sorting seam)
+
+- Extracted tree sort comparison logic into `compare_sort_values` in `ui.views.storage_view_tree_helpers`.
+- Simplified `NumericSortItem.__lt__` by delegating column-specific numeric comparisons to helper.
+- Added helper-level tests for percent/size/count/unsupported-column branches.
+- Verification: full pytest + flake8 + verify_release all passing (`618 passed`).
