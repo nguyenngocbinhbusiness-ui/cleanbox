@@ -31,7 +31,7 @@
       "status": "complete"
     }
   ],
-  "last_updated_utc": "2026-03-23T16:26:00+00:00",
+  "last_updated_utc": "2026-03-23T16:28:00+00:00",
   "resume_hint": "Continue optional optimization slices if desired; rescue baseline remains complete.",
   "next_surgery_slice": {
     "module": "ui.views.cleanup_view",
@@ -39,7 +39,7 @@
     "status": "ready"
   },
   "last_completed_slice": {
-    "module": "ui.views.storage_view_tree",
+    "module": "features.folder_scanner.parallel_executor",
     "pattern": "Extract & Simplify",
     "blast_radius_src_files": 3,
     "tests": "619 passed"

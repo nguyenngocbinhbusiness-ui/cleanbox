@@ -102,3 +102,10 @@
 - Complexity shift: `build_tree_item` reduced from rank `C` to rank `B` (radon live check).
 - Preserved rendering and hierarchy behavior with existing coverage.
 - Verification: full pytest + flake8 + verify_release all passing (`619 passed`).
+
+## [2026-03-23 23:28] post-completion optimization: features.folder_scanner.parallel_executor
+
+- Decomposed realtime parallel orchestration into `_run_parallel_pass` and `_run_sequential_fallback`.
+- Reduced `scan_realtime_directories` complexity from rank `C` to rank `A` (radon live check).
+- Preserved cancellation and fallback semantics.
+- Verification: full pytest + flake8 + verify_release all passing (`619 passed`).

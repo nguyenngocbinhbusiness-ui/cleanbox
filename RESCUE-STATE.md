@@ -3,7 +3,7 @@
 - health_score_baseline: 53.77
 - health_score_current: 53.94
 - current_phase: COMPLETE
-- sessions_used: 15
+- sessions_used: 16
 - autopsy_artifact: `quality/reports/rescue_autopsy.json`
 
 ## Modules To Rescue (Worst First)
@@ -60,6 +60,8 @@
 - Extra slice: `ui.views.storage_view_tree` row-value builder seam (`build_folder_row_values`)
 - Verification: pass (`619 passed`)
 - Extra slice: `ui.views.storage_view_tree` build-tree decomposition seam (root-style/children/placeholder helpers)
+- Verification: pass (`619 passed`)
+- Extra slice: `features.folder_scanner.parallel_executor` orchestration decomposition seam
 - Verification: pass (`619 passed`)
 
 ## Dependency Report
