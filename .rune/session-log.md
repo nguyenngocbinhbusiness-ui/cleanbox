@@ -15,3 +15,10 @@
 - Safety net gate satisfied (`rune-rescue-safety-net`).
 - Full `ui.views` surgery blocked by blast radius (18 files > 5).
 - Selected initial slice: `ui.views.cleanup_view` (3 src files).
+
+## [2026-03-23 21:28] rune-rescue surgery: ui.views.cleanup_view
+
+- Pattern: Strangler Fig (policy extraction seam).
+- Changes: extracted directory-display/add-validation policy from `CleanupView` into `ui.views.cleanup_policy`.
+- Blast radius: 3 files (`cleanup_view.py`, `cleanup_policy.py`, `test_cleanup_policy.py`).
+- Verification: characterization tests + full pytest suite passing.

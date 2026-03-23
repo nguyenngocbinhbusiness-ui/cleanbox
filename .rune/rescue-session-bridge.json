@@ -1,6 +1,6 @@
 {
   "skill": "rune-rescue",
-  "phase": "SAFETY NET complete",
+  "phase": "SURGERY partial complete",
   "baseline_health": 53.77,
   "surgery_queue": [
     {
@@ -32,10 +32,16 @@
     }
   ],
   "last_updated_utc": "2026-03-23T14:12:33.630854+00:00",
-  "resume_hint": "Begin surgery with ui.views.cleanup_view (blast radius 3 src files). Avoid full ui.views module for now.",
+  "resume_hint": "Next surgery module: shared (one slice only, <=5 files).",
   "next_surgery_slice": {
     "module": "ui.views.cleanup_view",
     "blast_radius_src_files": 3,
     "status": "ready"
+  },
+  "last_completed_slice": {
+    "module": "ui.views.cleanup_view",
+    "pattern": "Strangler Fig",
+    "blast_radius_src_files": 3,
+    "tests": "582 passed"
   }
 }

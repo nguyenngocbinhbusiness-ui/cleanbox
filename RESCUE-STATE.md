@@ -2,8 +2,8 @@
 
 - health_score_baseline: 53.77
 - health_score_current: 53.77
-- current_phase: SAFETY NET complete (ready for SURGERY)
-- sessions_used: 2
+- current_phase: SURGERY complete (slice: ui.views.cleanup_view)
+- sessions_used: 3
 - autopsy_artifact: `quality/reports/rescue_autopsy.json`
 
 ## Modules To Rescue (Worst First)
@@ -13,6 +13,14 @@
 | 1 | ui.views | 40.24 | 2283 | Strangler Fig | pending |
 | 2 | shared | 49.28 | 783 | Strangler Fig | pending |
 | 3 | features.folder_scanner | 55.5 | 851 | Strangler Fig | pending |
+
+## Surgery Progress
+
+- Completed slice: `ui.views.cleanup_view`
+- Pattern used: `Strangler Fig` via policy extraction seam (`ui.views.cleanup_policy`)
+- Blast radius: 3 files
+- Characterization tests: pass
+- Full suite: pass (`582 passed`)
 
 ## Dependency Report
 
@@ -34,3 +42,4 @@
 - Safety net tag: `rune-rescue-safety-net`
 - Blast radius check: `ui.views` touched 18 files (>5), so full-module surgery is blocked.
 - Next surgery slice: `ui.views.cleanup_view` (3 src files depend on it), pattern `Strangler Fig`.
+- Surgery commit for this slice: pending (current session)
