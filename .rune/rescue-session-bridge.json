@@ -1,6 +1,6 @@
 {
   "skill": "rune-rescue",
-  "phase": "RECON complete",
+  "phase": "SAFETY NET complete",
   "baseline_health": 53.77,
   "surgery_queue": [
     {
@@ -32,5 +32,5 @@
     }
   ],
   "last_updated_utc": "2026-03-23T14:12:33.630854+00:00",
-  "resume_hint": "Run Phase 1 SAFETY NET before any surgery. Do one module per session."
+  "resume_hint": "Start SURGERY session for module ui.views only. Keep blast radius <= 5 files."
 }

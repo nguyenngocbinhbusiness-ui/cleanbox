@@ -2,8 +2,8 @@
 
 - health_score_baseline: 53.77
 - health_score_current: 53.77
-- current_phase: RECON complete
-- sessions_used: 1
+- current_phase: SAFETY NET complete
+- sessions_used: 2
 - autopsy_artifact: `quality/reports/rescue_autopsy.json`
 
 ## Modules To Rescue (Worst First)
@@ -30,3 +30,5 @@
 
 - Baseline tag points to current HEAD commit; working tree currently has uncommitted rescue edits.
 - Surgery must wait until safety net checkpoint (characterization tests + rune-rescue-safety-net tag).
+- Safety net checkpoint commit: `f5e4108`
+- Safety net tag: `rune-rescue-safety-net`
