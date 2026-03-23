@@ -101,3 +101,10 @@
 - Extracted tree pure logic helpers into `ui.views.storage_view_tree_helpers` (percent math, display-int parsing, direct-file summarization).
 - Preserved existing `SettingsView` and `StorageView` behavior through bridge-style delegation.
 - Verification: full pytest + flake8 + verify_release all passing (`611 passed`).
+
+## [2026-03-23 23:18] post-completion optimization: ui.views.storage_view (realtime finish)
+
+- Extracted realtime completion update helpers into `ui.views.storage_view_realtime_finish`.
+- Moved root item final-field updates, child percentage recomputation, and bounded cache insertion to dedicated helpers.
+- Preserved existing `StorageView._on_realtime_finished` behavior with delegation seam.
+- Verification: full pytest + flake8 + verify_release all passing (`615 passed`).

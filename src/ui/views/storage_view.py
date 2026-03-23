@@ -46,6 +46,11 @@ from ui.views.storage_view_navigation import (
     navigate_forward_state,
     resolve_cached_node,
 )
+from ui.views.storage_view_realtime_finish import (
+    cache_scan_result,
+    update_child_percentages,
+    update_root_item_from_result,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -906,41 +911,11 @@ class StorageView(QWidget):
                 self._tree.setUpdatesEnabled(False)
                 # Update root item with final data
                 if self._root_item:
-                    root_path = self._root_item.data(
-                        COL_NAME, Qt.ItemDataRole.UserRole) or ""
-                    self._root_item.setText(
-                        COL_NAME,
-                        f"{result.size_formatted()}   {root_path}")
-                    self._root_item.setText(
-                        COL_SIZE, result.size_formatted())
-                    self._root_item.setText(
-                        COL_ALLOCATED, result.allocated_formatted())
-                    self._root_item.setText(
-                        COL_FILES,
-                        f"{result.file_count:,}" if result.file_count else "-")
-                    self._root_item.setText(
-                        COL_FOLDERS,
-                        f"{result.folder_count:,}" if result.folder_count else "-")
-                    self._root_item.setText(COL_PERCENT, "100.0 %")
-                    self._root_item.setData(
-                        COL_SIZE, Qt.ItemDataRole.UserRole, result.size_bytes)
-
-                    # Recalculate children % using parent's actual scanned size
-                    parent_size = result.size_bytes or 1
-                    for i in range(self._root_item.childCount()):
-                        child_item = self._root_item.child(i)
-                        if child_item:
-                            child_size = child_item.data(
-                                COL_SIZE, Qt.ItemDataRole.UserRole)
-                            if child_size is not None and parent_size > 0:
-                                percent = (child_size / parent_size) * 100
-                                child_item.setText(
-                                    COL_PERCENT, f"{percent:.1f} %")
-                                child_item.setData(
-                                    COL_PERCENT, Qt.ItemDataRole.UserRole,
-                                    percent)
-                                child_item.setData(
-                                    COL_NAME, ROLE_PERCENT_BAR, percent)
+                    update_root_item_from_result(self._root_item, result)
+                    update_child_percentages(
+                        self._root_item,
+                        result.size_bytes or 1,
+                    )
 
                     # Add grouped file entries for root-level files
                     self._add_file_entries(
@@ -953,13 +928,13 @@ class StorageView(QWidget):
             self._tree.setSortingEnabled(True)
 
             # Cache result for back/forward navigation
+            cache_scan_result(
+                self._scan_cache,
+                self._current_scan_path,
+                result,
+                max_entries=20,
+            )
             if self._current_scan_path:
-                # Limit cache to 20 entries
-                if len(self._scan_cache) >= 20:
-                    oldest_key = next(iter(self._scan_cache))
-                    del self._scan_cache[oldest_key]
-                self._scan_cache[self._current_scan_path] = result
-
                 # D5: Use pre-built index from worker thread
                 self._full_tree_cache = result
                 self._path_index = path_index if path_index else {}
