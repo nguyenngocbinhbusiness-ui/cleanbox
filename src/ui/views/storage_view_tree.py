@@ -63,6 +63,29 @@ def _align_numeric_columns(item: QTreeWidgetItem) -> None:
         )
 
 
+def _apply_root_styles(item: QTreeWidgetItem) -> None:
+    for col in range(NUM_COLUMNS):
+        item.setFont(col, _BOLD_FONT)
+    for col in (COL_SIZE, COL_ALLOCATED, COL_FILES, COL_FOLDERS):
+        item.setBackground(col, _ROOT_BG_BRUSH)
+
+
+def _add_child_tree_items(
+    item: QTreeWidgetItem,
+    children: list[FolderInfo],
+    child_reference: int,
+) -> None:
+    for child in children:
+        item.addChild(build_tree_item(child, child_reference))
+
+
+def _add_loading_placeholder(item: QTreeWidgetItem) -> None:
+    placeholder = NumericSortItem()
+    placeholder.setText(COL_NAME, "Loading...")
+    placeholder.setData(COL_NAME, ROLE_PATH, "__placeholder__")
+    item.addChild(placeholder)
+
+
 class NumericSortItem(QTreeWidgetItem):
     """QTreeWidgetItem with numeric sorting for size/percent columns."""
 
@@ -114,23 +137,16 @@ def build_tree_item(
         _align_numeric_columns(item)
 
         if is_root:
-            for col in range(NUM_COLUMNS):
-                item.setFont(col, _BOLD_FONT)
-            for col in (COL_SIZE, COL_ALLOCATED, COL_FILES, COL_FOLDERS):
-                item.setBackground(col, _ROOT_BG_BRUSH)
+            _apply_root_styles(item)
 
         child_reference = folder_info.size_bytes if folder_info.size_bytes > 0 else 1
-        for child in folder_info.children:
-            item.addChild(build_tree_item(child, child_reference))
+        _add_child_tree_items(item, folder_info.children, child_reference)
 
         if folder_info.children or folder_info.direct_files:
             add_file_entries(item, folder_info, child_reference)
 
         if folder_info.has_unscanned_children and not folder_info.children:
-            placeholder = NumericSortItem()
-            placeholder.setText(COL_NAME, "Loading...")
-            placeholder.setData(COL_NAME, ROLE_PATH, "__placeholder__")
-            item.addChild(placeholder)
+            _add_loading_placeholder(item)
 
         return item
     except Exception as e:

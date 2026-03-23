@@ -122,3 +122,10 @@
 - Reduced inline formatting logic inside `build_tree_item` and reused count formatting in grouped-file rows.
 - Added helper-level test coverage for row value generation and count formatting.
 - Verification: full pytest + flake8 + verify_release all passing (`619 passed`).
+
+## [2026-03-23 23:26] post-completion optimization: ui.views.storage_view_tree (build decomposition)
+
+- Decomposed `build_tree_item` by extracting root-style, child-append, and placeholder-append steps into focused helpers.
+- Complexity shift: `build_tree_item` reduced from rank `C` to rank `B` (radon live check).
+- Preserved rendering and hierarchy behavior with existing coverage.
+- Verification: full pytest + flake8 + verify_release all passing (`619 passed`).
