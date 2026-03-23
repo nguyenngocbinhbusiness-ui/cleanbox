@@ -55,3 +55,9 @@
 - Extracted launch argument builders into `shared.elevation_args`.
 - Preserved `get_elevation_launch_args` external behavior.
 - Verification: full pytest suite passing (`595 passed`).
+
+## [2026-03-23 22:20] post-completion optimization: shared.registry
+
+- Extracted Task Scheduler command builders into `shared.registry_tasks`.
+- Preserved `enable_autostart`/`disable_autostart` behavior.
+- Verification: full pytest suite passing (`597 passed`).
