@@ -20,9 +20,6 @@ logger = logging.getLogger(__name__)
 
 class CleanupView(QWidget):
     """View for managing cleanup directories and triggering cleanup."""
-    # @legacy: this view still mixes UI rendering, directory policy, and action wiring.
-    # @bridge: keep signal contracts stable while extracting policy/actions into helpers.
-    # @new-v2: target split => presentational widget + cleanup policy adapter.
 
     directory_added = pyqtSignal(str)
     directory_removed = pyqtSignal(str)

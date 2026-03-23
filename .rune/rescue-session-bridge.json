@@ -1,6 +1,6 @@
 {
   "skill": "rune-rescue",
-  "phase": "SURGERY queue complete",
+  "phase": "COMPLETE",
   "baseline_health": 53.77,
   "surgery_queue": [
     {
@@ -32,7 +32,7 @@
     }
   ],
   "last_updated_utc": "2026-03-23T14:12:33.630854+00:00",
-  "resume_hint": "Run CLEANUP phase: remove @legacy/@bridge markers, then final VERIFY autopsy.",
+  "resume_hint": "Rescue complete. Optional next cycle: rerun autopsy and start new queue if needed.",
   "next_surgery_slice": {
     "module": "ui.views.cleanup_view",
     "blast_radius_src_files": 3,
@@ -43,5 +43,7 @@
     "pattern": "Strangler Fig",
     "blast_radius_src_files": 3,
     "tests": "588 passed"
-  }
+  },
+  "final_health": 53.94,
+  "health_delta": 0.17
 }

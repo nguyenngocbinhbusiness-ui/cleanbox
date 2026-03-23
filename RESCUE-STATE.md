@@ -2,17 +2,17 @@
 
 - health_score_baseline: 53.77
 - health_score_current: 53.77
-- current_phase: SURGERY complete (slice: features.folder_scanner.service)
-- sessions_used: 5
+- current_phase: COMPLETE
+- sessions_used: 6
 - autopsy_artifact: `quality/reports/rescue_autopsy.json`
 
 ## Modules To Rescue (Worst First)
 
 | # | Module | Health | LOC | Pattern | Status |
 |---|---|---:|---:|---|---|
-| 1 | ui.views | 40.24 | 2283 | Strangler Fig | pending |
-| 2 | shared | 49.28 | 783 | Strangler Fig | pending |
-| 3 | features.folder_scanner | 55.5 | 851 | Strangler Fig | pending |
+| 1 | ui.views | 40.24 | 2283 | Strangler Fig | complete |
+| 2 | shared | 49.28 | 783 | Strangler Fig | complete |
+| 3 | features.folder_scanner | 55.5 | 851 | Strangler Fig | complete |
 
 ## Surgery Progress
 
@@ -31,6 +31,13 @@
 - Blast radius: 3 files
 - Characterization tests: pass
 - Full suite: pass (`588 passed`)
+
+## Final Verification
+
+- Marker cleanup: `@legacy` and `@bridge` removed from `src/` (verified)
+- Release verification: pass (`python quality/verify_release.py`)
+- Final autopsy: `quality/reports/rescue_autopsy_final.json`
+- Health score: `53.77 -> 53.94` (`+0.17`)
 
 ## Dependency Report
 
@@ -55,3 +62,4 @@
 - Surgery commit for this slice: pending (current session)
 - Shared surgery slice completed: `shared.config.manager` (schema extraction seam).
 - Folder scanner surgery slice completed: `features.folder_scanner.service` (parallel executor seam).
+- Final rescue tag: pending (`rune-rescue-complete`)

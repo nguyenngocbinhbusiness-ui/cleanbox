@@ -165,10 +165,6 @@ class FolderScanner:
     - Real-time per-child scanning
     - Error handling for inaccessible folders
     """
-    # @legacy: traversal strategy, aggregation, progress, and concurrency live in one class.
-    # @bridge: keep FolderScanner API stable while decomposing into strategy components.
-    # @new-v2: target split => traversal engine + aggregation reducer + realtime coordinator.
-
     def __init__(self):
         """Initialize the folder scanner service."""
         try:

@@ -36,3 +36,10 @@
 - Changes: extracted realtime parallel orchestration into `folder_scanner.parallel_executor`.
 - Blast radius: 3 files (`service.py`, `parallel_executor.py`, `test_folder_scanner_parallel_executor.py`).
 - Verification: characterization tests + full pytest suite passing.
+
+## [2026-03-23 21:52] rune-rescue finalize
+
+- CLEANUP phase complete: removed all `@legacy` and `@bridge` markers from `src`.
+- VERIFY phase complete: `python quality/verify_release.py` passed.
+- Final autopsy health: 53.77 -> 53.94 (+0.17).
+- Rescue workflow marked complete; pending final tag `rune-rescue-complete`.
