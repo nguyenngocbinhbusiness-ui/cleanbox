@@ -39,10 +39,10 @@
     "status": "ready"
   },
   "last_completed_slice": {
-    "module": "ui.views.storage_view",
+    "module": "shared.elevation",
     "pattern": "Extract & Simplify",
     "blast_radius_src_files": 3,
-    "tests": "590 passed"
+    "tests": "595 passed"
   },
   "final_health": 53.94,
   "health_delta": 0.17

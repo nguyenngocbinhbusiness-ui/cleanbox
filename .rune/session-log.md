@@ -49,3 +49,9 @@
 - Extracted scan completion status-text builder into `ui.views.storage_view_status`.
 - Preserved `StorageView._build_scan_complete_text` as bridge wrapper for compatibility.
 - Verification: full pytest suite passing (`590 passed`).
+
+## [2026-03-23 22:16] post-completion optimization: shared.elevation
+
+- Extracted launch argument builders into `shared.elevation_args`.
+- Preserved `get_elevation_launch_args` external behavior.
+- Verification: full pytest suite passing (`595 passed`).
