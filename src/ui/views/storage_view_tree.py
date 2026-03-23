@@ -6,6 +6,11 @@ from PyQt6.QtGui import QFont, QColor, QBrush, QIcon
 from PyQt6.QtWidgets import QFileIconProvider, QTreeWidgetItem
 
 from features.folder_scanner import FolderInfo, format_size
+from ui.views.storage_view_tree_helpers import (
+    calculate_percent,
+    parse_display_int,
+    summarize_direct_files,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,10 +77,8 @@ class NumericSortItem(QTreeWidgetItem):
             return int(self_val) < int(other_val)
         if column in (COL_FILES, COL_FOLDERS):
             try:
-                s_text = self.text(column).replace(",", "")
-                o_text = other.text(column).replace(",", "")
-                s_val = int(s_text) if s_text != "-" else 0
-                o_val = int(o_text) if o_text != "-" else 0
+                s_val = parse_display_int(self.text(column))
+                o_val = parse_display_int(other.text(column))
                 return s_val < o_val
             except ValueError:
                 pass
@@ -98,12 +101,8 @@ def build_tree_item(
         item.setText(COL_FILES, f"{folder_info.file_count:,}" if folder_info.file_count else "-")
         item.setText(COL_FOLDERS, f"{folder_info.folder_count:,}" if folder_info.folder_count else "-")
 
-        percent = 0.0
-        if reference_size > 0:
-            percent = (folder_info.size_bytes / reference_size) * 100
-            item.setText(COL_PERCENT, f"{percent:.1f} %")
-        else:
-            item.setText(COL_PERCENT, "-")
+        percent = calculate_percent(folder_info.size_bytes, reference_size)
+        item.setText(COL_PERCENT, f"{percent:.1f} %" if reference_size > 0 else "-")
 
         item.setData(COL_NAME, ROLE_PATH, folder_info.path)
         item.setData(COL_NAME, ROLE_PERCENT_BAR, percent)
@@ -149,9 +148,10 @@ def add_file_entries(
         if not folder_info.direct_files:
             return
 
-        file_count = len(folder_info.direct_files)
-        total_size = sum(f.size_bytes for f in folder_info.direct_files)
-        total_alloc = sum(f.allocated_bytes for f in folder_info.direct_files)
+        summary = summarize_direct_files(folder_info.direct_files, _MAX_FILE_ENTRIES)
+        file_count = summary.file_count
+        total_size = summary.total_size
+        total_alloc = summary.total_allocated
 
         group_item = NumericSortItem()
         group_label = f"[{file_count:,} Files]"
@@ -161,12 +161,8 @@ def add_file_entries(
         group_item.setText(COL_FILES, f"{file_count:,}")
         group_item.setText(COL_FOLDERS, "-")
 
-        percent = 0.0
-        if reference_size > 0:
-            percent = (total_size / reference_size) * 100
-            group_item.setText(COL_PERCENT, f"{percent:.1f} %")
-        else:
-            group_item.setText(COL_PERCENT, "-")
+        percent = calculate_percent(total_size, reference_size)
+        group_item.setText(COL_PERCENT, f"{percent:.1f} %" if reference_size > 0 else "-")
 
         group_item.setData(COL_NAME, ROLE_PATH, "__files_group__")
         group_item.setData(COL_NAME, ROLE_PERCENT_BAR, percent)
@@ -176,10 +172,7 @@ def add_file_entries(
         group_item.setIcon(COL_NAME, _get_generic_file_icon())
         _align_numeric_columns(group_item)
 
-        shown_files = folder_info.direct_files[:_MAX_FILE_ENTRIES]
-        omitted = file_count - len(shown_files)
-
-        for fentry in shown_files:
+        for fentry in summary.shown_files:
             file_item = NumericSortItem()
             file_item.setText(COL_NAME, f"{format_size(fentry.size_bytes)}   {fentry.name}")
             file_item.setText(COL_SIZE, format_size(fentry.size_bytes))
@@ -187,12 +180,8 @@ def add_file_entries(
             file_item.setText(COL_FILES, "1")
             file_item.setText(COL_FOLDERS, "-")
 
-            file_percent = 0.0
-            if reference_size > 0:
-                file_percent = (fentry.size_bytes / reference_size) * 100
-                file_item.setText(COL_PERCENT, f"{file_percent:.1f} %")
-            else:
-                file_item.setText(COL_PERCENT, "-")
+            file_percent = calculate_percent(fentry.size_bytes, reference_size)
+            file_item.setText(COL_PERCENT, f"{file_percent:.1f} %" if reference_size > 0 else "-")
 
             file_item.setData(COL_NAME, ROLE_PATH, fentry.path)
             file_item.setData(COL_NAME, ROLE_PERCENT_BAR, file_percent)
@@ -203,20 +192,18 @@ def add_file_entries(
             _align_numeric_columns(file_item)
             group_item.addChild(file_item)
 
-        if omitted > 0:
-            omitted_size = sum(
-                f.size_bytes for f in folder_info.direct_files[_MAX_FILE_ENTRIES:]
-            )
+        if summary.omitted_count > 0:
             more_item = NumericSortItem()
             more_item.setText(
                 COL_NAME,
-                f"{format_size(omitted_size)}   [{omitted:,} more files...]",
+                f"{format_size(summary.omitted_size)}   "
+                f"[{summary.omitted_count:,} more files...]",
             )
-            more_item.setText(COL_SIZE, format_size(omitted_size))
-            more_item.setText(COL_FILES, f"{omitted:,}")
+            more_item.setText(COL_SIZE, format_size(summary.omitted_size))
+            more_item.setText(COL_FILES, f"{summary.omitted_count:,}")
             more_item.setData(COL_NAME, ROLE_PATH, "__files_group__")
-            more_item.setData(COL_SIZE, Qt.ItemDataRole.UserRole, omitted_size)
-            more_item.setData(COL_ALLOCATED, Qt.ItemDataRole.UserRole, omitted_size)
+            more_item.setData(COL_SIZE, Qt.ItemDataRole.UserRole, summary.omitted_size)
+            more_item.setData(COL_ALLOCATED, Qt.ItemDataRole.UserRole, summary.omitted_size)
             more_item.setIcon(COL_NAME, _get_generic_file_icon())
             _align_numeric_columns(more_item)
             group_item.addChild(more_item)

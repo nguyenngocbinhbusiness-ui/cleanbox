@@ -67,3 +67,10 @@
 - Extracted navigation state transitions into `ui.views.storage_view_navigation`.
 - Preserved existing `StorageView` UI behavior using bridge calls.
 - Verification: full pytest + flake8 + verify_release all passing (`602 passed`).
+
+## [2026-03-23 22:41] post-completion optimization: ui.views.settings_view + ui.views.storage_view_tree
+
+- Extracted settings stylesheet builders into `ui.views.settings_view_styles`.
+- Extracted tree pure logic helpers into `ui.views.storage_view_tree_helpers` (percent math, display-int parsing, direct-file summarization).
+- Preserved existing `SettingsView` and `StorageView` behavior through bridge-style delegation.
+- Verification: full pytest + flake8 + verify_release all passing (`611 passed`).
