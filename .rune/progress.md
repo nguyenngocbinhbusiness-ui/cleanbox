@@ -70,3 +70,9 @@
 - VERIFY phase complete: `python quality/verify_release.py` passed.
 - Final autopsy health: 53.77 -> 53.94 (+0.17).
 - Rescue workflow marked complete; pending final tag `rune-rescue-complete`.
+
+## [2026-03-23 22:10] post-completion optimization: ui.views.storage_view
+
+- Extracted scan completion status-text builder into `ui.views.storage_view_status`.
+- Preserved `StorageView._build_scan_complete_text` as bridge wrapper for compatibility.
+- Verification: full pytest suite passing (`590 passed`).
