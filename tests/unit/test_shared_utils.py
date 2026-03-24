@@ -1,8 +1,7 @@
-
 import pytest
-import time
-from unittest.mock import MagicMock, call
-from shared.utils import retry, safe_execute
+from unittest.mock import MagicMock, patch
+
+from shared.utils import is_protected_path, retry, safe_execute
 
 
 class TestUtils:
@@ -59,12 +58,16 @@ class TestUtils:
 
     def test_safe_execute_success(self):
         """Test safe_execute success."""
-        func = lambda x: x + 1
+
+        def func(x):
+            return x + 1
+
         res = safe_execute(func, 1)
         assert res == 2
 
     def test_safe_execute_failure(self):
         """Test safe_execute failure returning default."""
+
         def func():
             raise ValueError("fail")
 
@@ -73,8 +76,33 @@ class TestUtils:
 
     def test_safe_execute_no_log(self, caplog):
         """Test safe_execute failure without logging."""
+
         def func():
             raise ValueError("fail")
 
         safe_execute(func, log_error=False)
         assert "failed" not in caplog.text
+
+    def test_is_protected_path_matches_exact_path(self):
+        """Test protected path matching still covers exact root paths."""
+        with (
+            patch("shared.utils.PROTECTED_PATHS", frozenset({r"c:\windows"})),
+            patch("shared.utils.PROTECTED_PATH_PREFIXES", frozenset()),
+        ):
+            assert is_protected_path(r"C:\Windows")
+
+    def test_is_protected_path_blocks_descendant_of_protected_root(self):
+        """Test protected roots block nested system subpaths."""
+        with (
+            patch("shared.utils.PROTECTED_PATHS", frozenset()),
+            patch("shared.utils.PROTECTED_PATH_PREFIXES", frozenset({r"c:\windows"})),
+        ):
+            assert is_protected_path(r"C:\Windows\System32\drivers\etc")
+
+    def test_is_protected_path_allows_user_downloads_under_profile(self):
+        """Test user folders under a profile are still allowed."""
+        with (
+            patch("shared.utils.PROTECTED_PATHS", frozenset({r"c:\users"})),
+            patch("shared.utils.PROTECTED_PATH_PREFIXES", frozenset()),
+        ):
+            assert not is_protected_path(r"C:\Users\Alice\Downloads")

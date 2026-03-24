@@ -15,6 +15,13 @@ from dataclasses import dataclass
 from typing import Dict, Any
 
 
+FUNCTIONAL_TEST_PATHS_ENV = "CLEANBOX_FUNCTIONAL_TEST_PATHS"
+FUNCTIONAL_INCLUDE_E2E_ENV = "CLEANBOX_FUNCTIONAL_INCLUDE_E2E"
+TRUTHY_VALUES = {"1", "true", "yes", "on"}
+DEFAULT_FULL_TEST_TARGETS = ("tests",)
+DEFAULT_PARTIAL_TEST_TARGETS = ("tests/unit", "tests/ui", "tests/component", "tests/integration")
+
+
 @dataclass
 class FunctionalResult:
     """Functional suitability evaluation result."""
@@ -28,32 +35,96 @@ class FunctionalResult:
     details: Dict[str, Any]
 
 
+def _env_flag(name: str, default: bool) -> bool:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return default
+
+    normalized = raw_value.strip().lower()
+    if normalized in TRUTHY_VALUES:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    return default
+
+
+def _resolve_target_path(project_dir: Path, target: str) -> Path:
+    path = Path(target)
+    return path if path.is_absolute() else project_dir / path
+
+
+def resolve_test_scope(project_dir: Path) -> Dict[str, Any]:
+    """Resolve the pytest targets used by the evaluator."""
+    explicit_targets = os.getenv(FUNCTIONAL_TEST_PATHS_ENV)
+    if explicit_targets:
+        configured_targets = [item.strip() for item in explicit_targets.split(",") if item.strip()]
+        partial_scope = True
+        scope_source = FUNCTIONAL_TEST_PATHS_ENV
+    else:
+        include_e2e = _env_flag(FUNCTIONAL_INCLUDE_E2E_ENV, True)
+        if include_e2e:
+            configured_targets = list(DEFAULT_FULL_TEST_TARGETS)
+            partial_scope = False
+            scope_source = "default-full-suite"
+        else:
+            configured_targets = list(DEFAULT_PARTIAL_TEST_TARGETS)
+            partial_scope = True
+            scope_source = FUNCTIONAL_INCLUDE_E2E_ENV
+
+    resolved_targets = []
+    missing_targets = []
+    for target in configured_targets:
+        resolved_path = _resolve_target_path(project_dir, target)
+        if resolved_path.exists():
+            resolved_targets.append(str(resolved_path))
+        else:
+            missing_targets.append(str(resolved_path))
+
+    return {
+        "configured_targets": configured_targets,
+        "resolved_targets": resolved_targets,
+        "missing_targets": missing_targets,
+        "partial_scope": partial_scope,
+        "scope_source": scope_source,
+    }
+
+
 def run_pytest(project_dir: Path) -> Dict[str, Any]:
     """Run pytest and collect results."""
+    test_scope = resolve_test_scope(project_dir)
     result = {
         "passed": 0,
         "failed": 0,
         "skipped": 0,
         "total": 0,
         "pass_rate": 0.0,
+        "partial_scope": test_scope["partial_scope"],
+        "scope_source": test_scope["scope_source"],
+        "configured_targets": test_scope["configured_targets"],
+        "resolved_targets": test_scope["resolved_targets"],
+        "missing_targets": test_scope["missing_targets"],
         "error": None,
     }
-    
+
     try:
-        # Run pytest with JSON report
-        # Exclude e2e tests to prevent hangs
-        test_dirs = ["tests/unit", "tests/ui", "tests/component", "tests/integration"]
-        target_args = [str(project_dir / d) for d in test_dirs if (project_dir / d).exists()]
-        
+        target_args = test_scope["resolved_targets"]
+        if not target_args:
+            result["error"] = (
+                f"No pytest targets resolved for functional suitability evaluation "
+                f"from {test_scope['configured_targets']}"
+            )
+            return result
+
         cmd = [
-            sys.executable, "-m", "pytest",
+            sys.executable,
+            "-m",
+            "pytest",
             *target_args,
             "-v",
             "--tb=short",
-            "-q",
             "--no-header",
         ]
-        
+
         proc = subprocess.run(
             cmd,
             capture_output=True,
@@ -61,16 +132,16 @@ def run_pytest(project_dir: Path) -> Dict[str, Any]:
             cwd=str(project_dir),
             timeout=300,  # 5 minute timeout
         )
-        
+
         # Parse output for test counts
         output = proc.stdout + proc.stderr
-        
+
         # Look for summary line: "X passed, Y failed, Z skipped"
         summary_match = re.search(
             r'(\d+)\s+passed(?:,\s*(\d+)\s+failed)?(?:,\s*(\d+)\s+(?:skipped|warning))?',
             output
         )
-        
+
         if summary_match:
             result["passed"] = int(summary_match.group(1) or 0)
             result["failed"] = int(summary_match.group(2) or 0)
@@ -95,9 +166,9 @@ def run_pytest(project_dir: Path) -> Dict[str, Any]:
                 result["passed"] = passed_count
                 result["failed"] = failed_count
                 result["skipped"] = skipped_count
-        
+
         result["total"] = result["passed"] + result["failed"] + result["skipped"]
-        
+
         if result["total"] > 0:
             # Only count passed vs passed+failed (exclude skipped)
             executable = result["passed"] + result["failed"]
@@ -105,41 +176,53 @@ def run_pytest(project_dir: Path) -> Dict[str, Any]:
                 result["pass_rate"] = (result["passed"] / executable) * 100
             else:
                 result["pass_rate"] = 100.0
-        
+
         result["output"] = output[:2000]  # Truncate output
-        
+
     except subprocess.TimeoutExpired:
         result["error"] = "Pytest timed out after 5 minutes"
     except Exception as e:
         result["error"] = str(e)
-    
+
     return result
 
 
 def run_coverage(project_dir: Path) -> Dict[str, Any]:
     """Run coverage analysis."""
+    test_scope = resolve_test_scope(project_dir)
     result = {
         "coverage_percent": 0.0,
         "covered_lines": 0,
         "total_lines": 0,
+        "partial_scope": test_scope["partial_scope"],
+        "scope_source": test_scope["scope_source"],
+        "configured_targets": test_scope["configured_targets"],
+        "resolved_targets": test_scope["resolved_targets"],
+        "missing_targets": test_scope["missing_targets"],
         "error": None,
     }
-    
+
     try:
-        # Run coverage
-        # Exclude e2e tests
-        test_dirs = ["tests/unit", "tests/ui", "tests/component", "tests/integration"]
-        target_args = [str(project_dir / d) for d in test_dirs if (project_dir / d).exists()]
+        target_args = test_scope["resolved_targets"]
+        if not target_args:
+            result["error"] = (
+                f"No pytest targets resolved for coverage analysis from {test_scope['configured_targets']}"
+            )
+            return result
 
         cmd = [
-            sys.executable, "-m", "coverage", "run",
+            sys.executable,
+            "-m",
+            "coverage",
+            "run",
             "--source", str(project_dir / "src"),
-            "-m", "pytest",
+            "-m",
+            "pytest",
             *target_args,
             "-q",
             "--no-header",
         ]
-        
+
         subprocess.run(
             cmd,
             capture_output=True,
@@ -147,13 +230,17 @@ def run_coverage(project_dir: Path) -> Dict[str, Any]:
             cwd=str(project_dir),
             timeout=300,
         )
-        
+
         # Get coverage report as JSON
         report_cmd = [
-            sys.executable, "-m", "coverage", "json",
-            "-o", "-",  # Output to stdout
+            sys.executable,
+            "-m",
+            "coverage",
+            "json",
+            "-o",
+            "-",  # Output to stdout
         ]
-        
+
         report_proc = subprocess.run(
             report_cmd,
             capture_output=True,
@@ -161,7 +248,7 @@ def run_coverage(project_dir: Path) -> Dict[str, Any]:
             cwd=str(project_dir),
             timeout=60,
         )
-        
+
         if report_proc.returncode == 0 and report_proc.stdout:
             coverage_data = json.loads(report_proc.stdout)
             totals = coverage_data.get("totals", {})
@@ -183,12 +270,12 @@ def run_coverage(project_dir: Path) -> Dict[str, Any]:
             match = re.search(r'TOTAL\s+\d+\s+\d+\s+(\d+)%', text_proc.stdout)
             if match:
                 result["coverage_percent"] = float(match.group(1))
-        
+
     except subprocess.TimeoutExpired:
         result["error"] = "Coverage analysis timed out"
     except Exception as e:
         result["error"] = str(e)
-    
+
     # Fallback: Try to load from existing coverage.json file if no coverage collected
     if result["coverage_percent"] == 0.0:
         coverage_json_path = project_dir / "coverage.json"
@@ -203,7 +290,7 @@ def run_coverage(project_dir: Path) -> Dict[str, Any]:
                 result["error"] = None  # Clear error if we got data from file
             except Exception:
                 pass  # Keep original error
-    
+
     return result
 
 
@@ -237,6 +324,13 @@ def evaluate(project_dir: Path) -> FunctionalResult:
         details={
             "pytest": pytest_result,
             "coverage": coverage_result,
+            "test_scope": {
+                "configured_targets": pytest_result.get("configured_targets", []),
+                "resolved_targets": pytest_result.get("resolved_targets", []),
+                "missing_targets": pytest_result.get("missing_targets", []),
+                "partial_scope": pytest_result.get("partial_scope", False),
+                "scope_source": pytest_result.get("scope_source"),
+            },
         }
     )
 

@@ -1,17 +1,28 @@
 """Windows Registry operations for auto-start."""
 import logging
 import os
-import subprocess
 import sys
+from pathlib import Path
+from subprocess import CalledProcessError, list2cmdline, run  # nosec B404: controlled subprocess usage
 try:
     import winreg
 except ImportError:
     winreg = None
 
 from shared.constants import APP_NAME, REGISTRY_KEY
+from shared.registry_tasks import build_create_task_command, build_delete_task_command
 
 logger = logging.getLogger(__name__)
 IS_WINDOWS = sys.platform == "win32"
+
+
+def _get_system_tool_path(tool_name: str) -> str:
+    """Return a fully-qualified Windows system tool path when available."""
+    if not IS_WINDOWS:
+        return tool_name
+
+    system_root = os.environ.get("SystemRoot") or os.environ.get("WINDIR") or r"C:\Windows"
+    return str(Path(system_root) / "System32" / tool_name)
 
 
 def get_executable_path() -> str:
@@ -19,45 +30,38 @@ def get_executable_path() -> str:
     try:
         executable = os.path.abspath(sys.executable)
         if getattr(sys, "frozen", False):
-            return f'"{executable}"'
+            return list2cmdline([executable])
 
         script_path = os.path.abspath(sys.argv[0]) if sys.argv else ""
         if script_path and os.path.normcase(script_path) != os.path.normcase(executable):
-            return f'"{executable}" "{script_path}"'
-        return f'"{executable}"'
+            return list2cmdline([executable, script_path])
+        return list2cmdline([executable])
     except Exception as e:
         logger.error("Failed to get executable path: %s", e)
-        return f'"{sys.executable}"'
+        return list2cmdline([sys.executable])
 
 
 def _create_scheduled_task() -> bool:
     """Fallback: create a logon-trigger scheduled task via schtasks."""
     exe_path = get_executable_path()
-    cmd = [
-        "schtasks", "/create",
-        "/tn", APP_NAME,
-        "/tr", exe_path,
-        "/sc", "onlogon",
-        "/rl", "limited",
-        "/f",
-    ]
+    cmd = build_create_task_command(_get_system_tool_path("schtasks.exe"), exe_path)
     try:
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
+        run(cmd, check=True, capture_output=True, text=True, shell=False)  # nosec B603
         logger.info("Auto-start enabled via Task Scheduler (fallback)")
         return True
-    except (subprocess.CalledProcessError, OSError) as e:
+    except (CalledProcessError, OSError) as e:
         logger.error("Task Scheduler fallback also failed: %s", e)
         return False
 
 
 def _delete_scheduled_task() -> bool:
     """Remove the fallback scheduled task if it exists."""
-    cmd = ["schtasks", "/delete", "/tn", APP_NAME, "/f"]
+    cmd = build_delete_task_command(_get_system_tool_path("schtasks.exe"))
     try:
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
+        run(cmd, check=True, capture_output=True, text=True, shell=False)  # nosec B603
         logger.info("Scheduled task '%s' removed", APP_NAME)
         return True
-    except (subprocess.CalledProcessError, OSError) as e:
+    except (CalledProcessError, OSError) as e:
         logger.warning("Could not remove scheduled task (may not exist): %s", e)
         return False
 

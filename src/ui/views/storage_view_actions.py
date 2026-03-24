@@ -1,6 +1,6 @@
 """Filesystem action helpers for StorageView."""
+import ctypes
 import os
-import subprocess
 from pathlib import Path
 
 import winshell
@@ -10,6 +10,12 @@ from shared.utils import is_protected_path
 
 class ProtectedPathError(PermissionError):
     """Raised when an action targets a protected system path."""
+
+
+def _get_explorer_path() -> str:
+    """Return the fully-qualified Explorer executable path on Windows."""
+    windir = os.environ.get("WINDIR") or os.environ.get("SystemRoot") or r"C:\Windows"
+    return str(Path(windir) / "explorer.exe")
 
 
 def recycle_path(path: str) -> None:
@@ -33,11 +39,15 @@ def open_file_location(path: str) -> None:
     if not target.exists():
         raise FileNotFoundError(path)
     if os.name == "nt":
-        subprocess.run(
-            ["explorer", "/select,", str(target)],
-            check=False,
-            capture_output=True,
-            text=True,
+        ctypes.windll.shell32.ShellExecuteW(
+            None,
+            "open",
+            _get_explorer_path(),
+            f'/select,"{target}"',
+            None,
+            1,
         )
         return
-    os.startfile(str(target.parent if target.parent.exists() else target))
+    os.startfile(  # nosec B606: open local path in platform file browser
+        str(target.parent if target.parent.exists() else target)
+    )

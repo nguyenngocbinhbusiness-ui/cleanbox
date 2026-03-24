@@ -1,0 +1,118 @@
+{
+  "health_score": 58.84,
+  "modules": [
+    {
+      "name": "ui.views",
+      "loc": 2602,
+      "cyclomatic_complexity": 10,
+      "test_coverage": 72.64,
+      "health": 51.27
+    },
+    {
+      "name": "shared",
+      "loc": 859,
+      "cyclomatic_complexity": 12,
+      "test_coverage": 78.86,
+      "health": 56.11
+    },
+    {
+      "name": "features.folder_scanner",
+      "loc": 923,
+      "cyclomatic_complexity": 12,
+      "test_coverage": 83.26,
+      "health": 57.4
+    },
+    {
+      "name": "app",
+      "loc": 508,
+      "cyclomatic_complexity": 11,
+      "test_coverage": 75.16,
+      "health": 62.1
+    },
+    {
+      "name": "features.cleanup",
+      "loc": 309,
+      "cyclomatic_complexity": 13,
+      "test_coverage": 81.03,
+      "health": 66.04
+    },
+    {
+      "name": "features.storage_monitor",
+      "loc": 254,
+      "cyclomatic_complexity": 8,
+      "test_coverage": 81.05,
+      "health": 74.76
+    },
+    {
+      "name": "ui.main_window.py",
+      "loc": 258,
+      "cyclomatic_complexity": 4,
+      "test_coverage": 73.68,
+      "health": 76.69
+    },
+    {
+      "name": "ui.components",
+      "loc": 119,
+      "cyclomatic_complexity": 4,
+      "test_coverage": 73.68,
+      "health": 79.27
+    },
+    {
+      "name": "features.notifications",
+      "loc": 98,
+      "cyclomatic_complexity": 5,
+      "test_coverage": 85.0,
+      "health": 84.49
+    },
+    {
+      "name": "ui.tray_icon.py",
+      "loc": 139,
+      "cyclomatic_complexity": 4,
+      "test_coverage": 89.41,
+      "health": 87.75
+    },
+    {
+      "name": "main",
+      "loc": 55,
+      "cyclomatic_complexity": 3,
+      "test_coverage": 90.0,
+      "health": 91.18
+    },
+    {
+      "name": "__init__",
+      "loc": 1,
+      "cyclomatic_complexity": 0,
+      "test_coverage": 100.0,
+      "health": 100.0
+    },
+    {
+      "name": "features.__init__.py",
+      "loc": 1,
+      "cyclomatic_complexity": 0,
+      "test_coverage": 100.0,
+      "health": 100.0
+    },
+    {
+      "name": "ui.__init__.py",
+      "loc": 1,
+      "cyclomatic_complexity": 0,
+      "test_coverage": 100.0,
+      "health": 100.0
+    }
+  ],
+  "inputs": {
+    "coverage_file": "quality/reports/rescue_coverage_final.json",
+    "radon_file": "quality/reports/rescue_radon_final.json",
+    "bandit_file": "quality/reports/rescue_bandit_final.json"
+  },
+  "model": {
+    "coverage_weight": 0.5625174783611014,
+    "loc_weight": 0.20413401276883908,
+    "complexity_weight": 0.23334850887005948,
+    "loc_divisor": 10.960979643755959,
+    "complexity_multiplier": 6.584493256460363,
+    "issue_penalty": 2.0572635514632847,
+    "bias": 2.439451298221762,
+    "overall_aggregation": "loc_weighted_average"
+  }
+}

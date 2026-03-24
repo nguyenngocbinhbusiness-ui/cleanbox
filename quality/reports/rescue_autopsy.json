@@ -1,0 +1,256 @@
+{
+  "health_score": 53.77,
+  "modules": [
+    {
+      "name": "ui.views",
+      "path": "src/ui/views/cleanup_view.py, src/ui/views/settings_view.py, src/ui/views/storage_view.py, ...",
+      "files": [
+        "src/ui/views/cleanup_view.py",
+        "src/ui/views/settings_view.py",
+        "src/ui/views/storage_view.py",
+        "src/ui/views/storage_view_actions.py",
+        "src/ui/views/storage_view_tree.py",
+        "src/ui/views/__init__.py"
+      ],
+      "loc": 2283,
+      "cyclomatic_complexity": 17,
+      "test_coverage": 68.61,
+      "health": 40.24,
+      "bandit_issues": 1
+    },
+    {
+      "name": "shared",
+      "path": "src/shared/constants.py, src/shared/elevation.py, src/shared/registry.py, ...",
+      "files": [
+        "src/shared/constants.py",
+        "src/shared/elevation.py",
+        "src/shared/registry.py",
+        "src/shared/utils.py",
+        "src/shared/__init__.py",
+        "src/shared/config/manager.py",
+        "src/shared/config/__init__.py"
+      ],
+      "loc": 783,
+      "cyclomatic_complexity": 12,
+      "test_coverage": 77.66,
+      "health": 49.28,
+      "bandit_issues": 4
+    },
+    {
+      "name": "features.folder_scanner",
+      "path": "src/features/folder_scanner/scan_helpers.py, src/features/folder_scanner/service.py, src/features/folder_scanner/__init__.py",
+      "files": [
+        "src/features/folder_scanner/scan_helpers.py",
+        "src/features/folder_scanner/service.py",
+        "src/features/folder_scanner/__init__.py"
+      ],
+      "loc": 851,
+      "cyclomatic_complexity": 13,
+      "test_coverage": 79.47,
+      "health": 55.5,
+      "bandit_issues": 0
+    },
+    {
+      "name": "app",
+      "path": "src/app.py",
+      "files": [
+        "src/app.py"
+      ],
+      "loc": 508,
+      "cyclomatic_complexity": 11,
+      "test_coverage": 75.16,
+      "health": 62.56,
+      "bandit_issues": 0
+    },
+    {
+      "name": "features.cleanup",
+      "path": "src/features/cleanup/directory_detector.py, src/features/cleanup/service.py, src/features/cleanup/worker.py, ...",
+      "files": [
+        "src/features/cleanup/directory_detector.py",
+        "src/features/cleanup/service.py",
+        "src/features/cleanup/worker.py",
+        "src/features/cleanup/__init__.py"
+      ],
+      "loc": 309,
+      "cyclomatic_complexity": 13,
+      "test_coverage": 81.79,
+      "health": 66.94,
+      "bandit_issues": 0
+    },
+    {
+      "name": "features.storage_monitor",
+      "path": "src/features/storage_monitor/service.py, src/features/storage_monitor/utils.py, src/features/storage_monitor/__init__.py",
+      "files": [
+        "src/features/storage_monitor/service.py",
+        "src/features/storage_monitor/utils.py",
+        "src/features/storage_monitor/__init__.py"
+      ],
+      "loc": 254,
+      "cyclomatic_complexity": 8,
+      "test_coverage": 81.46,
+      "health": 75.29,
+      "bandit_issues": 0
+    },
+    {
+      "name": "ui.main_window.py",
+      "path": "src/ui/main_window.py",
+      "files": [
+        "src/ui/main_window.py"
+      ],
+      "loc": 258,
+      "cyclomatic_complexity": 4,
+      "test_coverage": 73.68,
+      "health": 76.94,
+      "bandit_issues": 0
+    },
+    {
+      "name": "ui.components",
+      "path": "src/ui/components/sidebar.py, src/ui/components/__init__.py",
+      "files": [
+        "src/ui/components/sidebar.py",
+        "src/ui/components/__init__.py"
+      ],
+      "loc": 119,
+      "cyclomatic_complexity": 4,
+      "test_coverage": 73.91,
+      "health": 79.65,
+      "bandit_issues": 0
+    },
+    {
+      "name": "features.notifications",
+      "path": "src/features/notifications/service.py, src/features/notifications/__init__.py",
+      "files": [
+        "src/features/notifications/service.py",
+        "src/features/notifications/__init__.py"
+      ],
+      "loc": 98,
+      "cyclomatic_complexity": 5,
+      "test_coverage": 85.12,
+      "health": 84.31,
+      "bandit_issues": 0
+    },
+    {
+      "name": "ui.tray_icon.py",
+      "path": "src/ui/tray_icon.py",
+      "files": [
+        "src/ui/tray_icon.py"
+      ],
+      "loc": 139,
+      "cyclomatic_complexity": 4,
+      "test_coverage": 89.41,
+      "health": 87.82,
+      "bandit_issues": 0
+    },
+    {
+      "name": "main",
+      "path": "src/main.py",
+      "files": [
+        "src/main.py"
+      ],
+      "loc": 55,
+      "cyclomatic_complexity": 3,
+      "test_coverage": 90.0,
+      "health": 90.0,
+      "bandit_issues": 0
+    },
+    {
+      "name": "__init__",
+      "path": "src/__init__.py",
+      "files": [
+        "src/__init__.py"
+      ],
+      "loc": 1,
+      "cyclomatic_complexity": 0,
+      "test_coverage": 100.0,
+      "health": 100.0,
+      "bandit_issues": 0
+    },
+    {
+      "name": "features.__init__.py",
+      "path": "src/features/__init__.py",
+      "files": [
+        "src/features/__init__.py"
+      ],
+      "loc": 1,
+      "cyclomatic_complexity": 0,
+      "test_coverage": 100.0,
+      "health": 100.0,
+      "bandit_issues": 0
+    },
+    {
+      "name": "ui.__init__.py",
+      "path": "src/ui/__init__.py",
+      "files": [
+        "src/ui/__init__.py"
+      ],
+      "loc": 1,
+      "cyclomatic_complexity": 0,
+      "test_coverage": 100.0,
+      "health": 100.0,
+      "bandit_issues": 0
+    }
+  ],
+  "issues": [
+    {
+      "severity": "medium",
+      "file": "src/shared/elevation.py",
+      "description": "Low coverage: 40.00%"
+    },
+    {
+      "severity": "low",
+      "file": "src/shared/config/manager.py",
+      "description": "Low coverage: 60.00%"
+    },
+    {
+      "severity": "low",
+      "file": "src/shared/elevation.py",
+      "description": "B404 at line 6: Consider possible security implications associated with the subprocess module."
+    },
+    {
+      "severity": "low",
+      "file": "src/shared/registry.py",
+      "description": "B404 at line 6: Consider possible security implications associated with the subprocess module."
+    },
+    {
+      "severity": "low",
+      "file": "src/shared/registry.py",
+      "description": "B603 at line 55: subprocess call - check for execution of untrusted input."
+    },
+    {
+      "severity": "low",
+      "file": "src/shared/registry.py",
+      "description": "B603 at line 67: subprocess call - check for execution of untrusted input."
+    },
+    {
+      "severity": "low",
+      "file": "src/ui/views/storage_view.py",
+      "description": "Low coverage: 60.24%"
+    },
+    {
+      "severity": "low",
+      "file": "src/ui/views/storage_view_actions.py",
+      "description": "B606 at line 51: Starting a process without a shell."
+    }
+  ],
+  "recommended_patterns": {
+    "__init__": "Expand-Migrate-Contract",
+    "app": "Extract & Simplify",
+    "features.__init__.py": "Expand-Migrate-Contract",
+    "features.cleanup": "Extract & Simplify",
+    "features.folder_scanner": "Strangler Fig",
+    "features.notifications": "Branch by Abstraction",
+    "features.storage_monitor": "Branch by Abstraction",
+    "main": "Expand-Migrate-Contract",
+    "shared": "Strangler Fig",
+    "ui.__init__.py": "Expand-Migrate-Contract",
+    "ui.components": "Expand-Migrate-Contract",
+    "ui.main_window.py": "Expand-Migrate-Contract",
+    "ui.tray_icon.py": "Expand-Migrate-Contract",
+    "ui.views": "Strangler Fig"
+  },
+  "inputs": {
+    "coverage_file": "quality/reports/rescue_coverage.json",
+    "radon_file": "quality/reports/rescue_radon.json",
+    "bandit_file": "quality/reports/rescue_bandit.json"
+  }
+}

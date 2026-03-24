@@ -1,0 +1,377 @@
+{
+  "health_score": 81.81,
+  "modules": [
+    {
+      "name": "shared.config",
+      "loc": 312,
+      "cyclomatic_complexity": 8,
+      "test_coverage": 82.78,
+      "health": 74.65
+    },
+    {
+      "name": "ui.storage.tree_engine",
+      "loc": 223,
+      "cyclomatic_complexity": 8,
+      "test_coverage": 80.0,
+      "health": 74.74
+    },
+    {
+      "name": "features.folder_scanner.service",
+      "loc": 550,
+      "cyclomatic_complexity": 8,
+      "test_coverage": 91.63,
+      "health": 75.19
+    },
+    {
+      "name": "ui.storage.storage_view_expand",
+      "loc": 108,
+      "cyclomatic_complexity": 9,
+      "test_coverage": 80.26,
+      "health": 75.5
+    },
+    {
+      "name": "ui.views.cleanup_view",
+      "loc": 251,
+      "cyclomatic_complexity": 6,
+      "test_coverage": 77.61,
+      "health": 75.95
+    },
+    {
+      "name": "ui.main_window.py",
+      "loc": 258,
+      "cyclomatic_complexity": 4,
+      "test_coverage": 73.68,
+      "health": 76.69
+    },
+    {
+      "name": "features.folder_scanner.size_walker",
+      "loc": 53,
+      "cyclomatic_complexity": 13,
+      "test_coverage": 91.89,
+      "health": 76.92
+    },
+    {
+      "name": "features.folder_scanner.recursive_engine",
+      "loc": 203,
+      "cyclomatic_complexity": 10,
+      "test_coverage": 89.04,
+      "health": 77.13
+    },
+    {
+      "name": "ui.storage.delegates",
+      "loc": 106,
+      "cyclomatic_complexity": 10,
+      "test_coverage": 86.15,
+      "health": 77.31
+    },
+    {
+      "name": "features.cleanup.service",
+      "loc": 176,
+      "cyclomatic_complexity": 13,
+      "test_coverage": 98.35,
+      "health": 78.26
+    },
+    {
+      "name": "ui.storage.storage_view_scan_session",
+      "loc": 284,
+      "cyclomatic_complexity": 9,
+      "test_coverage": 92.0,
+      "health": 78.82
+    },
+    {
+      "name": "ui.components",
+      "loc": 119,
+      "cyclomatic_complexity": 4,
+      "test_coverage": 73.68,
+      "health": 79.27
+    },
+    {
+      "name": "ui.views.storage_view_status",
+      "loc": 42,
+      "cyclomatic_complexity": 10,
+      "test_coverage": 89.29,
+      "health": 80.27
+    },
+    {
+      "name": "shared.helpers",
+      "loc": 157,
+      "cyclomatic_complexity": 12,
+      "test_coverage": 98.67,
+      "health": 80.33
+    },
+    {
+      "name": "features.storage_monitor.service",
+      "loc": 127,
+      "cyclomatic_complexity": 6,
+      "test_coverage": 81.48,
+      "health": 80.44
+    },
+    {
+      "name": "ui.storage.storage_view_interactions",
+      "loc": 327,
+      "cyclomatic_complexity": 9,
+      "test_coverage": 96.61,
+      "health": 80.61
+    },
+    {
+      "name": "shared.core",
+      "loc": 426,
+      "cyclomatic_complexity": 6,
+      "test_coverage": 91.7,
+      "health": 80.62
+    },
+    {
+      "name": "features.cleanup.worker",
+      "loc": 74,
+      "cyclomatic_complexity": 6,
+      "test_coverage": 80.95,
+      "health": 81.13
+    },
+    {
+      "name": "app",
+      "loc": 376,
+      "cyclomatic_complexity": 7,
+      "test_coverage": 94.07,
+      "health": 81.34
+    },
+    {
+      "name": "features.storage_monitor.utils",
+      "loc": 80,
+      "cyclomatic_complexity": 8,
+      "test_coverage": 88.1,
+      "health": 81.96
+    },
+    {
+      "name": "ui.storage.storage_view",
+      "loc": 383,
+      "cyclomatic_complexity": 6,
+      "test_coverage": 92.86,
+      "health": 82.07
+    },
+    {
+      "name": "features.folder_scanner.parallel_executor",
+      "loc": 91,
+      "cyclomatic_complexity": 6,
+      "test_coverage": 83.33,
+      "health": 82.15
+    },
+    {
+      "name": "ui.storage.workers",
+      "loc": 139,
+      "cyclomatic_complexity": 3,
+      "test_coverage": 77.27,
+      "health": 82.46
+    },
+    {
+      "name": "features.folder_scanner.realtime_pipeline",
+      "loc": 129,
+      "cyclomatic_complexity": 7,
+      "test_coverage": 90.91,
+      "health": 84.17
+    },
+    {
+      "name": "features.notifications.service",
+      "loc": 94,
+      "cyclomatic_complexity": 5,
+      "test_coverage": 84.48,
+      "health": 84.28
+    },
+    {
+      "name": "features.storage_monitor.polling",
+      "loc": 57,
+      "cyclomatic_complexity": 7,
+      "test_coverage": 93.94,
+      "health": 87.21
+    },
+    {
+      "name": "ui.tray_icon.py",
+      "loc": 139,
+      "cyclomatic_complexity": 4,
+      "test_coverage": 89.41,
+      "health": 87.75
+    },
+    {
+      "name": "ui.views.storage_view_tree_helpers",
+      "loc": 109,
+      "cyclomatic_complexity": 8,
+      "test_coverage": 100.0,
+      "health": 88.12
+    },
+    {
+      "name": "features.folder_scanner.format_utils",
+      "loc": 17,
+      "cyclomatic_complexity": 5,
+      "test_coverage": 91.67,
+      "health": 89.75
+    },
+    {
+      "name": "ui.views.storage_view_realtime_finish",
+      "loc": 97,
+      "cyclomatic_complexity": 5,
+      "test_coverage": 95.65,
+      "health": 90.5
+    },
+    {
+      "name": "ui.views.__init__",
+      "loc": 17,
+      "cyclomatic_complexity": 4,
+      "test_coverage": 90.91,
+      "health": 90.86
+    },
+    {
+      "name": "main",
+      "loc": 55,
+      "cyclomatic_complexity": 3,
+      "test_coverage": 90.0,
+      "health": 91.18
+    },
+    {
+      "name": "ui.views.settings_view",
+      "loc": 210,
+      "cyclomatic_complexity": 3,
+      "test_coverage": 95.24,
+      "health": 91.24
+    },
+    {
+      "name": "ui.views.cleanup_policy",
+      "loc": 35,
+      "cyclomatic_complexity": 4,
+      "test_coverage": 93.75,
+      "health": 92.13
+    },
+    {
+      "name": "features.folder_scanner.scan_helpers",
+      "loc": 51,
+      "cyclomatic_complexity": 4,
+      "test_coverage": 94.74,
+      "health": 92.38
+    },
+    {
+      "name": "ui.views.storage_view_actions",
+      "loc": 53,
+      "cyclomatic_complexity": 4,
+      "test_coverage": 95.83,
+      "health": 92.96
+    },
+    {
+      "name": "ui.storage.storage_view_ui",
+      "loc": 245,
+      "cyclomatic_complexity": 2,
+      "test_coverage": 98.37,
+      "health": 93.89
+    },
+    {
+      "name": "features.folder_scanner.models",
+      "loc": 84,
+      "cyclomatic_complexity": 3,
+      "test_coverage": 98.28,
+      "health": 95.3
+    },
+    {
+      "name": "ui.views.storage_view_navigation",
+      "loc": 50,
+      "cyclomatic_complexity": 3,
+      "test_coverage": 100.0,
+      "health": 96.9
+    },
+    {
+      "name": "features.cleanup.directory_detector",
+      "loc": 48,
+      "cyclomatic_complexity": 3,
+      "test_coverage": 100.0,
+      "health": 96.94
+    },
+    {
+      "name": "ui.views.settings_view_styles",
+      "loc": 75,
+      "cyclomatic_complexity": 1,
+      "test_coverage": 100.0,
+      "health": 99.51
+    },
+    {
+      "name": "__init__",
+      "loc": 1,
+      "cyclomatic_complexity": 0,
+      "test_coverage": 100.0,
+      "health": 100.0
+    },
+    {
+      "name": "features.__init__.py",
+      "loc": 1,
+      "cyclomatic_complexity": 0,
+      "test_coverage": 100.0,
+      "health": 100.0
+    },
+    {
+      "name": "features.cleanup.__init__",
+      "loc": 11,
+      "cyclomatic_complexity": 0,
+      "test_coverage": 100.0,
+      "health": 100.0
+    },
+    {
+      "name": "features.folder_scanner.__init__",
+      "loc": 5,
+      "cyclomatic_complexity": 0,
+      "test_coverage": 100.0,
+      "health": 100.0
+    },
+    {
+      "name": "features.notifications.__init__",
+      "loc": 4,
+      "cyclomatic_complexity": 0,
+      "test_coverage": 100.0,
+      "health": 100.0
+    },
+    {
+      "name": "features.storage_monitor.__init__",
+      "loc": 5,
+      "cyclomatic_complexity": 0,
+      "test_coverage": 100.0,
+      "health": 100.0
+    },
+    {
+      "name": "ui.__init__.py",
+      "loc": 1,
+      "cyclomatic_complexity": 0,
+      "test_coverage": 100.0,
+      "health": 100.0
+    },
+    {
+      "name": "ui.storage.__init__",
+      "loc": 1,
+      "cyclomatic_complexity": 0,
+      "test_coverage": 100.0,
+      "health": 100.0
+    },
+    {
+      "name": "ui.views.storage_view",
+      "loc": 7,
+      "cyclomatic_complexity": 0,
+      "test_coverage": 100.0,
+      "health": 100.0
+    },
+    {
+      "name": "ui.views.storage_view_tree",
+      "loc": 38,
+      "cyclomatic_complexity": 0,
+      "test_coverage": 100.0,
+      "health": 100.0
+    }
+  ],
+  "inputs": {
+    "coverage_file": "quality/reports/rescue_coverage_final.json",
+    "radon_file": "quality/reports/rescue_radon_final.json",
+    "bandit_file": "quality/reports/rescue_bandit_final.json"
+  },
+  "model": {
+    "coverage_weight": 0.5625174783611014,
+    "loc_weight": 0.20413401276883908,
+    "complexity_weight": 0.23334850887005948,
+    "loc_divisor": 10.960979643755959,
+    "complexity_multiplier": 6.584493256460363,
+    "issue_penalty": 2.0572635514632847,
+    "bias": 2.439451298221762,
+    "overall_aggregation": "loc_weighted_average"
+  }
+}

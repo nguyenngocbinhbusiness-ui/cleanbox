@@ -1,6 +1,7 @@
 """Settings View - Application settings and preferences."""
 import logging
 from typing import Optional
+from pathlib import Path
 
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QCheckBox, QLabel,
@@ -8,10 +9,15 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
-from shared.constants import CHECKBOX_CHECK_ICON_PATH
 from shared.elevation import is_admin
+from ui.views.settings_view_styles import (
+    build_checkbox_style,
+    build_group_box_style,
+    build_restart_admin_button_style,
+)
 
 logger = logging.getLogger(__name__)
+VERSION_FILE = Path(__file__).resolve().parents[3] / "VERSION"
 
 
 class SettingsView(QWidget):
@@ -58,27 +64,14 @@ class SettingsView(QWidget):
 
             # Startup Group
             startup_group = QGroupBox("Startup")
-            startup_group.setStyleSheet("""
-                QGroupBox {
-                    font-weight: bold;
-                    border: 1px solid #E0E0E0;
-                    border-radius: 6px;
-                    margin-top: 12px;
-                    padding-top: 10px;
-                }
-                QGroupBox::title {
-                    subcontrol-origin: margin;
-                    left: 10px;
-                    padding: 0 5px;
-                }
-            """)
+            startup_group.setStyleSheet(build_group_box_style())
             startup_layout = QVBoxLayout(startup_group)
             startup_layout.setSpacing(10)
 
             self._autostart_cb = QCheckBox("Start CleanBox with Windows")
             self._autostart_cb.setCursor(Qt.CursorShape.PointingHandCursor)
             self._autostart_cb.setChecked(True)
-            self._autostart_cb.setStyleSheet(self._checkbox_style())
+            self._autostart_cb.setStyleSheet(build_checkbox_style())
             self._autostart_cb.stateChanged.connect(self._on_autostart_changed)
             startup_layout.addWidget(self._autostart_cb)
 
@@ -87,23 +80,8 @@ class SettingsView(QWidget):
                 self._restart_admin_btn.setCursor(
                     Qt.CursorShape.PointingHandCursor)
                 self._restart_admin_btn.setMinimumHeight(36)
-                self._restart_admin_btn.setStyleSheet("""
-                    QPushButton {
-                        background-color: #FFFFFF;
-                        color: #0F172A;
-                        border: 1px solid #CBD5E1;
-                        border-radius: 6px;
-                        padding: 8px 14px;
-                        font-weight: 600;
-                    }
-                    QPushButton:hover {
-                        background-color: #F8FAFC;
-                        border-color: #94A3B8;
-                    }
-                    QPushButton:pressed {
-                        background-color: #EEF2F7;
-                    }
-                """)
+                self._restart_admin_btn.setStyleSheet(
+                    build_restart_admin_button_style())
                 self._restart_admin_btn.clicked.connect(
                     self._on_restart_as_admin_requested)
                 startup_layout.addWidget(self._restart_admin_btn)
@@ -154,7 +132,7 @@ class SettingsView(QWidget):
             layout.addStretch()
 
             # Version info
-            version_label = QLabel("CleanBox v1.0.0")
+            version_label = QLabel(f"CleanBox v{self._get_app_version()}")
             version_label.setStyleSheet("color: #666666; font-size: 11px;")
             version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(version_label)
@@ -162,35 +140,14 @@ class SettingsView(QWidget):
             logger.error("Failed to setup SettingsView UI: %s", e)
 
     @staticmethod
-    def _checkbox_style() -> str:
-        """Return the shared settings checkbox style."""
-        icon_path = CHECKBOX_CHECK_ICON_PATH.as_posix()
-        return f"""
-            QCheckBox {{
-                color: #1A1A1A;
-                font-size: 14px;
-                font-weight: 400;
-                spacing: 12px;
-                padding: 4px 0;
-                background: transparent;
-                border: none;
-            }}
-            QCheckBox::indicator {{
-                width: 24px;
-                height: 24px;
-                background-color: #FFFFFF;
-                border: 3px solid #3A3A3A;
-                border-radius: 0;
-            }}
-            QCheckBox::indicator:hover {{
-                border-color: #2F2F2F;
-            }}
-            QCheckBox::indicator:checked {{
-                image: url({icon_path});
-                background-color: #FFFFFF;
-                border: 3px solid #3A3A3A;
-            }}
-        """
+    def _get_app_version() -> str:
+        """Read the application version from the repository VERSION file."""
+        try:
+            version = VERSION_FILE.read_text(encoding="utf-8").strip()
+            return version or "unknown"
+        except Exception as e:
+            logger.warning("Failed to read app version from %s: %s", VERSION_FILE, e)
+            return "unknown"
 
     def set_autostart(self, enabled: bool) -> None:
         """Set the autostart checkbox state."""

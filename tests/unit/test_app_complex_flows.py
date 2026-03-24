@@ -1,7 +1,5 @@
-
 import pytest
 from unittest.mock import MagicMock, patch, call, PropertyMock
-from shared.constants import APP_NAME
 
 
 class TestAppComplexFlows:
@@ -11,13 +9,15 @@ class TestAppComplexFlows:
         """Create App instance with mocks."""
         import app as app_module
 
-        with patch.object(app_module, "ConfigManager") as MockConfig, \
-             patch.object(app_module, "StorageMonitor") as MockMonitor, \
-             patch.object(app_module, "NotificationService") as MockNotify, \
-             patch.object(app_module, "CleanupService") as MockCleanup, \
-             patch.object(app_module, "TrayIcon") as MockTray, \
-             patch.object(app_module, "MainWindow") as MockWindow, \
-             patch.object(app_module, "get_default_directories") as MockGetDefaults:
+        with (
+            patch.object(app_module, "ConfigManager") as MockConfig,
+            patch.object(app_module, "StorageMonitor") as MockMonitor,
+            patch.object(app_module, "NotificationService") as MockNotify,
+            patch.object(app_module, "CleanupService") as MockCleanup,
+            patch.object(app_module, "TrayIcon") as MockTray,
+            patch.object(app_module, "MainWindow") as MockWindow,
+            patch.object(app_module, "get_default_directories") as MockGetDefaults,
+        ):
 
             app_instance = app_module.App()
             # Mocks are not automatically set on instance for services initialized in __init__
@@ -56,11 +56,14 @@ class TestAppComplexFlows:
 
         # Call PRIVATE method
         from app import App
+
         App._handle_first_run(app)
 
         # Verify
         app.mock_get_defaults.assert_called_once()
-        app._config.add_directory.assert_has_calls([call("C:/Downloads"), call("C:/Temp")])
+        app._config.add_directory.assert_has_calls(
+            [call("C:/Downloads"), call("C:/Temp")]
+        )
         app._config.mark_first_run_complete.assert_called_once()
 
     def test_start_logic_first_run(self, app):
@@ -68,18 +71,18 @@ class TestAppComplexFlows:
         app._config.is_first_run = True
         app._config.auto_start_enabled = False
 
-        from app import App
-
         # We must patch app.QApplication because app module already imported the real class
         # And patch("PyQt6...") won't affect app.QApplication reference.
         # We need "app" module to patch against.
         import app as app_module
 
-        with patch("sys.argv", ["cleanbox.exe"]), \
-             patch.object(app_module, "QApplication") as MockQApp, \
-             patch.object(app_module, "registry") as mock_registry, \
-             patch.object(app_module.atexit, "register"), \
-             patch.object(app_module.App, "_acquire_single_instance", return_value=True):
+        with (
+            patch("sys.argv", ["cleanbox.exe"]),
+            patch.object(app_module, "QApplication") as MockQApp,
+            patch.object(app_module, "registry"),
+            patch.object(app_module.atexit, "register"),
+            patch.object(app_module.App, "_acquire_single_instance", return_value=True),
+        ):
 
             # Setup mock app instance returned by constructor
             mock_qt_instance = MockQApp.return_value
@@ -98,6 +101,7 @@ class TestAppComplexFlows:
     def test_on_directory_added(self, app):
         """Test directory added slot."""
         from app import App
+
         App._on_directory_added(app, "C:/NewDir")
         app._config.add_directory.assert_called_with("C:/NewDir")
 
@@ -111,8 +115,10 @@ class TestAppComplexFlows:
 
         import app as app_module
 
-        with patch.object(app_module, "CleanupProgressWorker") as MockWorker, \
-             patch.object(app_module, "QMessageBox") as MockMsgBox:
+        with (
+            patch.object(app_module, "CleanupProgressWorker") as MockWorker,
+            patch.object(app_module, "QMessageBox") as MockMsgBox,
+        ):
             MockMsgBox.StandardButton.Ok = 1024
             MockMsgBox.StandardButton.Cancel = 4194304
             MockMsgBox.warning.return_value = MockMsgBox.StandardButton.Ok
@@ -120,6 +126,7 @@ class TestAppComplexFlows:
             MockWorker.return_value = mock_worker_instance
 
             from app import App
+
             App._do_cleanup(app)
 
             # Verify worker was created with directories
@@ -135,9 +142,12 @@ class TestAppComplexFlows:
         app._config = MagicMock()
         app._main_window = MagicMock()
         app._tray_icon = MagicMock()
-        type(app._config).cleanup_directories = PropertyMock(side_effect=Exception("Boom"))
+        type(app._config).cleanup_directories = PropertyMock(
+            side_effect=Exception("Boom")
+        )
 
         from app import App
+
         with patch("app.logger") as mock_log:
             App._do_cleanup(app)
 
@@ -152,6 +162,7 @@ class TestAppComplexFlows:
         app._qt_app = MagicMock()
 
         from app import App
+
         App._do_exit(app)
 
         app._storage_monitor.stop.assert_called_once()
@@ -164,12 +175,15 @@ class TestAppComplexFlows:
         app._main_window = MagicMock()
 
         from app import App
+
         App._refresh_storage_data(app)
 
         app._storage_monitor.get_all_drives.assert_called_once()
         app._main_window.update_drives.assert_called_once()
 
-    def test_acquire_single_instance_returns_false_on_unrecoverable_lock_error(self, app):
+    def test_acquire_single_instance_returns_false_on_unrecoverable_lock_error(
+        self, app
+    ):
         """Unrecoverable lock acquisition failures must fail closed."""
         from app import App
         import app as app_module
@@ -181,9 +195,13 @@ class TestAppComplexFlows:
         mock_server.listen.side_effect = [False, False]
         mock_server.errorString.return_value = "listen failed"
 
-        with patch.object(app_module, "QLocalSocket", side_effect=[mock_socket, mock_socket]), \
-             patch.object(app_module, "QLocalServer", return_value=mock_server), \
-             patch.object(app_module.QLocalServer, "removeServer"):
+        with (
+            patch.object(
+                app_module, "QLocalSocket", side_effect=[mock_socket, mock_socket]
+            ),
+            patch.object(app_module, "QLocalServer", return_value=mock_server),
+            patch.object(app_module.QLocalServer, "removeServer"),
+        ):
             acquired = App._acquire_single_instance(app)
 
         assert acquired is False

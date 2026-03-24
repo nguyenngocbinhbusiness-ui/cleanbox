@@ -21,7 +21,9 @@ class SecurityResult:
     vulnerabilities_high: int
     vulnerabilities_medium: int
     vulnerabilities_low: int
-    dependency_vulnerabilities: int
+    dependency_vulnerabilities: int | None
+    dependency_audit_available: bool
+    dependency_audit_error: str | None
     hardcoded_secrets: int
     score: float
     details: Dict[str, Any]
@@ -94,9 +96,11 @@ def run_bandit(project_dir: Path) -> Dict[str, Any]:
 def run_pip_audit(project_dir: Path) -> Dict[str, Any]:
     """Run pip-audit for dependency vulnerabilities."""
     result = {
-        "vulnerabilities": 0,
+        "vulnerabilities": None,
         "packages_scanned": 0,
         "issues": [],
+        "available": True,
+        "status": "unknown",
         "error": None,
     }
     
@@ -114,12 +118,20 @@ def run_pip_audit(project_dir: Path) -> Dict[str, Any]:
             timeout=120,
         )
         
-        # pip-audit returns non-zero if vulnerabilities found
-        output = proc.stdout if proc.stdout else proc.stderr
-        
-        if output:
+        output = (proc.stdout or "").strip()
+        error_output = (proc.stderr or "").strip()
+        combined_output = output or error_output
+        normalized_output = combined_output.lower()
+
+        if "no module named pip_audit" in normalized_output:
+            result["available"] = False
+            result["status"] = "unavailable"
+            result["error"] = "pip-audit not installed (pip install pip-audit)"
+            return result
+
+        if combined_output:
             try:
-                data = json.loads(output)
+                data = json.loads(combined_output)
                 if isinstance(data, list):
                     result["vulnerabilities"] = len(data)
                     for vuln in data[:10]:  # Limit to first 10
@@ -128,14 +140,38 @@ def run_pip_audit(project_dir: Path) -> Dict[str, Any]:
                             "version": vuln.get("version", ""),
                             "id": vuln.get("id", ""),
                         })
-            except json.JSONDecodeError:
-                # Try to parse text output
-                if "No known vulnerabilities found" in output:
+                    result["status"] = "scanned"
+                elif isinstance(data, dict):
+                    vulnerabilities = data.get("vulnerabilities", [])
+                    if isinstance(vulnerabilities, list):
+                        result["vulnerabilities"] = len(vulnerabilities)
+                        for vuln in vulnerabilities[:10]:
+                            result["issues"].append({
+                                "package": vuln.get("name", ""),
+                                "version": vuln.get("version", ""),
+                                "id": vuln.get("id", ""),
+                            })
+                    else:
+                        result["vulnerabilities"] = 0
+                    result["status"] = "scanned"
+                else:
                     result["vulnerabilities"] = 0
+                    result["status"] = "scanned"
+            except json.JSONDecodeError:
+                if "No known vulnerabilities found" in combined_output:
+                    result["vulnerabilities"] = 0
+                    result["status"] = "scanned"
                 else:
                     result["error"] = "Failed to parse pip-audit output"
-        
+        elif proc.returncode == 0:
+            result["vulnerabilities"] = 0
+            result["status"] = "scanned"
+        else:
+            result["error"] = error_output or "pip-audit failed without output"
+    
     except FileNotFoundError:
+        result["available"] = False
+        result["status"] = "unavailable"
         result["error"] = "pip-audit not installed (pip install pip-audit)"
     except subprocess.TimeoutExpired:
         result["error"] = "pip-audit timed out"
@@ -219,7 +255,11 @@ def evaluate(project_dir: Path) -> SecurityResult:
     score -= bandit_result.get("low", 0) * 2
     
     # Dependency vulnerabilities
-    score -= pip_audit_result.get("vulnerabilities", 0) * 5
+    dependency_vulnerabilities = pip_audit_result.get("vulnerabilities")
+    if dependency_vulnerabilities is None:
+        score -= 15
+    else:
+        score -= dependency_vulnerabilities * 5
     
     # Hardcoded secrets
     score -= secrets_result.get("secrets_found", 0) * 10
@@ -232,7 +272,9 @@ def evaluate(project_dir: Path) -> SecurityResult:
         vulnerabilities_high=bandit_result.get("high", 0),
         vulnerabilities_medium=bandit_result.get("medium", 0),
         vulnerabilities_low=bandit_result.get("low", 0),
-        dependency_vulnerabilities=pip_audit_result.get("vulnerabilities", 0),
+        dependency_vulnerabilities=dependency_vulnerabilities,
+        dependency_audit_available=pip_audit_result.get("available", False),
+        dependency_audit_error=pip_audit_result.get("error"),
         hardcoded_secrets=secrets_result.get("secrets_found", 0),
         score=score,
         details={

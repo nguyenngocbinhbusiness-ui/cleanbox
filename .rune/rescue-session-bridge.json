@@ -1,0 +1,49 @@
+{
+  "skill": "rune-rescue",
+  "phase": "COMPLETE (optimized)",
+  "baseline_health": 53.77,
+  "surgery_queue": [
+    {
+      "order": 1,
+      "name": "ui.views",
+      "health": 40.24,
+      "loc": 2283,
+      "path": "src/ui/views/cleanup_view.py, src/ui/views/settings_view.py, src/ui/views/storage_view.py, ...",
+      "pattern": "Strangler Fig",
+      "status": "complete"
+    },
+    {
+      "order": 2,
+      "name": "shared",
+      "health": 49.28,
+      "loc": 783,
+      "path": "src/shared/constants.py, src/shared/elevation.py, src/shared/registry.py, ...",
+      "pattern": "Strangler Fig",
+      "status": "complete"
+    },
+    {
+      "order": 3,
+      "name": "features.folder_scanner",
+      "health": 55.5,
+      "loc": 851,
+      "path": "src/features/folder_scanner/scan_helpers.py, src/features/folder_scanner/service.py, src/features/folder_scanner/__init__.py",
+      "pattern": "Strangler Fig",
+      "status": "complete"
+    }
+  ],
+  "last_updated_utc": "2026-03-23T16:38:00+00:00",
+  "resume_hint": "Continue optional optimization slices if desired; rescue baseline remains complete.",
+  "next_surgery_slice": {
+    "module": "ui.views.cleanup_view",
+    "blast_radius_src_files": 3,
+    "status": "ready"
+  },
+  "last_completed_slice": {
+    "module": "shared.registry + shared.elevation_args + ui.views.storage_view_actions",
+    "pattern": "Extract & Simplify",
+    "blast_radius_src_files": 3,
+    "tests": "621 passed"
+  },
+  "final_health": 53.94,
+  "health_delta": 0.17
+}

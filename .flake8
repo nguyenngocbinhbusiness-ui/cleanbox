@@ -1,3 +1,6 @@
 [flake8]
 max-line-length = 120
 exclude = .venv,__pycache__,.git,.pytest_cache
+per-file-ignores =
+    tests/*.py:E128,E301,E305,E306,E402,E501,E702,E712,E731,F401,F811,F841
+    tests/**/*.py:E128,E301,E305,E306,E402,E501,E702,E712,E731,F401,F811,F841

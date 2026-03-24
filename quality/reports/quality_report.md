@@ -1,30 +1,30 @@
 # ISO/IEC 25010 Quality Report
 
-**Project:** `D:\SOFTWARE\LOCAL_APP\TMTRADIO\project`
-**Generated:** 2026-01-05T18:24:25.833489
+**Project:** `D:\SOFTWARE\LOCAL_APP\CLEANBOX\project`
+**Generated:** 2026-03-23T23:39:48.026544
 
 ---
 
 ## Overall Score
 
-### 96.3% - PASS
+### 91.7% - PASS
 
 ```
-[███████████████████] 96%
+[██████████████████░] 91%
 ```
 
 ## Summary
 
 | Characteristic | Score | Status |
 |----------------|-------|--------|
-| Functional Suitability | 94.1% | ✅ PASS |
+| Functional Suitability | 90.8% | ✅ PASS |
 | Performance Efficiency | 100.0% | ✅ PASS |
 | Compatibility | 100.0% | ✅ PASS |
-| Usability | 94.3% | ✅ PASS |
-| Reliability | 100.0% | ✅ PASS |
+| Usability | 83.3% | ✅ PASS |
+| Reliability | 91.2% | ✅ PASS |
 | Security | 100.0% | ✅ PASS |
-| Maintainability | 82.1% | ✅ PASS |
-| Portability | 100.0% | ✅ PASS |
+| Maintainability | 88.0% | ✅ PASS |
+| Portability | 80.0% | ✅ PASS |
 
 ---
 
@@ -32,23 +32,23 @@
 
 ### Functional Suitability
 
-**Score:** 94.1% | **Status:** PASS
+**Score:** 90.8% | **Status:** PASS
 
 - **Test Pass Rate:** 100.0
-- **Code Coverage:** 85.24077548467793
-- **Tests Passed:** 5
+- **Code Coverage:** 76.91408533021625
+- **Tests Passed:** 621
 - **Tests Failed:** 0
 - **Tests Skipped:** 0
-- **Total Tests:** 5
+- **Total Tests:** 621
 
 ### Performance Efficiency
 
 **Score:** 100.0% | **Status:** PASS
 
-- **Import Time Ms:** 351.18
-- **Memory Baseline Mb:** 17.5
-- **Memory Peak Mb:** 44.92
-- **Cpu Utilization:** 18.8
+- **Import Time Ms:** 431.7
+- **Memory Baseline Mb:** 18.06
+- **Memory Peak Mb:** 48.54
+- **Cpu Utilization:** 23.0
 
 ### Compatibility
 
@@ -61,18 +61,18 @@
 
 ### Usability
 
-**Score:** 94.3% | **Status:** PASS
+**Score:** 83.3% | **Status:** PASS
 
-- **Docstring Coverage:** 98.50746268656717
+- **Docstring Coverage:** 91.30434782608695
 - **Readme Exists:** True
-- **Error Handling Coverage:** 100.0
+- **Error Handling Coverage:** 70.65217391304348
 
 ### Reliability
 
-**Score:** 100.0% | **Status:** PASS
+**Score:** 91.2% | **Status:** PASS
 
-- **Exception Handling Ratio:** 100.0
-- **Resource Cleanup Ratio:** 5.970149253731343
+- **Exception Handling Ratio:** 70.65217391304348
+- **Resource Cleanup Ratio:** 5.797101449275362
 - **Error Logging Present:** True
 - **Patterns Found:** ['Context managers used for resource management', 'Logging is implemented', 'No bare except clauses (good practice)', 'Finally blocks used for cleanup']
 
@@ -85,24 +85,25 @@
 - **Vulnerabilities Medium:** 0
 - **Vulnerabilities Low:** 0
 - **Dependency Vulnerabilities:** 0
+- **Dependency Audit Available:** True
 - **Hardcoded Secrets:** 0
 
 ### Maintainability
 
-**Score:** 82.1% | **Status:** PASS
+**Score:** 88.0% | **Status:** PASS
 
-- **Avg Cyclomatic Complexity:** 3.1066666666666665
-- **Maintainability Index:** 77.11734195847097
+- **Avg Cyclomatic Complexity:** 3.3120805369127515
+- **Maintainability Index:** 69.94548320990879
 - **Code Duplication Percent:** 0
-- **Lint Score:** 71
-- **Loc:** 2978
+- **Lint Score:** 100
+- **Loc:** 6117
 
 ### Portability
 
-**Score:** 100.0% | **Status:** PASS
+**Score:** 80.0% | **Status:** PASS
 
-- **Hardcoded Paths:** 0
-- **Platform Specific Imports:** 2
+- **Hardcoded Paths:** 3
+- **Platform Specific Imports:** 3
 - **Has Requirements File:** True
 - **Has Setup Config:** True
 

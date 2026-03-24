@@ -1,0 +1,188 @@
+"""Tests for storage_view_tree pure helpers and regression-safe output."""
+
+from PyQt6.QtWidgets import QTreeWidget, QTreeWidgetItem
+
+from features.folder_scanner.service import FileEntry, FolderInfo
+from ui.views.storage_view_tree import (
+    COL_ALLOCATED,
+    COL_FILES,
+    COL_FOLDERS,
+    COL_NAME,
+    COL_PERCENT,
+    COL_SIZE,
+    NumericSortItem,
+    add_file_entries,
+    build_tree_row_data,
+    build_tree_item,
+)
+from ui.views.storage_view_tree_helpers import (
+    build_folder_row_values,
+    calculate_percent,
+    compare_sort_values,
+    format_count,
+    parse_display_int,
+    summarize_direct_files,
+)
+
+
+def _make_folder() -> FolderInfo:
+    return FolderInfo(
+        path="C:/demo",
+        name="demo",
+        size_bytes=300,
+        allocated_bytes=512,
+        file_count=3,
+        folder_count=1,
+        last_modified="",
+        children=[],
+        direct_files=[
+            FileEntry("a.txt", "C:/demo/a.txt", 120, 128),
+            FileEntry("b.txt", "C:/demo/b.txt", 80, 128),
+            FileEntry("c.txt", "C:/demo/c.txt", 100, 256),
+        ],
+    )
+
+
+def test_parse_display_int_handles_commas_and_dash():
+    assert parse_display_int("1,234") == 1234
+    assert parse_display_int("-") == 0
+    assert parse_display_int(" 42 ") == 42
+
+
+def test_calculate_percent_matches_ui_guard():
+    assert calculate_percent(25, 100) == 25.0
+    assert calculate_percent(25, 0) == 0.0
+
+
+def test_summarize_direct_files_preserves_counts_and_omits_tail():
+    folder = _make_folder()
+    summary = summarize_direct_files(folder.direct_files, 2)
+
+    assert summary.file_count == 3
+    assert summary.total_size == 300
+    assert summary.total_allocated == 512
+    assert [entry.name for entry in summary.shown_files] == ["a.txt", "b.txt"]
+    assert summary.omitted_count == 1
+    assert summary.omitted_size == 100
+
+
+def test_build_tree_item_and_add_file_entries_regression_safe(qtbot):
+    folder = _make_folder()
+    tree = QTreeWidget()
+    qtbot.addWidget(tree)
+    item = build_tree_item(folder, folder.size_bytes, is_root=True)
+
+    assert item.text(COL_NAME) == "300 Bytes   demo"
+    assert item.text(COL_SIZE) == "300 Bytes"
+    assert item.text(COL_ALLOCATED) == "512 Bytes"
+    assert item.text(COL_FILES) == "3"
+    assert item.text(COL_FOLDERS) == "1"
+    assert item.text(COL_PERCENT) == "100.0 %"
+
+    tree.addTopLevelItem(item)
+    assert tree.topLevelItemCount() == 1
+    assert item.childCount() == 1
+
+    group = item.child(0)
+    assert group.text(COL_NAME) == "300 Bytes   [3 Files]"
+    assert group.text(COL_FILES) == "3"
+    assert group.childCount() == 3
+
+
+def test_build_tree_row_data_returns_structured_payload():
+    folder = _make_folder()
+
+    row = build_tree_row_data(folder, folder.size_bytes, is_root=True)
+
+    assert row.name_text == "300 Bytes   demo"
+    assert row.size_text == "300 Bytes"
+    assert row.allocated_text == "512 Bytes"
+    assert row.files_text == "3"
+    assert row.folders_text == "1"
+    assert row.percent == 100.0
+    assert row.is_root is True
+
+
+def test_add_file_entries_adds_group_to_parent_item(qtbot):
+    folder = _make_folder()
+    parent = QTreeWidgetItem()
+
+    add_file_entries(parent, folder, folder.size_bytes)
+
+    assert parent.childCount() == 1
+    group = parent.child(0)
+    assert group.text(COL_NAME) == "300 Bytes   [3 Files]"
+    assert group.text(COL_PERCENT) == "100.0 %"
+
+
+def test_numeric_sort_item_uses_display_parser_for_file_counts(qtbot):
+    left = NumericSortItem()
+    right = NumericSortItem()
+    left.setText(COL_FILES, "1,200")
+    right.setText(COL_FILES, "900")
+    assert parse_display_int(left.text(COL_FILES)) > parse_display_int(right.text(COL_FILES))
+
+
+def test_compare_sort_values_for_percent_column():
+    result = compare_sort_values(
+        column=COL_PERCENT,
+        percent_column=COL_PERCENT,
+        size_columns=(COL_SIZE, COL_ALLOCATED),
+        count_columns=(COL_FILES, COL_FOLDERS),
+        self_text="",
+        other_text="",
+        self_user_value=20.0,
+        other_user_value=30.0,
+    )
+    assert result is True
+
+
+def test_compare_sort_values_for_size_and_count_columns():
+    size_result = compare_sort_values(
+        column=COL_SIZE,
+        percent_column=COL_PERCENT,
+        size_columns=(COL_SIZE, COL_ALLOCATED),
+        count_columns=(COL_FILES, COL_FOLDERS),
+        self_text="",
+        other_text="",
+        self_user_value=100,
+        other_user_value=90,
+    )
+    count_result = compare_sort_values(
+        column=COL_FILES,
+        percent_column=COL_PERCENT,
+        size_columns=(COL_SIZE, COL_ALLOCATED),
+        count_columns=(COL_FILES, COL_FOLDERS),
+        self_text="12",
+        other_text="20",
+        self_user_value=None,
+        other_user_value=None,
+    )
+    assert size_result is False
+    assert count_result is True
+
+
+def test_compare_sort_values_returns_none_for_unsupported_column():
+    result = compare_sort_values(
+        column=COL_NAME,
+        percent_column=COL_PERCENT,
+        size_columns=(COL_SIZE, COL_ALLOCATED),
+        count_columns=(COL_FILES, COL_FOLDERS),
+        self_text="a",
+        other_text="b",
+        self_user_value=None,
+        other_user_value=None,
+    )
+    assert result is None
+
+
+def test_format_count_and_build_folder_row_values():
+    folder = _make_folder()
+    row = build_folder_row_values(folder, folder.size_bytes)
+
+    assert format_count(0) == "-"
+    assert format_count(1234) == "1,234"
+    assert row["name_text"] == "300 Bytes   demo"
+    assert row["files_text"] == "3"
+    assert row["folders_text"] == "1"
+    assert row["percent_text"] == "100.0 %"

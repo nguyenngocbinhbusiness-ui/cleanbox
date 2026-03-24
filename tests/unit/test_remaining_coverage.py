@@ -1,8 +1,8 @@
 """Tests for remaining files coverage - app.py, main.py, service files, etc."""
+
 import pytest
-from unittest.mock import patch, MagicMock, PropertyMock
+from unittest.mock import patch
 from PyQt6.QtWidgets import QApplication
-import sys
 
 
 @pytest.fixture
@@ -18,9 +18,9 @@ class TestAppCoverage:
         """Test App.__init__ normal operation."""
         from app import App
 
-        with patch('app.TrayIcon'):
-            with patch('app.MainWindow'):
-                with patch('app.StorageMonitor'):
+        with patch("app.TrayIcon"):
+            with patch("app.MainWindow"):
+                with patch("app.StorageMonitor"):
                     application = App()
                     assert application is not None
 
@@ -28,9 +28,9 @@ class TestAppCoverage:
         """Test _handle_first_run when not first run."""
         from app import App
 
-        with patch('app.TrayIcon'):
-            with patch('app.MainWindow'):
-                with patch('app.StorageMonitor'):
+        with patch("app.TrayIcon"):
+            with patch("app.MainWindow"):
+                with patch("app.StorageMonitor"):
                     application = App()
                     # Call handle first run - should check config
                     application._handle_first_run()
@@ -42,11 +42,13 @@ class TestMainCoverage:
     def test_setup_logging_success(self):
         """Test setup_logging normal operation."""
         from main import setup_logging
+
         setup_logging()  # Should not raise
 
     def test_setup_logging_with_existing_config(self, tmp_path):
         """Test setup_logging when config dir exists."""
         from main import setup_logging
+
         # Just call it - should handle gracefully
         setup_logging()
 
@@ -85,9 +87,7 @@ class TestTrayIconCoverage:
         from ui.tray_icon import TrayIcon
 
         tray = TrayIcon(
-            on_cleanup=lambda: None,
-            on_settings=lambda: None,
-            on_exit=lambda: None
+            on_cleanup=lambda: None, on_settings=lambda: None, on_exit=lambda: None
         )
         assert tray._on_cleanup is not None
 
@@ -104,9 +104,7 @@ class TestTrayIconCoverage:
         from ui.tray_icon import TrayIcon
 
         tray = TrayIcon(
-            on_cleanup=lambda: None,
-            on_settings=lambda: None,
-            on_exit=lambda: None
+            on_cleanup=lambda: None, on_settings=lambda: None, on_exit=lambda: None
         )
         menu = tray._create_menu()
         assert menu is not None
@@ -170,7 +168,16 @@ class TestSharedUtilsCoverage:
         """Test format_size functionality via FolderInfo."""
         from features.folder_scanner.service import FolderInfo
 
-        folder = FolderInfo(path="C:", name="C:", size_bytes=1024*1024, allocated_bytes=1024*1024, file_count=1, folder_count=0, last_modified='', children=[])
+        folder = FolderInfo(
+            path="C:",
+            name="C:",
+            size_bytes=1024 * 1024,
+            allocated_bytes=1024 * 1024,
+            file_count=1,
+            folder_count=0,
+            last_modified="",
+            children=[],
+        )
         assert "MB" in folder.size_formatted() or "KB" in folder.size_formatted()
 
 
@@ -192,8 +199,8 @@ class TestCleanupViewCoverage:
         view = CleanupView()
         qtbot.addWidget(view)
 
-        assert hasattr(view, '_dir_list')
-        assert hasattr(view, '_cleanup_btn')
+        assert hasattr(view, "_dir_list")
+        assert hasattr(view, "_cleanup_btn")
 
     def test_update_directories(self, qtbot, app):
         """Test update_directories with data."""

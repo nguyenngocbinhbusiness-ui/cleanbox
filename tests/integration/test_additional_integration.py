@@ -3,14 +3,15 @@ Additional Integration Tests for CleanBox
 Tests: More cross-component integration scenarios
 Target: 12 additional tests to reach 33 integration tests
 """
+
 import sys
 import os
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 
-import pytest
-from PyQt6.QtCore import Qt
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src"))
+)
 
 
 class TestAppTrayIconIntegration:
@@ -22,8 +23,10 @@ class TestAppTrayIconIntegration:
         import app as app_module
 
         mock_config = Mock(
-            is_first_run=False, auto_start_enabled=False,
-            cleanup_directories=[], get_notified_drives=lambda: []
+            is_first_run=False,
+            auto_start_enabled=False,
+            cleanup_directories=[],
+            get_notified_drives=lambda: [],
         )
         monkeypatch.setattr(app_module, "ConfigManager", lambda: mock_config)
 
@@ -39,8 +42,10 @@ class TestAppTrayIconIntegration:
         import app as app_module
 
         mock_config = Mock(
-            is_first_run=False, auto_start_enabled=False,
-            cleanup_directories=[], get_notified_drives=lambda: []
+            is_first_run=False,
+            auto_start_enabled=False,
+            cleanup_directories=[],
+            get_notified_drives=lambda: [],
         )
         monkeypatch.setattr(app_module, "ConfigManager", lambda: mock_config)
 
@@ -56,8 +61,10 @@ class TestAppTrayIconIntegration:
         import app as app_module
 
         mock_config = Mock(
-            is_first_run=False, auto_start_enabled=False,
-            cleanup_directories=[], get_notified_drives=lambda: []
+            is_first_run=False,
+            auto_start_enabled=False,
+            cleanup_directories=[],
+            get_notified_drives=lambda: [],
         )
         monkeypatch.setattr(app_module, "ConfigManager", lambda: mock_config)
 
@@ -71,7 +78,9 @@ class TestAppTrayIconIntegration:
 class TestStorageMonitorNotificationIntegration:
     """Integration tests for StorageMonitor-Notification flow."""
 
-    def test_low_space_updates_config_notified_drives(self, qapp, fresh_config, monkeypatch):
+    def test_low_space_updates_config_notified_drives(
+        self, qapp, fresh_config, monkeypatch
+    ):
         """Test low space detection updates config's notified drives."""
         from features.storage_monitor.utils import DriveInfo
         from app import App
@@ -87,13 +96,15 @@ class TestStorageMonitorNotificationIntegration:
         # Drive should be marked as notified
         assert "C:" in fresh_config.get_notified_drives()
 
-    def test_storage_monitor_gets_threshold_from_config(self, qapp, fresh_config, monkeypatch):
+    def test_storage_monitor_gets_threshold_from_config(
+        self, qapp, fresh_config, monkeypatch
+    ):
         """Test StorageMonitor receives threshold from config."""
         from features.storage_monitor import StorageMonitor
 
         monitor = StorageMonitor(
             threshold_gb=fresh_config.threshold_gb,
-            interval_seconds=fresh_config.polling_interval
+            interval_seconds=fresh_config.polling_interval,
         )
         assert monitor._threshold_gb == 10
 
@@ -138,14 +149,13 @@ class TestConfigPersistenceIntegration:
     def test_threshold_change_persists(self, fresh_config, temp_config_dir):
         """Test threshold change is saved and reloaded."""
         from shared.config import ConfigManager
-        import shared.config.manager as config_module
 
         # Change threshold
         fresh_config._config["low_space_threshold_gb"] = 15
         fresh_config.save()
 
         # Reload config
-        new_config = ConfigManager()
+        ConfigManager()
         # Note: May need to run in same context where CONFIG_FILE is patched
 
     def test_autostart_change_persists(self, fresh_config):
@@ -177,7 +187,6 @@ class TestFolderScannerViewIntegration:
     def test_scan_populates_tree_view(self, qapp, tmp_path):
         """Test folder scan populates the tree view model."""
         from ui.views import StorageView
-        from features.folder_scanner import FolderScanner
 
         # Create test structure
         (tmp_path / "subdir").mkdir()
@@ -217,14 +226,23 @@ class TestReleaseVerificationIntegration:
 
         assert exit_code == 0
         names = [call.args[0].name for call in mock_run.call_args_list]
-        assert names == ["pytest", "flake8", "bandit", "compileall", "pyinstaller-version"]
+        assert names == [
+            "pytest",
+            "flake8",
+            "bandit",
+            "compileall",
+            "pyinstaller-version",
+        ]
 
     def test_run_checks_stops_on_first_failure(self):
         from quality.verify_release import run_checks
 
         outcomes = iter([0, 3, 0, 0, 0])
 
-        with patch("quality.verify_release.run_command", side_effect=lambda check: next(outcomes)) as mock_run:
+        with patch(
+            "quality.verify_release.run_command",
+            side_effect=lambda check: next(outcomes),
+        ) as mock_run:
             exit_code = run_checks(include_flake8=True)
 
         assert exit_code == 3

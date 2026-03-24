@@ -1,0 +1,290 @@
+tests\component\test_component_edge_cases.py:8:1: F401 'unittest.mock.Mock' imported but unused
+tests\component\test_component_edge_cases.py:8:1: F401 'unittest.mock.MagicMock' imported but unused
+tests\component\test_component_edge_cases.py:8:1: F401 'unittest.mock.patch' imported but unused
+tests\component\test_component_edge_cases.py:10:1: F401 'pytest' imported but unused
+tests\component\test_component_edge_cases.py:11:1: F401 'PyQt6.QtCore.Qt' imported but unused
+tests\component\test_ui_components.py:8:1: F401 'unittest.mock.Mock' imported but unused
+tests\component\test_ui_components.py:10:1: F401 'pytest' imported but unused
+tests\conftest.py:7:1: F401 'json' imported but unused
+tests\conftest.py:9:1: F401 'tempfile' imported but unused
+tests\conftest.py:18:1: F811 redefinition of unused 'sys' from line 5
+tests\conftest.py:37:1: F401 'shared.constants.CONFIG_DIR' imported but unused
+tests\conftest.py:37:1: F401 'shared.constants.CONFIG_FILE' imported but unused
+tests\conftest.py:37:1: E402 module level import not at top of file
+tests\conftest.py:38:1: E402 module level import not at top of file
+tests\e2e\test_business_requirements.py:8:1: F401 'json' imported but unused
+tests\e2e\test_business_requirements.py:9:1: F401 'tempfile' imported but unused
+tests\e2e\test_business_requirements.py:13:1: F401 'pytest' imported but unused
+tests\e2e\test_business_requirements.py:14:1: F401 'PyQt6.QtWidgets.QApplication' imported but unused
+tests\e2e\test_business_requirements.py:15:1: F401 'PyQt6.QtCore.Qt' imported but unused
+tests\e2e\test_business_requirements.py:19:1: E402 module level import not at top of file
+tests\e2e\test_business_requirements.py:20:1: F401 'ui.tray_icon.TrayIcon' imported but unused
+tests\e2e\test_business_requirements.py:20:1: E402 module level import not at top of file
+tests\e2e\test_business_requirements.py:21:1: F401 'shared.constants.CONFIG_DIR' imported but unused
+tests\e2e\test_business_requirements.py:21:1: F401 'shared.constants.CONFIG_FILE' imported but unused
+tests\e2e\test_business_requirements.py:21:1: F401 'shared.constants.ICON_PATH' imported but unused
+tests\e2e\test_business_requirements.py:21:1: E402 module level import not at top of file
+tests\e2e\test_business_requirements.py:22:1: E402 module level import not at top of file
+tests\e2e\test_business_requirements.py:23:1: E402 module level import not at top of file
+tests\e2e\test_business_requirements.py:60:9: F841 local variable 'window' is assigned to but never used
+tests\e2e\test_business_requirements.py:110:9: F841 local variable 'original_get_all_drives' is assigned to but never used
+tests\e2e\test_business_requirements.py:197:9: F401 'shared.config.manager as config_module' imported but unused
+tests\e2e\test_business_requirements.py:215:9: F401 'shared.config.manager as config_module' imported but unused
+tests\e2e\test_business_requirements.py:230:9: F401 'shared.config.manager as config_module' imported but unused
+tests\e2e\test_nfr_user_stories.py:10:1: F401 'pathlib.Path' imported but unused
+tests\e2e\test_nfr_user_stories.py:12:1: F401 'pytest' imported but unused
+tests\e2e\test_nfr_user_stories.py:13:1: F401 'PyQt6.QtWidgets.QApplication' imported but unused
+tests\e2e\test_nfr_user_stories.py:18:1: E402 module level import not at top of file
+tests\e2e\test_nfr_user_stories.py:19:1: F401 'ui.views.StorageView' imported but unused
+tests\e2e\test_nfr_user_stories.py:19:1: F401 'ui.views.SettingsView' imported but unused
+tests\e2e\test_nfr_user_stories.py:19:1: E402 module level import not at top of file
+tests\e2e\test_nfr_user_stories.py:20:1: E402 module level import not at top of file
+tests\e2e\test_nfr_user_stories.py:21:1: E402 module level import not at top of file
+tests\e2e\test_nfr_user_stories.py:22:1: E402 module level import not at top of file
+tests\e2e\test_nfr_user_stories.py:34:9: F841 local variable 'window' is assigned to but never used
+tests\e2e\test_nfr_user_stories.py:47:9: F841 local variable 'window' is assigned to but never used
+tests\e2e\test_nfr_user_stories.py:80:9: F841 local variable 'window' is assigned to but never used
+tests\e2e\test_nfr_user_stories.py:386:9: F841 local variable 'window' is assigned to but never used
+tests\e2e\test_nfr_user_stories.py:486:9: F841 local variable 'title_label' is assigned to but never used
+tests\e2e\test_ui_elements.py:7:1: F401 'pytest' imported but unused
+tests\e2e\test_ui_elements.py:8:1: F401 'PyQt6.QtWidgets.QApplication' imported but unused
+tests\e2e\test_ui_elements.py:13:1: E402 module level import not at top of file
+tests\e2e\test_ui_elements.py:14:1: E402 module level import not at top of file
+tests\e2e\test_ui_elements.py:19:25: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:23:25: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:23:58: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:28:27: E701 multiple statements on one line (colon)
+tests\e2e\test_ui_elements.py:28:60: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:34:25: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:38:25: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:38:58: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:42:25: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:47:25: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:52:26: E701 multiple statements on one line (colon)
+tests\e2e\test_ui_elements.py:56:25: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:62:26: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:66:26: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:70:26: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:70:47: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:76:26: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:80:26: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:83:26: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:87:56: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:88:56: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:89:57: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:89:73: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:94:26: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:94:34: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:95:24: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:97:56: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:98:5: E301 expected 1 blank line, found 0
+tests\e2e\test_ui_elements.py:100:26: E701 multiple statements on one line (colon)
+tests\e2e\test_ui_elements.py:117:26: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:117:56: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:119:56: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:119:77: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:125:56: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:126:5: E301 expected 1 blank line, found 0
+tests\e2e\test_ui_elements.py:127:26: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:127:57: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:133:26: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:133:57: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:134:37: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:138:18: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:139:45: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:142:26: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:142:64: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:143:37: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:149:26: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:149:34: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:150:24: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:152:56: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:152:77: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:158:26: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:162:26: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:166:26: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:172:27: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:172:35: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:173:41: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:176:57: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:176:80: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:177:5: E301 expected 1 blank line, found 0
+tests\e2e\test_ui_elements.py:179:26: E701 multiple statements on one line (colon)
+tests\e2e\test_ui_elements.py:179:60: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:184:57: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:184:78: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:185:57: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:185:91: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:185:121: E501 line too long (131 > 120 characters)
+tests\e2e\test_ui_elements.py:186:58: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:186:89: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:186:121: E501 line too long (127 > 120 characters)
+tests\e2e\test_ui_elements.py:190:57: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:190:78: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:191:57: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:191:87: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:191:121: E501 line too long (125 > 120 characters)
+tests\e2e\test_ui_elements.py:192:58: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:192:90: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_elements.py:192:121: E501 line too long (129 > 120 characters)
+tests\e2e\test_ui_implicit.py:7:1: F401 'pytest' imported but unused
+tests\e2e\test_ui_implicit.py:12:1: E402 module level import not at top of file
+tests\e2e\test_ui_implicit.py:13:1: E402 module level import not at top of file
+tests\e2e\test_ui_implicit.py:14:1: E402 module level import not at top of file
+tests\e2e\test_ui_implicit.py:15:1: E402 module level import not at top of file
+tests\e2e\test_ui_implicit.py:16:1: E402 module level import not at top of file
+tests\e2e\test_ui_implicit.py:28:15: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:28:61: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:32:15: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:33:38: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:41:15: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:41:62: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:45:15: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:46:39: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:54:15: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:54:58: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:58:54: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:63:55: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:63:65: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:63:76: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:64:55: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:64:65: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:64:76: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:65:5: E301 expected 1 blank line, found 0
+tests\e2e\test_ui_implicit.py:67:26: E701 multiple statements on one line (colon)
+tests\e2e\test_ui_implicit.py:67:36: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:73:56: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:74:5: E301 expected 1 blank line, found 0
+tests\e2e\test_ui_implicit.py:75:26: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:75:53: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:87:15: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:88:45: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:97:54: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:100:39: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:103:53: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:107:58: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:108:5: E301 expected 1 blank line, found 0
+tests\e2e\test_ui_implicit.py:122:5: E301 expected 1 blank line, found 0
+tests\e2e\test_ui_implicit.py:131:29: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:131:63: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:135:39: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:141:44: E701 multiple statements on one line (colon)
+tests\e2e\test_ui_implicit.py:145:44: E701 multiple statements on one line (colon)
+tests\e2e\test_ui_implicit.py:152:25: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:160:25: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:165:51: E701 multiple statements on one line (colon)
+tests\e2e\test_ui_implicit.py:169:26: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:175:26: E701 multiple statements on one line (colon)
+tests\e2e\test_ui_implicit.py:175:51: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:179:26: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:186:29: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:190:29: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:207:26: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:210:23: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:213:26: E702 multiple statements on one line (semicolon)
+tests\e2e\test_ui_implicit.py:215:37: E702 multiple statements on one line (semicolon)
+tests\e2e\test_use_cases.py:7:1: F401 'time' imported but unused
+tests\e2e\test_use_cases.py:8:1: F401 'pathlib.Path' imported but unused
+tests\e2e\test_use_cases.py:10:1: F401 'pytest' imported but unused
+tests\e2e\test_use_cases.py:11:1: F401 'PyQt6.QtWidgets.QApplication' imported but unused
+tests\e2e\test_use_cases.py:11:1: F401 'PyQt6.QtWidgets.QFileDialog' imported but unused
+tests\e2e\test_use_cases.py:12:1: F401 'PyQt6.QtCore.Qt' imported but unused
+tests\e2e\test_use_cases.py:16:1: E402 module level import not at top of file
+tests\e2e\test_use_cases.py:17:1: F401 'ui.views.StorageView' imported but unused
+tests\e2e\test_use_cases.py:17:1: F401 'ui.views.SettingsView' imported but unused
+tests\e2e\test_use_cases.py:17:1: E402 module level import not at top of file
+tests\e2e\test_use_cases.py:18:1: F401 'shared.config.ConfigManager' imported but unused
+tests\e2e\test_use_cases.py:18:1: E402 module level import not at top of file
+tests\e2e\test_use_cases.py:19:1: E402 module level import not at top of file
+tests\e2e\test_use_cases.py:20:1: E402 module level import not at top of file
+tests\e2e\test_use_cases.py:44:9: F841 local variable 'original' is assigned to but never used
+tests\e2e\test_use_cases.py:166:26: E701 multiple statements on one line (colon)
+tests\e2e\test_use_cases.py:243:9: E306 expected 1 blank line before a nested definition, found 0
+tests\integration\test_additional_integration.py:8:1: F401 'unittest.mock.MagicMock' imported but unused
+tests\integration\test_additional_integration.py:10:1: F401 'pytest' imported but unused
+tests\integration\test_additional_integration.py:11:1: F401 'PyQt6.QtCore.Qt' imported but unused
+tests\integration\test_additional_integration.py:141:9: F401 'shared.config.manager as config_module' imported but unused
+tests\integration\test_additional_integration.py:148:9: F841 local variable 'new_config' is assigned to but never used
+tests\integration\test_additional_integration.py:180:9: F401 'features.folder_scanner.FolderScanner' imported but unused
+tests\integration\test_app_integration.py:10:1: F401 'pytest' imported but unused
+tests\ui\test_structure.py:10:1: E402 module level import not at top of file
+tests\ui\test_structure.py:11:1: E402 module level import not at top of file
+tests\ui\test_structure.py:39:1: E305 expected 2 blank lines after class or function definition, found 1
+tests\unit\test_app_complex_flows.py:4:1: F401 'shared.constants.APP_NAME' imported but unused
+tests\unit\test_app_complex_flows.py:71:9: F401 'app.App' imported but unused
+tests\unit\test_app_complex_flows.py:80:54: F841 local variable 'mock_registry' is assigned to but never used
+tests\unit\test_cleanup_module_complete.py:8:1: F401 'unittest.mock.MagicMock' imported but unused
+tests\unit\test_cleanup_module_complete.py:9:1: F401 'pytest' imported but unused
+tests\unit\test_config_registry_complete.py:8:1: F401 'unittest.mock.Mock' imported but unused
+tests\unit\test_config_registry_complete.py:8:1: F401 'unittest.mock.MagicMock' imported but unused
+tests\unit\test_config_registry_complete.py:9:1: F401 'pytest' imported but unused
+tests\unit\test_config_registry_complete.py:10:1: F401 'json' imported but unused
+tests\unit\test_config_registry_complete.py:28:48: E712 comparison to True should be 'if cond is True:' or 'if cond:'
+tests\unit\test_config_registry_complete.py:44:23: E712 comparison to True should be 'if cond is True:' or 'if cond:'
+tests\unit\test_config_registry_complete.py:51:23: E712 comparison to False should be 'if cond is False:' or 'if not cond:'
+tests\unit\test_config_registry_complete.py:57:23: E712 comparison to True should be 'if cond is True:' or 'if cond:'
+tests\unit\test_config_registry_complete.py:63:23: E712 comparison to False should be 'if cond is False:' or 'if not cond:'
+tests\unit\test_config_registry_complete.py:122:23: E712 comparison to True should be 'if cond is True:' or 'if cond:'
+tests\unit\test_constants.py:8:1: F401 'unittest.mock.MagicMock' imported but unused
+tests\unit\test_constants.py:10:1: F401 'pytest' imported but unused
+tests\unit\test_core_functions.py:9:1: F401 'tempfile' imported but unused
+tests\unit\test_core_functions.py:11:1: F401 'unittest.mock.patch' imported but unused
+tests\unit\test_core_functions.py:13:1: F401 'pytest' imported but unused
+tests\unit\test_coverage_boost.py:9:1: F401 'pytest' imported but unused
+tests\unit\test_coverage_boost.py:14:1: F401 'PyQt6.QtWidgets.QApplication' imported but unused
+tests\unit\test_coverage_boost.py:18:1: F401 'ui.main_window.MainWindow' imported but unused
+tests\unit\test_coverage_boost.py:22:1: F401 'ui.components.sidebar.SidebarWidget' imported but unused
+tests\unit\test_coverage_boost.py:24:1: F401 'shared.utils' imported but unused
+tests\unit\test_coverage_boost.py:122:26: E128 continuation line under-indented for visual indent
+tests\unit\test_coverage_boost.py:123:26: E128 continuation line under-indented for visual indent
+tests\unit\test_directory_detector_coverage.py:2:1: F401 'pytest' imported but unused
+tests\unit\test_directory_detector_coverage.py:3:1: F401 'unittest.mock.MagicMock' imported but unused
+tests\unit\test_directory_detector_coverage.py:4:1: F401 'pathlib.Path' imported but unused
+tests\unit\test_features_scanner.py:2:1: F401 'pytest' imported but unused
+tests\unit\test_features_scanner.py:3:1: F401 'os' imported but unused
+tests\unit\test_features_scanner.py:4:1: F401 'unittest.mock.MagicMock' imported but unused
+tests\unit\test_features_scanner.py:5:1: F401 'pathlib.Path' imported but unused
+tests\unit\test_features_scanner.py:6:1: F401 'features.folder_scanner.service.FolderInfo' imported but unused
+tests\unit\test_folder_scanner_coverage.py:23:14: E114 indentation is not a multiple of 4 (comment)
+tests\unit\test_folder_scanner_coverage.py:23:14: E116 unexpected indentation (comment)
+tests\unit\test_notifications_coverage.py:2:1: F401 'pytest' imported but unused
+tests\unit\test_notifications_coverage.py:4:1: F401 'sys' imported but unused
+tests\unit\test_remaining_coverage.py:3:1: F401 'unittest.mock.MagicMock' imported but unused
+tests\unit\test_remaining_coverage.py:3:1: F401 'unittest.mock.PropertyMock' imported but unused
+tests\unit\test_remaining_coverage.py:5:1: F401 'sys' imported but unused
+tests\unit\test_remaining_coverage.py:173:121: E501 line too long (159 > 120 characters)
+tests\unit\test_settings_view_coverage.py:3:1: F401 'unittest.mock.MagicMock' imported but unused
+tests\unit\test_shared_utils.py:3:1: F401 'time' imported but unused
+tests\unit\test_shared_utils.py:4:1: F401 'unittest.mock.call' imported but unused
+tests\unit\test_shared_utils.py:62:9: E731 do not assign a lambda expression, use a def
+tests\unit\test_storage_utils_coverage.py:2:1: F401 'pytest' imported but unused
+tests\unit\test_storage_view_coverage.py:3:1: F401 'unittest.mock.PropertyMock' imported but unused
+tests\unit\test_storage_view_coverage.py:9:1: F401 'ui.views.storage_view.COL_SIZE' imported but unused
+tests\unit\test_storage_view_coverage.py:34:121: E501 line too long (157 > 120 characters)
+tests\unit\test_storage_view_coverage.py:158:121: E501 line too long (168 > 120 characters)
+tests\unit\test_storage_view_coverage.py:179:121: E501 line too long (157 > 120 characters)
+tests\unit\test_storage_view_coverage.py:230:121: E501 line too long (122 > 120 characters)
+tests\unit\test_storage_view_coverage.py:231:121: E501 line too long (123 > 120 characters)
+tests\unit\test_storage_view_coverage.py:232:121: E501 line too long (121 > 120 characters)
+tests\unit\test_storage_view_coverage.py:245:121: E501 line too long (121 > 120 characters)
+tests\unit\test_tray_icon.py:4:1: F401 'threading' imported but unused
+tests\unit\test_tray_icon.py:74:13: F841 local variable 'menu' is assigned to but never used
+tests\unit\test_ui_error_coverage.py:2:1: F401 'pytest' imported but unused
+tests\unit\test_ui_error_coverage.py:4:1: F401 'PyQt6.QtWidgets.QMessageBox' imported but unused
+tests\unit\test_ui_error_coverage.py:57:9: F841 local variable 'view' is assigned to but never used
+tests\unit\test_ui_error_coverage.py:59:5: F811 redefinition of unused 'test_settings_view_errors' from line 55
+1     E114 indentation is not a multiple of 4 (comment)
+1     E116 unexpected indentation (comment)
+2     E128 continuation line under-indented for visual indent
+7     E301 expected 1 blank line, found 0
+1     E305 expected 2 blank lines after class or function definition, found 1
+1     E306 expected 1 blank line before a nested definition, found 0
+26    E402 module level import not at top of file
+12    E501 line too long (131 > 120 characters)
+10    E701 multiple statements on one line (colon)
+107   E702 multiple statements on one line (semicolon)
+6     E712 comparison to True should be 'if cond is True:' or 'if cond:'
+1     E731 do not assign a lambda expression, use a def
+86    F401 'unittest.mock.Mock' imported but unused
+2     F811 redefinition of unused 'sys' from line 5
+12    F841 local variable 'window' is assigned to but never used

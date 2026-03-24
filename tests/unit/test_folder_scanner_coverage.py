@@ -1,4 +1,3 @@
-
 import pytest
 from unittest.mock import MagicMock, patch
 from features.folder_scanner.service import FolderScanner, FolderInfo, ScanStats
@@ -13,14 +12,14 @@ class TestFolderScannerCoverage:
     def test_folder_info_properties(self):
         """Cover FolderInfo property errors."""
         # Create info with "bad" size (though int can't really fail, we can mock it)
-        info = FolderInfo("path", "name", 0, 0, 0, 0, '', [])
+        info = FolderInfo("path", "name", 0, 0, 0, 0, "", [])
 
         # Test size_mb error
         # We can't easily force float division to fail unless size_bytes is non-numeric,
         # but type hinting says int.
         # However, we can patch the properties or use a mock object.
         pass  # The properties are simple try/except blocks around division.
-             # Hard to fail unless we pass invalid types, which python allows.
+        # Hard to fail unless we pass invalid types, which python allows.
 
         info.size_bytes = "not an int"
         assert info.size_mb == 0.0
@@ -30,8 +29,12 @@ class TestFolderScannerCoverage:
     def test_scan_folder_recursive_error(self, scanner):
         """Cover _scan_recursive unhandled exception."""
         # Patch _scan_recursive to raise generic exception
-        with patch.object(scanner, "_scan_recursive", side_effect=Exception("Recursive Error")), \
-             patch("features.folder_scanner.service.logger") as mock_log:
+        with (
+            patch.object(
+                scanner, "_scan_recursive", side_effect=Exception("Recursive Error")
+            ),
+            patch("features.folder_scanner.service.logger") as mock_log,
+        ):
 
             res = scanner.scan_folder("C:/Test")
             assert res is None
@@ -61,8 +64,10 @@ class TestFolderScannerCoverage:
 
     def test_get_folder_size_fast_errors(self, scanner):
         """Cover scandir/stat errors in fast scan."""
-        with patch("os.scandir", side_effect=PermissionError("No Access")), \
-             patch("features.folder_scanner.service.logger") as mock_log:
+        with (
+            patch("os.scandir", side_effect=PermissionError("No Access")),
+            patch("features.folder_scanner.service.logger") as mock_log,
+        ):
             scanner._get_folder_size_fast("C:/Test")
             mock_log.debug.assert_called()
 
@@ -76,8 +81,12 @@ class TestFolderScannerCoverage:
         # current_depth for subdir is 1. 1 < 1 is False.
         # So it should call fast scan for subdir.
 
-        with patch("os.scandir") as mock_scandir, \
-             patch.object(scanner, "_get_folder_size_fast", return_value=(500, 512)) as mock_fast:
+        with (
+            patch("os.scandir") as mock_scandir,
+            patch.object(
+                scanner, "_get_folder_size_fast", return_value=(500, 512)
+            ) as mock_fast,
+        ):
 
             # Mock DirEntry for subdirectory
             sub = MagicMock()
@@ -122,8 +131,15 @@ class TestFolderScannerCoverage:
 
     def test_scan_stats_default_and_merge(self):
         """ScanStats merge should aggregate deterministically."""
-        left = ScanStats(scanned_entries=1, skipped_count=1, skipped_reasons={"permission_denied": 1})
-        right = ScanStats(scanned_entries=2, scanned_files=3, skipped_count=2, skipped_reasons={"os_error": 2})
+        left = ScanStats(
+            scanned_entries=1, skipped_count=1, skipped_reasons={"permission_denied": 1}
+        )
+        right = ScanStats(
+            scanned_entries=2,
+            scanned_files=3,
+            skipped_count=2,
+            skipped_reasons={"os_error": 2},
+        )
         left.merge(right)
         assert left.scanned_entries == 3
         assert left.scanned_files == 3

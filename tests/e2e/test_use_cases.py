@@ -2,20 +2,11 @@
 E2E Tests - Use Cases (UC)
 Tests TC-UC-001 through TC-UC-010 (30 test cases)
 """
-import sys
-import os
-import time
-from pathlib import Path
 
-import pytest
-from PyQt6.QtWidgets import QApplication, QFileDialog, QMessageBox
-from PyQt6.QtCore import Qt
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
+from PyQt6.QtWidgets import QMessageBox
 
 from ui.main_window import MainWindow
-from ui.views import StorageView, CleanupView, SettingsView
-from shared.config import ConfigManager
+from ui.views import CleanupView
 from features.storage_monitor import StorageMonitor
 from features.cleanup import CleanupService
 
@@ -41,7 +32,7 @@ class TestUC001AutoStart:
         from shared import registry
 
         # Arrange - mock to raise exception
-        original = registry.enable_autostart
+        registry.enable_autostart
 
         def mock_enable():
             return False  # Simulate failure
@@ -76,7 +67,10 @@ class TestUC002StorageMonitoring:
         from features.storage_monitor.utils import DriveInfo
         from features.storage_monitor import service as svc_module
 
-        mock_data = [DriveInfo("C:", 500, 100, 400, 80), DriveInfo("D:", 1000, 5, 995, 99.5)]
+        mock_data = [
+            DriveInfo("C:", 500, 100, 400, 80),
+            DriveInfo("D:", 1000, 5, 995, 99.5),
+        ]
         monkeypatch.setattr(svc_module, "get_all_drives", lambda: mock_data)
 
         monitor = StorageMonitor(threshold_gb=10, interval_seconds=60)
@@ -102,7 +96,13 @@ class TestUC002StorageMonitoring:
         from features.storage_monitor import service as svc_module
 
         mock_data = [
-            DriveInfo(letter=f"{chr(67+i)}:", total_gb=100.0, free_gb=50.0, used_gb=50.0, percent_used=50.0)
+            DriveInfo(
+                letter=f"{chr(67+i)}:",
+                total_gb=100.0,
+                free_gb=50.0,
+                used_gb=50.0,
+                percent_used=50.0,
+            )
             for i in range(10)
         ]
         monkeypatch.setattr(svc_module, "get_all_drives", lambda: mock_data)
@@ -121,7 +121,10 @@ class TestUC003LowSpaceWarning:
         from features.storage_monitor.utils import DriveInfo
         from features.storage_monitor import service as svc_module
 
-        mock_data = [DriveInfo("C:", 500, 100, 400, 80), DriveInfo("D:", 1000, 5, 995, 99.5)]
+        mock_data = [
+            DriveInfo("C:", 500, 100, 400, 80),
+            DriveInfo("D:", 1000, 5, 995, 99.5),
+        ]
         monkeypatch.setattr(svc_module, "get_all_drives", lambda: mock_data)
 
         events = []
@@ -163,7 +166,8 @@ class TestUC003LowSpaceWarning:
         monitor = StorageMonitor(threshold_gb=10)
         monitor.low_space_detected.connect(lambda d: events.append(d))
 
-        for _ in range(3): monitor._check_drives()
+        for _ in range(3):
+            monitor._check_drives()
 
         d_drive_notifications = [e for e in events if e.letter == "D:"]
         assert len(d_drive_notifications) <= 1
@@ -240,6 +244,7 @@ class TestUC005RemoveDirectory:
 
         # Mock the message box
         shown_messages = []
+
         def mock_info(parent, title, text):
             shown_messages.append((title, text))
 

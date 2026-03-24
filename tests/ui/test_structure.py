@@ -1,11 +1,6 @@
-
 import sys
 import unittest
 from PyQt6.QtWidgets import QApplication
-
-# Ensure src is in path
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
 
 from ui.main_window import MainWindow
 from ui.components.sidebar import SidebarWidget
@@ -36,5 +31,6 @@ class TestUIStructure(unittest.TestCase):
         # Check default view count (Drives, Cleanup, Settings)
         self.assertEqual(window.content_stack.count(), 3)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

@@ -1,30 +1,30 @@
 {
-  "project": "D:\\SOFTWARE\\LOCAL_APP\\TMTRADIO\\project",
-  "timestamp": "2026-01-05T18:24:25.830638",
-  "overall_score": 96.31212229006789,
+  "project": "D:\\SOFTWARE\\LOCAL_APP\\CLEANBOX\\project",
+  "timestamp": "2026-03-23T23:39:48.025305",
+  "overall_score": 91.65230813715118,
   "overall_status": "PASS",
   "characteristics": {
     "functional_suitability": {
-      "score": 94.09631019387118,
+      "score": 90.7656341320865,
       "status": "PASS",
       "result": {
         "test_pass_rate": 100.0,
-        "code_coverage": 85.24077548467793,
-        "tests_passed": 5,
+        "code_coverage": 76.91408533021625,
+        "tests_passed": 621,
         "tests_failed": 0,
         "tests_skipped": 0,
-        "total_tests": 5,
-        "score": 94.09631019387118
+        "total_tests": 621,
+        "score": 90.7656341320865
       }
     },
     "performance_efficiency": {
       "score": 100.0,
       "status": "PASS",
       "result": {
-        "import_time_ms": 351.18,
-        "memory_baseline_mb": 17.5,
-        "memory_peak_mb": 44.92,
-        "cpu_utilization": 18.8,
+        "import_time_ms": 431.7,
+        "memory_baseline_mb": 18.06,
+        "memory_peak_mb": 48.54,
+        "cpu_utilization": 23.0,
         "score": 100.0
       }
     },
@@ -40,21 +40,21 @@
       }
     },
     "usability": {
-      "score": 94.25373134328359,
+      "score": 83.31521739130434,
       "status": "PASS",
       "result": {
-        "docstring_coverage": 98.50746268656717,
+        "docstring_coverage": 91.30434782608695,
         "readme_exists": true,
-        "error_handling_coverage": 100.0,
-        "score": 94.25373134328359
+        "error_handling_coverage": 70.65217391304348,
+        "score": 83.31521739130434
       }
     },
     "reliability": {
-      "score": 100.0,
+      "score": 91.15942028985508,
       "status": "PASS",
       "result": {
-        "exception_handling_ratio": 100.0,
-        "resource_cleanup_ratio": 5.970149253731343,
+        "exception_handling_ratio": 70.65217391304348,
+        "resource_cleanup_ratio": 5.797101449275362,
         "error_logging_present": true,
         "patterns_found": [
           "Context managers used for resource management",
@@ -62,7 +62,7 @@
           "No bare except clauses (good practice)",
           "Finally blocks used for cleanup"
         ],
-        "score": 100.0
+        "score": 91.15942028985508
       }
     },
     "security": {
@@ -74,31 +74,33 @@
         "vulnerabilities_medium": 0,
         "vulnerabilities_low": 0,
         "dependency_vulnerabilities": 0,
+        "dependency_audit_available": true,
+        "dependency_audit_error": null,
         "hardcoded_secrets": 0,
         "score": 100.0
       }
     },
     "maintainability": {
-      "score": 82.14693678338838,
+      "score": 87.97819328396352,
       "status": "PASS",
       "result": {
-        "avg_cyclomatic_complexity": 3.1066666666666665,
-        "maintainability_index": 77.11734195847097,
+        "avg_cyclomatic_complexity": 3.3120805369127515,
+        "maintainability_index": 69.94548320990879,
         "code_duplication_percent": 0,
-        "lint_score": 71,
-        "loc": 2978,
-        "score": 82.14693678338838
+        "lint_score": 100,
+        "loc": 6117,
+        "score": 87.97819328396352
       }
     },
     "portability": {
-      "score": 100.0,
+      "score": 80,
       "status": "PASS",
       "result": {
-        "hardcoded_paths": 0,
-        "platform_specific_imports": 2,
+        "hardcoded_paths": 3,
+        "platform_specific_imports": 3,
         "has_requirements_file": true,
         "has_setup_config": true,
-        "score": 100.0
+        "score": 80
       }
     }
   }

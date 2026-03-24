@@ -2,23 +2,13 @@
 E2E Tests - Business Requirements (BR)
 Tests TC-BR-001 through TC-BR-006 (18 test cases)
 """
-import sys
+
 import os
 import time
-import json
-import tempfile
 import psutil
 from pathlib import Path
 
-import pytest
-from PyQt6.QtWidgets import QApplication
-from PyQt6.QtCore import Qt
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
-
 from ui.main_window import MainWindow
-from ui.tray_icon import TrayIcon
-from shared.constants import CONFIG_DIR, CONFIG_FILE, ICON_PATH
 from shared.config import ConfigManager
 from features.cleanup import CleanupService
 
@@ -47,6 +37,7 @@ class TestBR001SilentBackgroundOperation:
 
         # Act
         from ui.tray_icon import load_icon
+
         icon = load_icon()
 
         # Assert - fallback icon should be created (not None)
@@ -57,7 +48,7 @@ class TestBR001SilentBackgroundOperation:
     def test_tc_br_001_ed_resource_usage(self, qapp):
         """TC-BR-001-ED: Run app for extended time, check system resources."""
         # Arrange
-        window = MainWindow()
+        MainWindow()
         process = psutil.Process(os.getpid())
 
         # Act - let the app idle for a moment
@@ -71,7 +62,9 @@ class TestBR001SilentBackgroundOperation:
         # Assert
         # Note: During tests, memory may be higher due to test infrastructure
         # We check for reasonable bounds, not strict 50MB limit
-        assert memory_mb < 200, f"Memory usage {memory_mb:.1f}MB exceeds reasonable bounds"
+        assert (
+            memory_mb < 200
+        ), f"Memory usage {memory_mb:.1f}MB exceeds reasonable bounds"
 
 
 class TestBR002LowDiskSpaceNotification:
@@ -83,12 +76,25 @@ class TestBR002LowDiskSpaceNotification:
         from features.storage_monitor import service as svc_module
 
         mock_drive_list = [
-            DriveInfo(letter="C:", total_gb=500.0, free_gb=100.0, used_gb=400.0, percent_used=80.0),
-            DriveInfo(letter="D:", total_gb=1000.0, free_gb=5.0, used_gb=995.0, percent_used=99.5),
+            DriveInfo(
+                letter="C:",
+                total_gb=500.0,
+                free_gb=100.0,
+                used_gb=400.0,
+                percent_used=80.0,
+            ),
+            DriveInfo(
+                letter="D:",
+                total_gb=1000.0,
+                free_gb=5.0,
+                used_gb=995.0,
+                percent_used=99.5,
+            ),
         ]
         monkeypatch.setattr(svc_module, "get_all_drives", lambda: mock_drive_list)
 
         from features.storage_monitor import StorageMonitor
+
         low_space_events = []
         monitor = StorageMonitor(threshold_gb=10, interval_seconds=60)
         monitor.low_space_detected.connect(lambda d: low_space_events.append(d))
@@ -96,7 +102,9 @@ class TestBR002LowDiskSpaceNotification:
         low_drives = monitor.get_low_space_drives()
 
         assert len(low_drives) >= 1, "Should detect at least one low space drive"
-        assert any(d.letter == "D:" for d in low_drives), "Drive D: should be detected as low"
+        assert any(
+            d.letter == "D:" for d in low_drives
+        ), "Drive D: should be detected as low"
 
     def test_tc_br_002_e_drive_inaccessible(self, qapp, monkeypatch):
         """TC-BR-002-E: Drive becomes inaccessible during monitoring."""
@@ -107,7 +115,7 @@ class TestBR002LowDiskSpaceNotification:
             raise PermissionError("Drive not accessible")
 
         # Monkeypatch at module level
-        original_get_all_drives = utils.get_all_drives
+        utils.get_all_drives
 
         # Act - should not raise, should return empty list
         monkeypatch.setattr(utils, "get_all_drives", lambda: [])
@@ -121,7 +129,15 @@ class TestBR002LowDiskSpaceNotification:
         from features.storage_monitor.utils import DriveInfo
         from features.storage_monitor import service as svc_module, StorageMonitor
 
-        mock_drive = [DriveInfo(letter="C:", total_gb=100.0, free_gb=10.0, used_gb=90.0, percent_used=90.0)]
+        mock_drive = [
+            DriveInfo(
+                letter="C:",
+                total_gb=100.0,
+                free_gb=10.0,
+                used_gb=90.0,
+                percent_used=90.0,
+            )
+        ]
         monkeypatch.setattr(svc_module, "get_all_drives", lambda: mock_drive)
 
         monitor = StorageMonitor(threshold_gb=10, interval_seconds=60)
@@ -194,13 +210,14 @@ class TestBR004SettingsPersistence:
         fresh_config.add_directory(test_path)
 
         # Simulate restart by creating new ConfigManager
-        import shared.config.manager as config_module
         new_config = ConfigManager()
 
         # Assert
         assert test_path in new_config.cleanup_directories
 
-    def test_tc_br_004_e_missing_config(self, fresh_config, temp_config_dir, monkeypatch):
+    def test_tc_br_004_e_missing_config(
+        self, fresh_config, temp_config_dir, monkeypatch
+    ):
         """TC-BR-004-E: Delete config file while app running, restart."""
         # Arrange
         config_file = temp_config_dir / "config.json"
@@ -212,7 +229,6 @@ class TestBR004SettingsPersistence:
             config_file.unlink()
 
         # Create new manager
-        import shared.config.manager as config_module
         new_config = ConfigManager()
 
         # Assert - should use defaults
@@ -227,7 +243,6 @@ class TestBR004SettingsPersistence:
         config_file.write_text("{ invalid json content ]]")
 
         # Act - should not crash
-        import shared.config.manager as config_module
         new_config = ConfigManager()
 
         # Assert - should use defaults

@@ -1,4 +1,3 @@
-
 import pytest
 import sys
 from unittest.mock import patch
@@ -18,15 +17,17 @@ class TestMainEntry:
         src_path = Path(__file__).resolve().parents[2] / "src"
         # Preserve existing path to find stdlib and site-packages
         new_path = sys.path + [str(src_path)]
-        with patch.object(sys, 'path', new_path):
+        with patch.object(sys, "path", new_path):
             yield
 
     def test_setup_logging_success(self, tmp_path):
         """Test logging setup creates file."""
         # Patch CONFIG_DIR in main module.
         # Since main.py imports CONFIG_DIR, we patch main.CONFIG_DIR
-        with patch("main.CONFIG_DIR", tmp_path), \
-             patch("logging.basicConfig") as mock_basic:
+        with (
+            patch("main.CONFIG_DIR", tmp_path),
+            patch("logging.basicConfig") as mock_basic,
+        ):
 
             setup_logging()
 
@@ -37,9 +38,11 @@ class TestMainEntry:
         """Test main execution flow."""
         # Patch app.App because main() does 'from app import App'
         # app module is available because main.py modifies sys.path
-        with patch("main.setup_logging") as mock_setup, \
-             patch("app.App") as MockApp, \
-             patch("logging.getLogger"):
+        with (
+            patch("main.setup_logging") as mock_setup,
+            patch("app.App") as MockApp,
+            patch("logging.getLogger"),
+        ):
 
             app_instance = MockApp.return_value
             app_instance.start.return_value = 0
@@ -53,9 +56,11 @@ class TestMainEntry:
 
     def test_main_error_start(self):
         """Test main catches exceptions from App."""
-        with patch("main.setup_logging"), \
-             patch("app.App") as MockApp, \
-             patch("logging.getLogger"):
+        with (
+            patch("main.setup_logging"),
+            patch("app.App") as MockApp,
+            patch("logging.getLogger"),
+        ):
 
             app_instance = MockApp.return_value
             app_instance.start.side_effect = Exception("Start failed")
@@ -66,9 +71,11 @@ class TestMainEntry:
 
     def test_main_fail_app_init(self):
         """Test main catches App init failure."""
-        with patch("main.setup_logging"), \
-             patch("app.App", side_effect=Exception("Init failed")), \
-             patch("logging.getLogger"):
+        with (
+            patch("main.setup_logging"),
+            patch("app.App", side_effect=Exception("Init failed")),
+            patch("logging.getLogger"),
+        ):
 
             ret = main()
             assert ret == 1

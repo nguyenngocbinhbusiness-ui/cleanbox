@@ -1,4 +1,3 @@
-
 import pytest
 from unittest.mock import MagicMock, patch
 from app import App
@@ -10,10 +9,12 @@ class TestAppCoverageFinal:
     @pytest.fixture
     def app(self):
         # Patch init components
-        with patch("app.ConfigManager"), \
-             patch("app.CleanupService"), \
-             patch("app.NotificationService"), \
-             patch("sys.argv", ["test"]):
+        with (
+            patch("app.ConfigManager"),
+            patch("app.CleanupService"),
+            patch("app.NotificationService"),
+            patch("sys.argv", ["test"]),
+        ):
             app = App()
             # Manually init optional components for testing slots
             app._storage_monitor = MagicMock()
@@ -25,9 +26,11 @@ class TestAppCoverageFinal:
     def test_start_exception(self, app):
         """Cover exception in start method."""
         # Force QApplication creation to fail
-        with patch("app.QApplication", side_effect=Exception("Qt Init Error")), \
-             patch("app.logger") as mock_log, \
-             patch("atexit.register"):
+        with (
+            patch("app.QApplication", side_effect=Exception("Qt Init Error")),
+            patch("app.logger") as mock_log,
+            patch("atexit.register"),
+        ):
 
             res = app.start()
             assert res == 1
@@ -43,15 +46,19 @@ class TestAppCoverageFinal:
 
     def test_handle_first_run_exception(self, app):
         """Cover exception in handle_first_run."""
-        with patch("app.get_default_directories", side_effect=Exception("Dir Error")), \
-             patch("app.logger") as mock_log:
+        with (
+            patch("app.get_default_directories", side_effect=Exception("Dir Error")),
+            patch("app.logger") as mock_log,
+        ):
 
             app._handle_first_run()
             mock_log.error.assert_called()
 
     def test_on_low_space_exception(self, app):
         """Cover exception in _on_low_space."""
-        app._notification_service.notify_low_space.side_effect = Exception("Notify Error")
+        app._notification_service.notify_low_space.side_effect = Exception(
+            "Notify Error"
+        )
 
         with patch("app.logger") as mock_log:
             app._on_low_space(DriveInfo("C", 100, 10, 90, 90))
@@ -117,8 +124,10 @@ class TestAppCoverageFinal:
         """Cover exception in _on_autostart_changed."""
         app._config.auto_start_enabled = False  # Default
         # Property setter might fail? Or registry call.
-        with patch("app.registry.enable_autostart", side_effect=Exception("Reg Error")), \
-             patch("app.logger") as mock_log:
+        with (
+            patch("app.registry.enable_autostart", side_effect=Exception("Reg Error")),
+            patch("app.logger") as mock_log,
+        ):
 
             app._on_autostart_changed(True)
             mock_log.error.assert_called()
@@ -133,15 +142,19 @@ class TestAppCoverageFinal:
 
     def test_restart_with_admin_success(self, app):
         """Cover restart-with-admin success path."""
-        with patch("app.request_admin_restart", return_value=33), \
-             patch.object(app, "_do_exit") as do_exit:
+        with (
+            patch("app.request_admin_restart", return_value=33),
+            patch.object(app, "_do_exit") as do_exit,
+        ):
             app._restart_with_admin()
             do_exit.assert_called_once()
 
     def test_restart_with_admin_shows_error_code(self, app):
         """Failure path should surface the Windows error code."""
-        with patch("app.request_admin_restart", return_value=5), \
-             patch("app.QMessageBox.warning") as warning_mock:
+        with (
+            patch("app.request_admin_restart", return_value=5),
+            patch("app.QMessageBox.warning") as warning_mock,
+        ):
             app._restart_with_admin()
 
         warning_mock.assert_called_once()

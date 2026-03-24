@@ -10,8 +10,10 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 
-from shared.constants import RECYCLE_BIN_MARKER
-from shared.utils import is_protected_path
+from ui.views.cleanup_policy import (
+    format_directory_display,
+    validate_directory_addition,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -156,12 +158,7 @@ class CleanupView(QWidget):
             self._dir_list.clear()
 
             for directory in directories:
-                if directory == RECYCLE_BIN_MARKER:
-                    display_text = "[Recycle Bin]"
-                else:
-                    display_text = directory
-
-                item = QListWidgetItem(display_text)
+                item = QListWidgetItem(format_directory_display(directory))
                 item.setData(Qt.ItemDataRole.UserRole, directory)
                 self._dir_list.addItem(item)
         except Exception as e:
@@ -176,14 +173,17 @@ class CleanupView(QWidget):
                 str(Path.home()),
             )
             if directory:
-                if is_protected_path(directory):
+                can_add, reason = validate_directory_addition(
+                    directory, self._directories
+                )
+                if not can_add and reason == "protected":
                     QMessageBox.warning(
                         self,
                         "Protected Directory",
                         f"'{directory}' is a protected system directory and cannot be added.",
                     )
                     logger.warning("Blocked adding protected path: %s", directory)
-                elif directory not in self._directories:
+                elif can_add:
                     self._directories.append(directory)
                     self.update_directories(self._directories)
                     self.directory_added.emit(directory)

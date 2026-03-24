@@ -1,0 +1,108 @@
+{
+  "health_score": 53.94,
+  "modules": [
+    {
+      "name": "ui.views",
+      "loc": 2318,
+      "cyclomatic_complexity": 17,
+      "test_coverage": 68.86,
+      "health": 40.37
+    },
+    {
+      "name": "shared",
+      "loc": 816,
+      "cyclomatic_complexity": 12,
+      "test_coverage": 79.34,
+      "health": 49.59
+    },
+    {
+      "name": "features.folder_scanner",
+      "loc": 887,
+      "cyclomatic_complexity": 13,
+      "test_coverage": 82.81,
+      "health": 56.66
+    },
+    {
+      "name": "app",
+      "loc": 508,
+      "cyclomatic_complexity": 11,
+      "test_coverage": 75.16,
+      "health": 62.56
+    },
+    {
+      "name": "features.cleanup",
+      "loc": 309,
+      "cyclomatic_complexity": 13,
+      "test_coverage": 81.79,
+      "health": 66.94
+    },
+    {
+      "name": "features.storage_monitor",
+      "loc": 254,
+      "cyclomatic_complexity": 8,
+      "test_coverage": 81.46,
+      "health": 75.29
+    },
+    {
+      "name": "ui.main_window.py",
+      "loc": 258,
+      "cyclomatic_complexity": 4,
+      "test_coverage": 73.68,
+      "health": 76.94
+    },
+    {
+      "name": "ui.components",
+      "loc": 119,
+      "cyclomatic_complexity": 4,
+      "test_coverage": 73.91,
+      "health": 79.65
+    },
+    {
+      "name": "features.notifications",
+      "loc": 98,
+      "cyclomatic_complexity": 5,
+      "test_coverage": 85.12,
+      "health": 84.31
+    },
+    {
+      "name": "ui.tray_icon.py",
+      "loc": 139,
+      "cyclomatic_complexity": 4,
+      "test_coverage": 89.41,
+      "health": 87.82
+    },
+    {
+      "name": "main",
+      "loc": 55,
+      "cyclomatic_complexity": 3,
+      "test_coverage": 90.0,
+      "health": 90.0
+    },
+    {
+      "name": "__init__",
+      "loc": 1,
+      "cyclomatic_complexity": 0,
+      "test_coverage": 100.0,
+      "health": 100.0
+    },
+    {
+      "name": "features.__init__.py",
+      "loc": 1,
+      "cyclomatic_complexity": 0,
+      "test_coverage": 100.0,
+      "health": 100.0
+    },
+    {
+      "name": "ui.__init__.py",
+      "loc": 1,
+      "cyclomatic_complexity": 0,
+      "test_coverage": 100.0,
+      "health": 100.0
+    }
+  ],
+  "inputs": {
+    "coverage_file": "quality/reports/rescue_coverage_final.json",
+    "radon_file": "quality/reports/rescue_radon_final.json",
+    "bandit_file": "quality/reports/rescue_bandit_final.json"
+  }
+}

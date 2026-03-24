@@ -1,7 +1,6 @@
 """Tests for NotificationService coverage - targeting exception paths."""
-import pytest
+
 from unittest.mock import patch, MagicMock
-import sys
 
 
 class TestNotificationServiceCoverage:
@@ -10,27 +9,32 @@ class TestNotificationServiceCoverage:
     def test_notify_low_space_success(self):
         """Test notify_low_space normal operation."""
         from features.notifications.service import NotificationService
+
         service = NotificationService()
 
-        with patch.object(service, '_show_toast') as mock_toast:
+        with patch.object(service, "_show_toast") as mock_toast:
             service.notify_low_space("C:", 5.5)
             mock_toast.assert_called_once()
 
     def test_notify_low_space_exception(self):
         """Test notify_low_space exception handling."""
         from features.notifications.service import NotificationService
+
         service = NotificationService()
 
-        with patch.object(service, '_show_toast', side_effect=Exception("Toast failed")):
+        with patch.object(
+            service, "_show_toast", side_effect=Exception("Toast failed")
+        ):
             # Should not raise, just log error
             service.notify_low_space("C:", 5.5)
 
     def test_notify_cleanup_result_no_files(self):
         """Test notify_cleanup_result with no files deleted."""
         from features.notifications.service import NotificationService
+
         service = NotificationService()
 
-        with patch.object(service, '_show_toast') as mock_toast:
+        with patch.object(service, "_show_toast") as mock_toast:
             service.notify_cleanup_result(0, 0, 0.0)
             mock_toast.assert_called_once()
             call_args = mock_toast.call_args[0]
@@ -39,9 +43,10 @@ class TestNotificationServiceCoverage:
     def test_notify_cleanup_result_with_files(self):
         """Test notify_cleanup_result with files deleted."""
         from features.notifications.service import NotificationService
+
         service = NotificationService()
 
-        with patch.object(service, '_show_toast') as mock_toast:
+        with patch.object(service, "_show_toast") as mock_toast:
             service.notify_cleanup_result(10, 2, 50.5)
             mock_toast.assert_called_once()
             call_args = mock_toast.call_args[0]
@@ -50,9 +55,10 @@ class TestNotificationServiceCoverage:
     def test_notify_cleanup_result_with_errors(self):
         """Test notify_cleanup_result with errors."""
         from features.notifications.service import NotificationService
+
         service = NotificationService()
 
-        with patch.object(service, '_show_toast') as mock_toast:
+        with patch.object(service, "_show_toast") as mock_toast:
             service.notify_cleanup_result(10, 2, 50.5, errors=3)
             mock_toast.assert_called_once()
             call_args = mock_toast.call_args[0]
@@ -61,33 +67,41 @@ class TestNotificationServiceCoverage:
     def test_notify_cleanup_result_exception(self):
         """Test notify_cleanup_result exception handling."""
         from features.notifications.service import NotificationService
+
         service = NotificationService()
 
-        with patch.object(service, '_show_toast', side_effect=Exception("Toast failed")):
+        with patch.object(
+            service, "_show_toast", side_effect=Exception("Toast failed")
+        ):
             # Should not raise
             service.notify_cleanup_result(10, 2, 50.5)
 
     def test_notify_error_success(self):
         """Test notify_error normal operation."""
         from features.notifications.service import NotificationService
+
         service = NotificationService()
 
-        with patch.object(service, '_show_toast') as mock_toast:
+        with patch.object(service, "_show_toast") as mock_toast:
             service.notify_error("Something went wrong")
             mock_toast.assert_called_once()
 
     def test_notify_error_exception(self):
         """Test notify_error exception handling."""
         from features.notifications.service import NotificationService
+
         service = NotificationService()
 
-        with patch.object(service, '_show_toast', side_effect=Exception("Toast failed")):
+        with patch.object(
+            service, "_show_toast", side_effect=Exception("Toast failed")
+        ):
             # Should not raise
             service.notify_error("Something went wrong")
 
     def test_show_toast_no_module(self):
         """Test _show_toast when win11toast is None."""
         from features.notifications import service as ns
+
         original_toast = ns.toast
 
         try:

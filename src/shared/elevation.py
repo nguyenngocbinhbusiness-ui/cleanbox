@@ -1,10 +1,11 @@
 """Windows elevation helpers used by startup and restart flows."""
 import ctypes
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import Optional
+
+from shared.elevation_args import build_frozen_params, build_script_launch
 
 
 def is_admin() -> bool:
@@ -31,15 +32,12 @@ def get_elevation_launch_args() -> tuple[str, Optional[str], str]:
 
     if getattr(sys, "frozen", False) or launched_as_exe:
         executable = _get_current_process_image_path()
-        params = subprocess.list2cmdline(sys.argv[1:]) if len(sys.argv) > 1 else ""
+        params = build_frozen_params(sys.argv)
     else:
-        executable = os.path.abspath(sys.executable)
-        params = subprocess.list2cmdline(
-            [os.path.abspath(sys.argv[0]), *sys.argv[1:]]
-        )
+        executable, params = build_script_launch(sys.executable, sys.argv)
 
     working_dir = str(Path(executable).resolve().parent)
-    return executable, (params or None), working_dir
+    return executable, params, working_dir
 
 
 def request_admin_restart(show_cmd: int = 1) -> int:

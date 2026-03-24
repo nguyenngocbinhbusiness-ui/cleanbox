@@ -118,7 +118,7 @@ RPN = Severity (S) × Occurrence (O) × Detection (D)
 
 ### 7.1 Phạm vi phân tích
 
-**Hệ thống**: CleanBox Desktop Application v1.0.17
+**Hệ thống**: CleanBox Desktop Application v1.0.19
 **Modules phân tích**: Cleanup Service, Storage Monitor, Config Manager, Notifications, System Tray, Folder Scanner
 
 ### 7.2 SW-FMEA Worksheet — CleanBox

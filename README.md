@@ -88,7 +88,7 @@ python build_local.py
 ```
 
 Ghi chú:
-- `build_local.py` build artifact local bằng Nuitka (tùy chọn NSIS).
+- `build_local.py` build artifact local bằng Nuitka (tùy chọn NSIS) và đồng bộ metadata version với `VERSION` (`1.0.19`).
 - `.github/workflows/release.yml` dùng cho release theo tag `v*`.
 
 ## Tài liệu
@@ -103,7 +103,7 @@ Ghi chú:
 
 - Ứng dụng chỉ hỗ trợ Windows.
 - Không có HTTP API public (chỉ desktop app local).
-- Nhãn version ở footer Settings hiện còn hardcode `v1.0.0` trong UI, chưa đồng bộ với `VERSION` (`1.0.18`).
+- Nhãn version ở footer Settings lấy trực tiếp từ `VERSION` (`1.0.19`).
 
 ## License
 

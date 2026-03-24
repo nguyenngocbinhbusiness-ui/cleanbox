@@ -1,4 +1,13 @@
 # Lịch sử thay đổi
+## [1.0.19] - 2026-03-23
+
+### Changed
+- Đồng bộ version metadata ở Settings View, build local, và tài liệu tham chiếu theo baseline hiện hành.
+- Loại bỏ ghi chú version cứng cũ trong tài liệu vận hành và yêu cầu.
+- Cập nhật release/build metadata về `1.0.19` để khớp `VERSION`.
+
+### Fixed
+- Footer Settings đọc version động từ `VERSION`, tránh lệch giữa UI, build và tài liệu.
 
 ## [1.0.18] - 2026-03-20
 

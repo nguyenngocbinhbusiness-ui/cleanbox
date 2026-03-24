@@ -3,14 +3,16 @@ Integration Tests for CleanBox Application
 Tests: App-Service, MainWindow-Config, View-Service interactions
 Total: 17 integration points × 3 cases = 51 test cases
 """
+
 import sys
 import os
 from unittest.mock import Mock, MagicMock, patch
 
-import pytest
 from PyQt6.QtCore import Qt
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src"))
+)
 
 
 # ============================================================================
@@ -22,6 +24,7 @@ class TestAppConfigIntegration:
     def test_app_loads_config_on_init(self, qapp, fresh_config, monkeypatch):
         from app import App
         import app as app_module
+
         monkeypatch.setattr(app_module, "ConfigManager", lambda: fresh_config)
         a = App()
         assert a._config is not None
@@ -29,6 +32,7 @@ class TestAppConfigIntegration:
     def test_app_reads_cleanup_directories(self, qapp, fresh_config, monkeypatch):
         from app import App
         import app as app_module
+
         fresh_config.add_directory("C:\\TestDir")
         monkeypatch.setattr(app_module, "ConfigManager", lambda: fresh_config)
         a = App()
@@ -37,6 +41,7 @@ class TestAppConfigIntegration:
     def test_app_reads_threshold_from_config(self, qapp, fresh_config, monkeypatch):
         from app import App
         import app as app_module
+
         monkeypatch.setattr(app_module, "ConfigManager", lambda: fresh_config)
         a = App()
         assert a._config.threshold_gb == 10
@@ -51,13 +56,20 @@ class TestAppCleanupServiceIntegration:
     def test_app_creates_cleanup_service(self, qapp, monkeypatch):
         from app import App
         import app as app_module
-        monkeypatch.setattr(app_module, "ConfigManager", lambda: Mock(
-            is_first_run=False, auto_start_enabled=False, cleanup_directories=[]
-        ))
+
+        monkeypatch.setattr(
+            app_module,
+            "ConfigManager",
+            lambda: Mock(
+                is_first_run=False, auto_start_enabled=False, cleanup_directories=[]
+            ),
+        )
         a = App()
         assert a._cleanup_service is not None
 
-    def test_cleanup_uses_config_directories(self, qapp, fresh_config, monkeypatch, tmp_path):
+    def test_cleanup_uses_config_directories(
+        self, qapp, fresh_config, monkeypatch, tmp_path
+    ):
         from app import App
         import app as app_module
         from features.cleanup import CleanupService
@@ -87,12 +99,16 @@ class TestAppCleanupServiceIntegration:
 class TestAppStorageMonitorIntegration:
     """Integration tests for App-StorageMonitor interaction."""
 
-    def test_storage_monitor_receives_config_threshold(self, qapp, fresh_config, monkeypatch):
+    def test_storage_monitor_receives_config_threshold(
+        self, qapp, fresh_config, monkeypatch
+    ):
         from features.storage_monitor import StorageMonitor
+
         mock_monitor = Mock(spec=StorageMonitor)
 
         from app import App
         import app as app_module
+
         monkeypatch.setattr(app_module, "ConfigManager", lambda: fresh_config)
         monkeypatch.setattr(app_module, "StorageMonitor", lambda **kw: mock_monitor)
 
@@ -111,9 +127,14 @@ class TestAppNotificationIntegration:
     def test_app_creates_notification_service(self, qapp, monkeypatch):
         from app import App
         import app as app_module
-        monkeypatch.setattr(app_module, "ConfigManager", lambda: Mock(
-            is_first_run=False, auto_start_enabled=False, cleanup_directories=[]
-        ))
+
+        monkeypatch.setattr(
+            app_module,
+            "ConfigManager",
+            lambda: Mock(
+                is_first_run=False, auto_start_enabled=False, cleanup_directories=[]
+            ),
+        )
         a = App()
         assert a._notification_service is not None
 
@@ -144,6 +165,7 @@ class TestMainWindowConfigIntegration:
 
     def test_mainwindow_displays_config_directories(self, qapp, fresh_config):
         from ui.main_window import MainWindow
+
         fresh_config.add_directory("D:\\MyFolder")
         window = MainWindow()
         window.update_directories(fresh_config.cleanup_directories)
@@ -151,15 +173,21 @@ class TestMainWindowConfigIntegration:
 
     def test_mainwindow_displays_config_threshold(self, qapp, fresh_config):
         from ui.main_window import MainWindow
+
         window = MainWindow()
         window.set_threshold(fresh_config.threshold_gb)
         assert window.settings_view._threshold_spin.value() == 10
 
     def test_mainwindow_displays_autostart_state(self, qapp, fresh_config):
         from ui.main_window import MainWindow
+
         window = MainWindow()
         window.set_autostart(fresh_config.auto_start_enabled)
-        assert window.settings_view._autostart_cb.isChecked() == fresh_config.auto_start_enabled
+        assert (
+            window.settings_view._autostart_cb.isChecked()
+            == fresh_config.auto_start_enabled
+        )
+
 
 # ============================================================================
 # MAINWINDOW-VIEWS INTEGRATION TESTS
@@ -171,18 +199,21 @@ class TestMainWindowViewsIntegration:
 
     def test_sidebar_switches_storage_view(self, qapp):
         from ui.main_window import MainWindow
+
         window = MainWindow()
         window.switch_view("drives")
         assert window.content_stack.currentWidget() == window.storage_view
 
     def test_sidebar_switches_cleanup_view(self, qapp):
         from ui.main_window import MainWindow
+
         window = MainWindow()
         window.switch_view("cleanup")
         assert window.content_stack.currentWidget() == window.cleanup_view
 
     def test_sidebar_switches_settings_view(self, qapp):
         from ui.main_window import MainWindow
+
         window = MainWindow()
         window.switch_view("settings")
         assert window.content_stack.currentWidget() == window.settings_view
@@ -196,6 +227,7 @@ class TestCleanupViewServiceIntegration:
 
     def test_cleanup_signal_connected(self, qapp):
         from ui.views import CleanupView
+
         view = CleanupView()
         signals = []
         view.cleanup_requested.connect(lambda: signals.append(1))
@@ -204,6 +236,7 @@ class TestCleanupViewServiceIntegration:
 
     def test_add_directory_signal_connected(self, qapp):
         from ui.views import CleanupView
+
         view = CleanupView()
         signals = []
         view.directory_added.connect(lambda d: signals.append(d))
@@ -220,6 +253,7 @@ class TestSettingsViewRegistryIntegration:
 
     def test_autostart_signal_emits(self, qapp):
         from ui.views import SettingsView
+
         view = SettingsView()
         signals = []
         view.autostart_changed.connect(lambda v: signals.append(v))
@@ -229,6 +263,7 @@ class TestSettingsViewRegistryIntegration:
 
     def test_restart_as_admin_signal_emits(self, qapp):
         from ui.views import SettingsView
+
         view = SettingsView()
         signals = []
         view.restart_as_admin_requested.connect(lambda: signals.append(True))
@@ -237,6 +272,7 @@ class TestSettingsViewRegistryIntegration:
 
     def test_restart_button_hidden_when_admin(self, qapp):
         from ui.views import SettingsView
+
         with patch("ui.views.settings_view.is_admin", return_value=True):
             view = SettingsView()
         assert view._restart_admin_btn is None
@@ -270,10 +306,19 @@ class TestAppMainWindowIntegration:
     def test_app_creates_main_window(self, qapp, monkeypatch):
         from app import App
         import app as app_module
-        monkeypatch.setattr(app_module, "ConfigManager", lambda: Mock(
-            is_first_run=False, auto_start_enabled=False, cleanup_directories=[],
-            threshold_gb=10, polling_interval=60, get_notified_drives=lambda: []
-        ))
+
+        monkeypatch.setattr(
+            app_module,
+            "ConfigManager",
+            lambda: Mock(
+                is_first_run=False,
+                auto_start_enabled=False,
+                cleanup_directories=[],
+                threshold_gb=10,
+                polling_interval=60,
+                get_notified_drives=lambda: [],
+            ),
+        )
         a = App()
         # MainWindow is created during start(), but we check attribute exists
         assert a._main_window is None  # Not yet started
@@ -281,6 +326,7 @@ class TestAppMainWindowIntegration:
     def test_directory_add_updates_config(self, qapp, fresh_config, monkeypatch):
         from app import App
         import app as app_module
+
         monkeypatch.setattr(app_module, "ConfigManager", lambda: fresh_config)
         a = App()
         a._on_directory_added("C:\\NewDir")
@@ -289,13 +335,16 @@ class TestAppMainWindowIntegration:
     def test_directory_remove_updates_config(self, qapp, fresh_config, monkeypatch):
         from app import App
         import app as app_module
+
         fresh_config.add_directory("C:\\ToRemove")
         monkeypatch.setattr(app_module, "ConfigManager", lambda: fresh_config)
         a = App()
         a._on_directory_removed("C:\\ToRemove")
         assert "C:\\ToRemove" not in fresh_config.cleanup_directories
 
-    def test_start_returns_nonzero_for_unrecoverable_single_instance_error(self, qapp, monkeypatch):
+    def test_start_returns_nonzero_for_unrecoverable_single_instance_error(
+        self, qapp, monkeypatch
+    ):
         from app import App
         import app as app_module
 
@@ -314,7 +363,9 @@ class TestAppMainWindowIntegration:
         a = App()
         a._startup_error = "lock failed"
 
-        with patch.object(app_module.App, "_acquire_single_instance", return_value=False):
+        with patch.object(
+            app_module.App, "_acquire_single_instance", return_value=False
+        ):
             exit_code = a.start()
 
         assert exit_code == 1
