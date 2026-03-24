@@ -8,7 +8,7 @@ CleanBox là ứng dụng desktop chạy nền trên Windows để:
 - Dọn dẹp nhanh các thư mục được cấu hình.
 - Phân tích cấu trúc dung lượng thư mục theo dạng cây.
 
-Tài liệu này phản ánh trạng thái phần mềm hiện tại (version `1.0.18`).
+Tài liệu này phản ánh trạng thái phần mềm hiện tại (version `1.0.19`).
 
 ## 2. Phạm vi
 
@@ -96,10 +96,10 @@ Tài liệu này phản ánh trạng thái phần mềm hiện tại (version `1
 
 ## 6. Hạn chế đã biết
 
-- Footer ở `SettingsView` đang hiển thị cứng `CleanBox v1.0.0`, chưa đồng bộ động theo version hiện hành.
+- Footer ở `SettingsView` lấy version động từ `VERSION`, nên luôn đồng bộ theo bản hiện hành.
 
 ## 7. Lịch sử cập nhật tài liệu
 
 | Ngày | Thay đổi | Ghi chú |
 |------|----------|--------|
-| 2026-03-22 | Viết lại tài liệu yêu cầu theo trạng thái hiện tại | Đồng bộ với source code `1.0.18` |
+| 2026-03-23 | Đồng bộ baseline version và footer Settings | Cập nhật theo source code `1.0.19` |

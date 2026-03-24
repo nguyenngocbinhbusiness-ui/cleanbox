@@ -3,12 +3,14 @@ Additional Unit Tests for CleanBox - Cleanup Module
 Tests for CleanupProgressWorker, CleanupService, DirectoryDetector
 Target: ~25 additional tests
 """
+
 import sys
 import os
-from unittest.mock import Mock, MagicMock, patch
-import pytest
+from unittest.mock import Mock, patch
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../src"))
+)
 
 
 class TestCleanupProgressWorkerUnit:
@@ -17,6 +19,7 @@ class TestCleanupProgressWorkerUnit:
     def test_worker_init_stores_directories(self):
         """Test worker stores directories on init."""
         from features.cleanup.worker import CleanupProgressWorker
+
         dirs = ["C:/Test", "D:/Temp"]
         worker = CleanupProgressWorker(dirs)
         assert worker._directories == dirs
@@ -24,6 +27,7 @@ class TestCleanupProgressWorkerUnit:
     def test_worker_init_creates_service(self):
         """Test worker creates cleanup service on init."""
         from features.cleanup.worker import CleanupProgressWorker
+
         worker = CleanupProgressWorker([])
         assert worker._service is not None
 
@@ -51,9 +55,13 @@ class TestCleanupProgressWorkerUnit:
         results = []
         worker.cleanup_finished.connect(lambda r: results.append(r))
 
-        with patch.object(worker._service, 'empty_recycle_bin', return_value=Mock(
-            total_files=0, total_folders=0, total_size_bytes=0, errors=[]
-        )):
+        with patch.object(
+            worker._service,
+            "empty_recycle_bin",
+            return_value=Mock(
+                total_files=0, total_folders=0, total_size_bytes=0, errors=[]
+            ),
+        ):
             worker.run()
 
         assert len(results) == 1
@@ -123,6 +131,43 @@ class TestCleanupServiceUnit:
 
         assert result.total_folders >= 1
 
+    def test_cleanup_directory_uses_recycle_bin_first(self, tmp_path):
+        """Test cleanup prefers Recycle Bin for files and folders."""
+        from features.cleanup import CleanupService
+
+        (tmp_path / "file.txt").write_text("x")
+        (tmp_path / "subdir").mkdir()
+
+        service = CleanupService()
+        with patch(
+            "features.cleanup.service.winshell.delete_file", return_value=None
+        ) as delete_mock:
+            result = service.cleanup_directory(str(tmp_path))
+
+        assert delete_mock.call_count == 2
+        assert result.total_files == 1
+        assert result.total_folders == 1
+        first_call = delete_mock.call_args_list[0]
+        assert first_call.kwargs["allow_undo"] is True
+        assert first_call.kwargs["no_confirm"] is True
+        assert first_call.kwargs["silent"] is True
+
+    def test_cleanup_directory_falls_back_when_recycle_fails(self, tmp_path):
+        """Test cleanup falls back to permanent delete if recycling fails."""
+        from features.cleanup import CleanupService
+
+        (tmp_path / "file.txt").write_text("x")
+
+        service = CleanupService()
+        with patch(
+            "features.cleanup.service.winshell.delete_file",
+            side_effect=RuntimeError("recycle failed"),
+        ):
+            result = service.cleanup_directory(str(tmp_path))
+
+        assert result.total_files == 1
+        assert not (tmp_path / "file.txt").exists()
+
     def test_cleanup_nonexistent_directory(self):
         """Test cleanup handles nonexistent directory."""
         from features.cleanup import CleanupService
@@ -141,7 +186,7 @@ class TestCleanupServiceUnit:
             total_files=10,
             total_folders=2,
             total_size_bytes=1024 * 1024 * 5,  # 5MB
-            errors=[]
+            errors=[],
         )
 
         assert result.total_size_mb == 5.0
@@ -169,18 +214,21 @@ class TestDirectoryDetectorUnit:
     def test_get_downloads_folder_returns_string(self):
         """Test get_downloads_folder returns string."""
         from features.cleanup.directory_detector import get_downloads_folder
+
         result = get_downloads_folder()
         assert isinstance(result, str)
 
     def test_get_default_directories_includes_recycle_bin(self):
         """Test get_default_directories includes recycle bin marker."""
         from features.cleanup.directory_detector import get_default_directories
+
         result = get_default_directories()
         assert "__RECYCLE_BIN__" in result
 
     def test_get_default_directories_returns_list(self):
         """Test get_default_directories returns list."""
         from features.cleanup.directory_detector import get_default_directories
+
         result = get_default_directories()
         assert isinstance(result, list)
 
@@ -203,17 +251,20 @@ class TestCleanupResultUnit:
     def test_result_post_init_empty(self):
         """Test CleanupResult post init with empty errors."""
         from features.cleanup.service import CleanupResult
+
         result = CleanupResult()
         assert result.errors == []
 
     def test_result_size_mb_zero(self):
         """Test size_mb when bytes is zero."""
         from features.cleanup.service import CleanupResult
+
         result = CleanupResult()
         assert result.total_size_mb == 0.0
 
     def test_result_size_mb_large(self):
         """Test size_mb with large size."""
         from features.cleanup.service import CleanupResult
+
         result = CleanupResult(total_size_bytes=1024**3)  # 1GB
         assert result.total_size_mb == 1024.0

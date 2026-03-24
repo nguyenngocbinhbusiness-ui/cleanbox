@@ -1,7 +1,4 @@
-
-import pytest
 from unittest.mock import patch, MagicMock
-from PyQt6.QtWidgets import QMessageBox
 
 from ui.views.cleanup_view import CleanupView
 from ui.views.settings_view import SettingsView
@@ -16,9 +13,14 @@ class TestUIErrorCoverage:
         view = CleanupView()
 
         # 1. _on_add_directory error
-        with patch("ui.views.cleanup_view.QFileDialog.getExistingDirectory", side_effect=Exception("Dialog Error")), \
-             patch("ui.views.cleanup_view.QMessageBox.warning") as mock_warn, \
-             patch("ui.views.cleanup_view.logger") as mock_log:
+        with (
+            patch(
+                "ui.views.cleanup_view.QFileDialog.getExistingDirectory",
+                side_effect=Exception("Dialog Error"),
+            ),
+            patch("ui.views.cleanup_view.QMessageBox.warning") as mock_warn,
+            patch("ui.views.cleanup_view.logger") as mock_log,
+        ):
 
             view._on_add_directory()
             mock_log.error.assert_called()
@@ -26,9 +28,13 @@ class TestUIErrorCoverage:
 
         # 2. _on_remove_directory error
         # Force currentItem to raise exception when accessed or data retrieved
-        with patch.object(view._dir_list, "currentItem", side_effect=Exception("List Error")), \
-             patch("ui.views.cleanup_view.QMessageBox.warning") as mock_warn, \
-             patch("ui.views.cleanup_view.logger") as mock_log:
+        with (
+            patch.object(
+                view._dir_list, "currentItem", side_effect=Exception("List Error")
+            ),
+            patch("ui.views.cleanup_view.QMessageBox.warning") as mock_warn,
+            patch("ui.views.cleanup_view.logger") as mock_log,
+        ):
 
             view._on_remove_directory()
             mock_log.error.assert_called()
@@ -45,16 +51,21 @@ class TestUIErrorCoverage:
 
         # 4. _setup_ui error (simulate by passing invalid parent or patching internal call)
         # It's called in init, so we need to patch before init
-        with patch("ui.views.cleanup_view.QVBoxLayout", side_effect=Exception("Layout Error")), \
-             patch("ui.views.cleanup_view.logger") as mock_log:
+        with (
+            patch(
+                "ui.views.cleanup_view.QVBoxLayout",
+                side_effect=Exception("Layout Error"),
+            ),
+            patch("ui.views.cleanup_view.logger") as mock_log,
+        ):
 
             # Should not crash, just log errors
             CleanupView()
             mock_log.error.assert_called()
 
-    def test_settings_view_errors(self, qapp):
+    def test_settings_view_initializes(self, qapp):
         """Cover exception handling in SettingsView."""
-        view = SettingsView()
+        SettingsView()
 
     def test_settings_view_errors(self, qapp):
         """Cover exception handling in SettingsView."""
@@ -105,10 +116,12 @@ class TestUIErrorCoverage:
     def test_mainwindow_errors(self, qapp):
         """Cover MainWindow error handling."""
         # Setup sidebar items error
-        with patch("ui.main_window.SidebarWidget") as MockSidebar, \
-             patch("ui.main_window.QVBoxLayout"), \
-             patch("ui.main_window.QSplitter"), \
-             patch("ui.main_window.QStackedWidget"):
+        with (
+            patch("ui.main_window.SidebarWidget") as MockSidebar,
+            patch("ui.main_window.QVBoxLayout"),
+            patch("ui.main_window.QSplitter"),
+            patch("ui.main_window.QStackedWidget"),
+        ):
 
             # Make add_item raise exception
             instance = MockSidebar.return_value

@@ -12,6 +12,7 @@ from ui.views.storage_view_tree import (
     COL_SIZE,
     NumericSortItem,
     add_file_entries,
+    build_tree_row_data,
     build_tree_item,
 )
 from ui.views.storage_view_tree_helpers import (
@@ -86,6 +87,20 @@ def test_build_tree_item_and_add_file_entries_regression_safe(qtbot):
     assert group.text(COL_NAME) == "300 Bytes   [3 Files]"
     assert group.text(COL_FILES) == "3"
     assert group.childCount() == 3
+
+
+def test_build_tree_row_data_returns_structured_payload():
+    folder = _make_folder()
+
+    row = build_tree_row_data(folder, folder.size_bytes, is_root=True)
+
+    assert row.name_text == "300 Bytes   demo"
+    assert row.size_text == "300 Bytes"
+    assert row.allocated_text == "512 Bytes"
+    assert row.files_text == "3"
+    assert row.folders_text == "1"
+    assert row.percent == 100.0
+    assert row.is_root is True
 
 
 def test_add_file_entries_adds_group_to_parent_item(qtbot):

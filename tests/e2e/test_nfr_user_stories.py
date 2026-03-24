@@ -3,20 +3,15 @@ E2E Tests - Non-Functional Requirements (NFR) + User Stories (US)
 Tests TC-NFR-001 through TC-NFR-007 (21 test cases)
 Tests TC-US-001 through TC-US-008 (24 test cases)
 """
-import sys
+
 import os
 import time
 import psutil
-from pathlib import Path
 
-import pytest
-from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
-
 from ui.main_window import MainWindow
-from ui.views import StorageView, CleanupView, SettingsView
+from ui.views import CleanupView
 from shared.config import ConfigManager
 from shared import registry
 from features.cleanup import CleanupService, get_default_directories
@@ -26,12 +21,13 @@ from features.cleanup import CleanupService, get_default_directories
 # NFR - Non-Functional Requirements (21 cases)
 # ============================================================================
 
+
 class TestNFR001MemoryUsage:
     """NFR-001: Memory < 50MB."""
 
     def test_tc_nfr_001_n_idle_memory(self, qapp):
         """TC-NFR-001-N: Run app idle for measurement."""
-        window = MainWindow()
+        MainWindow()
         process = psutil.Process(os.getpid())
 
         qapp.processEvents()
@@ -44,7 +40,7 @@ class TestNFR001MemoryUsage:
 
     def test_tc_nfr_001_e_during_scan(self, qapp):
         """TC-NFR-001-E: Scan large directory during measurement."""
-        window = MainWindow()
+        MainWindow()
         process = psutil.Process(os.getpid())
 
         # Just measure, actual scan would spike
@@ -77,7 +73,7 @@ class TestNFR002CPUUsage:
 
     def test_tc_nfr_002_n_idle_cpu(self, qapp):
         """TC-NFR-002-N: App idle, measure CPU."""
-        window = MainWindow()
+        MainWindow()
         process = psutil.Process(os.getpid())
 
         # Let settle
@@ -141,7 +137,10 @@ class TestNFR003IntuitiveUI:
 
         # Error message should be understandable
         assert len(result.errors) >= 1
-        assert "not found" in result.errors[0].lower() or "directory" in result.errors[0].lower()
+        assert (
+            "not found" in result.errors[0].lower()
+            or "directory" in result.errors[0].lower()
+        )
 
 
 class TestNFR004CrashRecovery:
@@ -159,6 +158,7 @@ class TestNFR004CrashRecovery:
         config_file.write_text("corrupted data {{{")
 
         import shared.config.manager as config_module
+
         monkeypatch.setattr(config_module, "CONFIG_FILE", config_file)
 
         config = ConfigManager()
@@ -221,6 +221,7 @@ class TestNFR006WindowsPortability:
         """TC-NFR-006-E: Non-admin user."""
         # App should work without admin (standard user)
         from shared.config import ConfigManager
+
         config = ConfigManager()
         assert config is not None
 
@@ -265,6 +266,7 @@ class TestNFR007ModernAesthetics:
 # ============================================================================
 # US - User Stories (24 cases)
 # ============================================================================
+
 
 class TestUS001AutostartWithWindows:
     """US-001: Auto-start with Windows."""
@@ -383,7 +385,7 @@ class TestUS005AppRunsInTray:
         """TC-US-005-N: App in tray, no taskbar entry."""
         # App sets this to False, simulate that behavior
         qapp.setQuitOnLastWindowClosed(False)
-        window = MainWindow()
+        MainWindow()
 
         # setQuitOnLastWindowClosed should be False
         assert not qapp.quitOnLastWindowClosed()
@@ -483,7 +485,7 @@ class TestUS008ProfessionalInterface:
         window = MainWindow()
 
         # Title font should be set
-        title_label = window.storage_view.findChildren(type(window.storage_view))
+        window.storage_view.findChildren(type(window.storage_view))
         # Basic check that window renders
         assert window.isEnabled()
 

@@ -1,11 +1,11 @@
 """ConfigManager - Load/save JSON configuration."""
-import json
 import logging
 import os
-import shutil
 import time
 from typing import Dict, List
 
+from shared.config_defaults import build_default_config
+from shared.config_io import cleanup_stale_tmp_files, load_json_config, save_json_config
 from shared.constants import (
     CONFIG_DIR,
     CONFIG_FILE,
@@ -44,63 +44,42 @@ class ConfigManager:
     def _get_default_config(self) -> dict:
         """Return default configuration."""
         try:
-            return {
-                "cleanup_directories": [],
-                "first_run_complete": False,
-                "low_space_threshold_gb": DEFAULT_THRESHOLD_GB,
-                "polling_interval_seconds": DEFAULT_POLLING_INTERVAL_SECONDS,
-                "auto_start_enabled": True,
-                "notified_drives": {},
-            }
+            return build_default_config(
+                default_threshold_gb=DEFAULT_THRESHOLD_GB,
+                default_interval_seconds=DEFAULT_POLLING_INTERVAL_SECONDS,
+            )
         except Exception as e:
             logger.error("Failed to get default config: %s", e)
             return {}
 
     def _cleanup_stale_tmp(self) -> None:
         """Remove leftover .tmp files from config directory (DRBFM D-CB-014)."""
-        try:
-            for entry in CONFIG_DIR.iterdir():
-                if entry.suffix == ".tmp" and entry.is_file():
-                    entry.unlink()
-                    logger.info("Cleaned up stale tmp file: %s", entry)
-        except Exception as e:
-            logger.warning("Failed to clean stale tmp files: %s", e)
+        cleanup_stale_tmp_files(CONFIG_DIR, logger)
 
     def load(self) -> None:
         """Load configuration from file."""
         self._cleanup_stale_tmp()
-        bak_file = CONFIG_FILE.with_suffix(".json.bak")
+        loaded, from_backup = load_json_config(CONFIG_FILE, logger)
 
-        if CONFIG_FILE.exists():
-            try:
-                with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-                    self._config = json.load(f)
-                self._config.pop("run_as_admin_enabled", None)
-                self._normalize_notified_drives()
-                self._filter_protected_paths()
-                logger.info("Configuration loaded from %s", CONFIG_FILE)
-                return
-            except (json.JSONDecodeError, IOError) as e:
-                logger.warning("Failed to load config: %s", e)
-
-            # Try recovering from backup (FM-CB-009)
-            if bak_file.exists():
-                try:
-                    with open(bak_file, "r", encoding="utf-8") as f:
-                        self._config = json.load(f)
-                    self._config.pop("run_as_admin_enabled", None)
-                    self._normalize_notified_drives()
-                    self._filter_protected_paths()
-                    logger.warning("Recovered config from backup %s", bak_file)
-                    return
-                except (json.JSONDecodeError, IOError) as e2:
-                    logger.warning("Backup also invalid: %s", e2)
-
-            logger.warning("Falling back to default config")
+        if loaded is None:
+            if CONFIG_FILE.exists():
+                logger.warning("Falling back to default config")
+            else:
+                logger.info("No config file found, using defaults")
             self._config = self._get_default_config()
+            return
+
+        self._config = loaded
+        self._config.pop("run_as_admin_enabled", None)
+        self._normalize_notified_drives()
+        self._filter_protected_paths()
+        if from_backup:
+            logger.warning(
+                "Recovered config from backup %s",
+                CONFIG_FILE.with_suffix(".json.bak"),
+            )
         else:
-            logger.info("No config file found, using defaults")
-            self._config = self._get_default_config()
+            logger.info("Configuration loaded from %s", CONFIG_FILE)
 
     def _normalize_notified_drives(self) -> None:
         """Normalize notified drive state to a drive->timestamp mapping."""
@@ -109,31 +88,7 @@ class ConfigManager:
 
     def save(self) -> None:
         """Save configuration atomically with backup (DRBFM D-CB-011/012)."""
-        try:
-            # Backup current config before overwriting (D-CB-012)
-            if CONFIG_FILE.exists():
-                bak_file = CONFIG_FILE.with_suffix(".json.bak")
-                try:
-                    shutil.copy2(CONFIG_FILE, bak_file)
-                except Exception as e:
-                    logger.warning("Failed to create config backup: %s", e)
-
-            # Atomic write: tmp in same dir then os.replace (D-CB-011)
-            tmp_file = CONFIG_FILE.with_suffix(".json.tmp")
-            try:
-                with open(tmp_file, "w", encoding="utf-8") as f:
-                    json.dump(self._config, f, indent=2)
-                os.replace(str(tmp_file), str(CONFIG_FILE))
-                logger.info("Configuration saved to %s", CONFIG_FILE)
-            except PermissionError as e:
-                # Fallback to direct write (D-CB-013)
-                logger.warning("Atomic write failed (PermissionError), "
-                               "falling back to direct write: %s", e)
-                with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-                    json.dump(self._config, f, indent=2)
-                logger.info("Configuration saved (direct) to %s", CONFIG_FILE)
-        except IOError as e:
-            logger.error("Failed to save config: %s", e)
+        save_json_config(CONFIG_FILE, self._config, logger, replace_func=os.replace)
 
     def _filter_protected_paths(self) -> None:
         """Remove any protected system paths from cleanup_directories."""

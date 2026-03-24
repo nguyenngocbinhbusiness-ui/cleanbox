@@ -1,5 +1,5 @@
 """Tests for StorageMonitor Utils coverage - targeting exception paths."""
-import pytest
+
 from unittest.mock import patch, MagicMock
 
 
@@ -14,7 +14,7 @@ class TestStorageUtilsCoverage:
         assert isinstance(drives, list)
         # On Windows, should have at least C: drive
         if drives:
-            assert all(hasattr(d, 'letter') for d in drives)
+            assert all(hasattr(d, "letter") for d in drives)
 
     def test_get_all_drives_with_mock(self):
         """Test get_all_drives with mocked psutil."""
@@ -27,9 +27,9 @@ class TestStorageUtilsCoverage:
 
         mock_usage = MagicMock()
         mock_usage.total = 500 * 1024**3  # 500 GB
-        mock_usage.free = 100 * 1024**3   # 100 GB
+        mock_usage.free = 100 * 1024**3  # 100 GB
 
-        with patch('features.storage_monitor.utils.psutil') as mock_psutil:
+        with patch("features.storage_monitor.utils.psutil") as mock_psutil:
             mock_psutil.disk_partitions.return_value = [mock_partition]
             mock_psutil.disk_usage.return_value = mock_usage
 
@@ -46,7 +46,7 @@ class TestStorageUtilsCoverage:
         mock_partition.mountpoint = "D:\\"
         mock_partition.fstype = "NTFS"
 
-        with patch('features.storage_monitor.utils.psutil') as mock_psutil:
+        with patch("features.storage_monitor.utils.psutil") as mock_psutil:
             mock_psutil.disk_partitions.return_value = [mock_partition]
             mock_psutil.disk_usage.side_effect = PermissionError("Access denied")
 
@@ -57,7 +57,7 @@ class TestStorageUtilsCoverage:
         """Test get_all_drives exception handling."""
         from features.storage_monitor.utils import get_all_drives
 
-        with patch('features.storage_monitor.utils.psutil') as mock_psutil:
+        with patch("features.storage_monitor.utils.psutil") as mock_psutil:
             mock_psutil.disk_partitions.side_effect = Exception("Disk error")
 
             drives = get_all_drives()
@@ -85,7 +85,7 @@ class TestStorageUtilsCoverage:
         mock_usage.used = 400 * 1024**3
         mock_usage.percent = 80.0
 
-        with patch('features.storage_monitor.utils.psutil') as mock_psutil:
+        with patch("features.storage_monitor.utils.psutil") as mock_psutil:
             mock_psutil.disk_partitions.return_value = [partition_c, partition_d]
             mock_psutil.disk_usage.return_value = mock_usage
 
@@ -97,9 +97,13 @@ class TestStorageUtilsCoverage:
         from features.storage_monitor.utils import DriveInfo
 
         # Low space (< 10 GB free)
-        low = DriveInfo(letter="C:", total_gb=100.0, free_gb=5.0, used_gb=95.0, percent_used=95.0)
+        low = DriveInfo(
+            letter="C:", total_gb=100.0, free_gb=5.0, used_gb=95.0, percent_used=95.0
+        )
         assert low.is_low_space is True
 
         # Normal space (>= 10 GB free)
-        normal = DriveInfo(letter="D:", total_gb=100.0, free_gb=50.0, used_gb=50.0, percent_used=50.0)
+        normal = DriveInfo(
+            letter="D:", total_gb=100.0, free_gb=50.0, used_gb=50.0, percent_used=50.0
+        )
         assert normal.is_low_space is False

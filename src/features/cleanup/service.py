@@ -41,6 +41,20 @@ class CleanupResult:
 class CleanupService:
     """Service for cleaning up directories."""
 
+    def _recycle_item(self, item: Path) -> bool:
+        """Move an item to the Recycle Bin when Windows supports it."""
+        try:
+            winshell.delete_file(
+                str(item),
+                allow_undo=True,
+                no_confirm=True,
+                silent=True,
+            )
+            return True
+        except Exception as e:
+            logger.debug("Recycle Bin move failed for %s: %s", item, e)
+            return False
+
     def cleanup_directory(self, path: str) -> CleanupResult:
         """
         Clean up a single directory by deleting all its contents.
@@ -70,12 +84,18 @@ class CleanupService:
             try:
                 if item.is_file():
                     size = item.stat().st_size
-                    item.unlink()
+                    recycled = self._recycle_item(item)
+                    # Some recycle APIs can silently no-op; verify source is gone.
+                    if (not recycled) or item.exists():
+                        item.unlink()
                     result.total_files += 1
                     result.total_size_bytes += size
                 elif item.is_dir():
                     size = self._get_dir_size(item)
-                    shutil.rmtree(item)
+                    recycled = self._recycle_item(item)
+                    # Ensure directory is actually removed even if recycle reports success.
+                    if (not recycled) or item.exists():
+                        shutil.rmtree(item)
                     result.total_folders += 1
                     result.total_size_bytes += size
             except PermissionError:

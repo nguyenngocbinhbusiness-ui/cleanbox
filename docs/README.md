@@ -1,6 +1,6 @@
 # Tài liệu dự án CleanBox
 
-Bộ tài liệu này được chuẩn hóa tiếng Việt và đồng bộ với mã nguồn hiện tại (`1.0.18`) vào ngày 2026-03-22.
+Bộ tài liệu này được chuẩn hóa tiếng Việt và đồng bộ với mã nguồn hiện tại (`1.0.19`) vào ngày 2026-03-23.
 
 ## Tài liệu vận hành chính
 

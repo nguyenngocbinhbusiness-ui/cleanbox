@@ -1,4 +1,3 @@
-
 import pytest
 from unittest.mock import MagicMock, patch
 from features.storage_monitor.service import StorageMonitor
@@ -13,8 +12,12 @@ class TestStorageMonitorCoverage:
 
     def test_start_error(self, monitor):
         """Cover start exception."""
-        with patch.object(monitor, "_check_drives", side_effect=Exception("Start Error")), \
-             patch("features.storage_monitor.service.logger") as mock_log:
+        with (
+            patch.object(
+                monitor, "_check_drives", side_effect=Exception("Start Error")
+            ),
+            patch("features.storage_monitor.service.logger") as mock_log,
+        ):
             monitor.start()
             mock_log.error.assert_called()
 
@@ -41,16 +44,26 @@ class TestStorageMonitorCoverage:
 
     def test_get_low_space_drives_error(self, monitor):
         """Cover get_low_space_drives exception."""
-        with patch("features.storage_monitor.service.get_all_drives", side_effect=Exception("Get Error")), \
-             patch("features.storage_monitor.service.logger") as mock_log:
+        with (
+            patch(
+                "features.storage_monitor.service.get_all_drives",
+                side_effect=Exception("Get Error"),
+            ),
+            patch("features.storage_monitor.service.logger") as mock_log,
+        ):
             res = monitor.get_low_space_drives()
             assert res == []
             mock_log.error.assert_called()
 
     def test_get_all_drives_error(self, monitor):
         """Cover get_all_drives exception."""
-        with patch("features.storage_monitor.service.get_all_drives", side_effect=Exception("Get Error")), \
-             patch("features.storage_monitor.service.logger") as mock_log:
+        with (
+            patch(
+                "features.storage_monitor.service.get_all_drives",
+                side_effect=Exception("Get Error"),
+            ),
+            patch("features.storage_monitor.service.logger") as mock_log,
+        ):
             res = monitor.get_all_drives()
             assert res == []
             mock_log.error.assert_called()
@@ -61,10 +74,17 @@ class TestStorageMonitorCoverage:
         monitor._notified_drives = {"C:": 0.0}
 
         # Scenario: C matches threshold now (not low)
-        normal_drive = DriveInfo(letter="C:", total_gb=100.0, free_gb=20.0, used_gb=80.0, percent_used=80.0)
+        normal_drive = DriveInfo(
+            letter="C:", total_gb=100.0, free_gb=20.0, used_gb=80.0, percent_used=80.0
+        )
 
-        with patch("features.storage_monitor.service.get_all_drives", return_value=[normal_drive]), \
-             patch("features.storage_monitor.service.logger") as mock_log:
+        with (
+            patch(
+                "features.storage_monitor.service.get_all_drives",
+                return_value=[normal_drive],
+            ),
+            patch("features.storage_monitor.service.logger") as mock_log,
+        ):
 
             monitor._check_drives()
 
@@ -76,7 +96,12 @@ class TestStorageMonitorCoverage:
 
     def test_check_drives_error(self, monitor):
         """Cover _check_drives exception."""
-        with patch("features.storage_monitor.service.get_all_drives", side_effect=Exception("Check Error")), \
-             patch("features.storage_monitor.service.logger") as mock_log:
+        with (
+            patch(
+                "features.storage_monitor.service.get_all_drives",
+                side_effect=Exception("Check Error"),
+            ),
+            patch("features.storage_monitor.service.logger") as mock_log,
+        ):
             monitor._check_drives()
             mock_log.error.assert_called()

@@ -13,7 +13,9 @@ class TestFolderScannerRealtime:
         fake_datetime = MagicMock()
         fake_datetime.timestamp.side_effect = OSError("Invalid argument")
 
-        with patch("features.folder_scanner.scan_helpers.datetime.datetime") as mock_datetime:
+        with patch(
+            "features.folder_scanner.scan_helpers.datetime.datetime"
+        ) as mock_datetime:
             mock_datetime.strptime.return_value = fake_datetime
             assert parse_last_modified("01/01/1970") is None
 
@@ -37,9 +39,13 @@ class TestFolderScannerRealtime:
             scan_stats=ScanStats(scanned_entries=1),
         )
 
-        with patch.object(scanner, "_iter_dir_entries", return_value=iter([dir_entry])), \
-             patch.object(scanner, "_scan_subtree", return_value=child), \
-             patch("features.folder_scanner.service._get_cluster_size", return_value=4096):
+        with (
+            patch.object(scanner, "_iter_dir_entries", return_value=iter([dir_entry])),
+            patch.object(scanner, "_scan_subtree", return_value=child),
+            patch(
+                "features.folder_scanner.service._get_cluster_size", return_value=4096
+            ),
+        ):
             callback_results = []
             result = scanner.scan_children_realtime("C:/Root", callback_results.append)
 
@@ -59,7 +65,9 @@ class TestFolderScannerRealtime:
             folder_count=0,
             last_modified="01/01/2026",
             children=[],
-            scan_stats=ScanStats(scanned_entries=3, skipped_count=1, skipped_reasons={"os_error": 1}),
+            scan_stats=ScanStats(
+                scanned_entries=3, skipped_count=1, skipped_reasons={"os_error": 1}
+            ),
         )
 
         with patch.object(scanner, "_scan_recursive", return_value=child):

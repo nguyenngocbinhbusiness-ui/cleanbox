@@ -9,6 +9,8 @@ from PyQt6.QtWidgets import QApplication, QMessageBox
 from PyQt6.QtCore import QObject, pyqtSlot, pyqtSignal
 from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 
+from app_cleanup import do_cleanup, on_cleanup_finished, on_cleanup_progress
+from app_single_instance import acquire_single_instance
 from shared.config import ConfigManager
 from shared.constants import APP_NAME
 from shared.elevation import request_admin_restart
@@ -156,71 +158,13 @@ class App(QObject):
         Detects and removes stale locks left by crashed instances (R-008, FM-CB-012).
         Returns True if this is the first instance, False otherwise.
         """
-        self._startup_error = None
-        try:
-            # Try to connect to existing server
-            socket = QLocalSocket()
-            socket.connectToServer(SINGLE_INSTANCE_KEY)
-
-            if socket.waitForConnected(500):
-                # Another instance is running - send 'show' command
-                socket.write(b"show")
-                socket.waitForBytesWritten(1000)
-                socket.close()
-                logger.info("Sent 'show' command to existing instance")
-                return False
-
-            socket.close()
-
-            # No other instance responding - create server
-            self._local_server = QLocalServer()
-
-            if self._local_server.listen(SINGLE_INSTANCE_KEY):
-                logger.info("Single instance lock acquired")
-                self._local_server.newConnection.connect(self._handle_new_connection)
-                return True
-
-            # Listen failed — possible stale lock from a previous crash.
-            # Verify with a longer timeout before removing.
-            logger.warning(
-                "Cannot listen on '%s': %s. Checking for stale lock...",
-                SINGLE_INSTANCE_KEY, self._local_server.errorString())
-
-            stale_check = QLocalSocket()
-            stale_check.connectToServer(SINGLE_INSTANCE_KEY)
-
-            if stale_check.waitForConnected(2000):
-                # Another instance IS actually running
-                stale_check.write(b"show")
-                stale_check.waitForBytesWritten(1000)
-                stale_check.close()
-                logger.info("Confirmed another instance is running")
-                return False
-
-            stale_check.close()
-
-            # No response — stale lock confirmed. Remove and retry.
-            logger.warning(
-                "Stale lock detected for '%s'. Removing and retrying...",
-                SINGLE_INSTANCE_KEY)
-            QLocalServer.removeServer(SINGLE_INSTANCE_KEY)
-
-            if self._local_server.listen(SINGLE_INSTANCE_KEY):
-                logger.info("Single instance lock acquired after stale lock cleanup")
-                self._local_server.newConnection.connect(self._handle_new_connection)
-                return True
-
-            self._startup_error = (
-                "Failed to acquire single-instance lock after stale lock cleanup: "
-                f"{self._local_server.errorString()}"
-            )
-            logger.error(self._startup_error)
-            return False
-
-        except Exception as e:
-            self._startup_error = f"Single instance check failed: {e}"
-            logger.error(self._startup_error)
-            return False
+        return acquire_single_instance(
+            app=self,
+            single_instance_key=SINGLE_INSTANCE_KEY,
+            logger=logger,
+            socket_cls=QLocalSocket,
+            server_cls=QLocalServer,
+        )
 
     def _handle_new_connection(self) -> None:
         """Handle incoming connection from another instance."""
@@ -309,93 +253,17 @@ class App(QObject):
     @pyqtSlot()
     def _do_cleanup(self) -> None:
         """Handle cleanup request using background worker."""
-        try:
-            # Prevent multiple simultaneous cleanups
-            if self._cleanup_worker is not None and self._cleanup_worker.isRunning():
-                logger.warning("Cleanup already in progress")
-                return
-
-            directories = list(self._config.cleanup_directories)
-            if not directories:
-                logger.info("No directories to clean")
-                return
-
-            # Confirmation dialog (DRBFM D-CB-001..005, STPA UCA-2)
-            dir_list = "\n".join(f"  • {d}" for d in directories)
-            result = QMessageBox.warning(
-                self._main_window,
-                "Confirm Cleanup",
-                f"This will delete contents of {len(directories)} "
-                f"directory(ies):\n\n{dir_list}\n\n"
-                f"Are you sure you want to continue?",
-                QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
-                QMessageBox.StandardButton.Cancel,
-            )
-            if result != QMessageBox.StandardButton.Ok:
-                logger.info("Cleanup cancelled by user")
-                return
-
-            logger.info("Starting cleanup with %d directories", len(directories))
-
-            # Show progress UI
-            if self._main_window:
-                self._main_window.show_cleanup_progress(True)
-            if self._tray_icon:
-                self._tray_icon.set_status("Starting cleanup...")
-
-            # Create and start worker
-            self._cleanup_worker = CleanupProgressWorker(
-                directories, parent=self
-            )
-            self._cleanup_worker.progress_updated.connect(self._on_cleanup_progress)
-            self._cleanup_worker.cleanup_finished.connect(self._on_cleanup_finished)
-            self._cleanup_worker.start()
-
-        except Exception as e:
-            logger.error("Failed to start cleanup: %s", e)
-            # Reset UI on error
-            if self._main_window:
-                self._main_window.show_cleanup_progress(False)
-            if self._tray_icon:
-                self._tray_icon.set_status(None)
+        do_cleanup(self, QMessageBox, CleanupProgressWorker, logger)
 
     @pyqtSlot(int, int)
     def _on_cleanup_progress(self, current: int, total: int) -> None:
         """Handle cleanup progress update from worker."""
-        try:
-            if self._main_window:
-                self._main_window.set_cleanup_progress(current, total)
-            if self._tray_icon:
-                self._tray_icon.set_status(f"Cleaning {current}/{total}...")
-        except Exception as e:
-            logger.error("Failed to update cleanup progress: %s", e)
+        on_cleanup_progress(self, current, total, logger)
 
     @pyqtSlot(object)
     def _on_cleanup_finished(self, result) -> None:
         """Handle cleanup completion from worker."""
-        try:
-            logger.info("Cleanup finished: %d files, %d folders, %.2f MB",
-                        result.total_files, result.total_folders, result.total_size_mb)
-
-            # Hide progress UI
-            if self._main_window:
-                self._main_window.show_cleanup_progress(False)
-            if self._tray_icon:
-                self._tray_icon.set_status(None)
-
-            # Show result notification
-            self._notification_service.notify_cleanup_result(
-                files_deleted=result.total_files,
-                folders_deleted=result.total_folders,
-                size_mb=result.total_size_mb,
-                errors=len(result.errors),
-            )
-
-            # Cleanup worker reference
-            self._cleanup_worker = None
-
-        except Exception as e:
-            logger.error("Failed to handle cleanup completion: %s", e)
+        on_cleanup_finished(self, result, logger)
 
     @pyqtSlot()
     def _do_show_settings(self) -> None:

@@ -2,7 +2,9 @@
 Comprehensive unit tests for shared/registry.py module.
 Tests Windows registry operations for autostart functionality with proper mocking.
 """
+
 import subprocess
+from pathlib import Path
 import sys
 from unittest.mock import patch, MagicMock
 
@@ -30,7 +32,7 @@ class TestGetExecutablePath:
     def test_get_executable_path_exception_handling(self, monkeypatch):
         """Test get_executable_path handles exceptions gracefully."""
         # Mock sys.argv to raise an exception when accessed
-        monkeypatch.setattr(sys, 'argv', None)
+        monkeypatch.setattr(sys, "argv", None)
 
         from shared.registry import get_executable_path
 
@@ -49,15 +51,16 @@ class TestEnableAutostart:
     def test_enable_autostart_no_winreg(self, monkeypatch):
         """Test enable_autostart falls back to Task Scheduler when winreg is None."""
         import shared.registry as registry_module
-        monkeypatch.setattr(registry_module, 'winreg', None)
 
-        with patch('shared.registry.subprocess.run') as mock_run:
+        monkeypatch.setattr(registry_module, "winreg", None)
+
+        with patch("shared.registry.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             result = registry_module.enable_autostart()
             assert result is True
             mock_run.assert_called_once()
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows only")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
     def test_enable_autostart_with_mock_registry(self, monkeypatch):
         """Test enable_autostart with mocked winreg operations."""
         mock_winreg = MagicMock()
@@ -68,7 +71,8 @@ class TestEnableAutostart:
         mock_winreg.REG_SZ = 3
 
         import shared.registry as registry_module
-        monkeypatch.setattr(registry_module, 'winreg', mock_winreg)
+
+        monkeypatch.setattr(registry_module, "winreg", mock_winreg)
 
         result = registry_module.enable_autostart()
 
@@ -77,7 +81,7 @@ class TestEnableAutostart:
         mock_winreg.SetValueEx.assert_called_once()
         mock_winreg.CloseKey.assert_called_once_with(mock_key)
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows only")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
     def test_enable_autostart_windows_error(self, monkeypatch):
         """Test enable_autostart falls back to Task Scheduler on registry error."""
         mock_winreg = MagicMock()
@@ -86,15 +90,16 @@ class TestEnableAutostart:
         mock_winreg.KEY_SET_VALUE = 2
 
         import shared.registry as registry_module
-        monkeypatch.setattr(registry_module, 'winreg', mock_winreg)
 
-        with patch('shared.registry.subprocess.run') as mock_run:
+        monkeypatch.setattr(registry_module, "winreg", mock_winreg)
+
+        with patch("shared.registry.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             result = registry_module.enable_autostart()
             assert result is True
             mock_run.assert_called_once()
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows only")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
     def test_enable_autostart_both_fail(self, monkeypatch):
         """Test enable_autostart returns False when both registry and scheduler fail."""
         mock_winreg = MagicMock()
@@ -103,9 +108,10 @@ class TestEnableAutostart:
         mock_winreg.KEY_SET_VALUE = 2
 
         import shared.registry as registry_module
-        monkeypatch.setattr(registry_module, 'winreg', mock_winreg)
 
-        with patch('shared.registry.subprocess.run') as mock_run:
+        monkeypatch.setattr(registry_module, "winreg", mock_winreg)
+
+        with patch("shared.registry.run") as mock_run:
             mock_run.side_effect = subprocess.CalledProcessError(1, "schtasks")
             result = registry_module.enable_autostart()
             assert result is False
@@ -117,13 +123,14 @@ class TestDisableAutostart:
     def test_disable_autostart_no_winreg(self, monkeypatch):
         """Test disable_autostart returns True when winreg is None, still cleans task."""
         import shared.registry as registry_module
-        monkeypatch.setattr(registry_module, 'winreg', None)
 
-        with patch('shared.registry.subprocess.run'):
+        monkeypatch.setattr(registry_module, "winreg", None)
+
+        with patch("shared.registry.run"):
             result = registry_module.disable_autostart()
             assert result is True
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows only")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
     def test_disable_autostart_with_mock_registry(self, monkeypatch):
         """Test disable_autostart with mocked winreg operations."""
         mock_winreg = MagicMock()
@@ -133,16 +140,17 @@ class TestDisableAutostart:
         mock_winreg.KEY_SET_VALUE = 2
 
         import shared.registry as registry_module
-        monkeypatch.setattr(registry_module, 'winreg', mock_winreg)
 
-        with patch('shared.registry.subprocess.run'):
+        monkeypatch.setattr(registry_module, "winreg", mock_winreg)
+
+        with patch("shared.registry.run"):
             result = registry_module.disable_autostart()
 
             assert result is True
             mock_winreg.DeleteValue.assert_called_once()
             mock_winreg.CloseKey.assert_called_once_with(mock_key)
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows only")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
     def test_disable_autostart_not_found(self, monkeypatch):
         """Test disable_autostart returns True when entry doesn't exist."""
         mock_winreg = MagicMock()
@@ -153,13 +161,14 @@ class TestDisableAutostart:
         mock_winreg.KEY_SET_VALUE = 2
 
         import shared.registry as registry_module
-        monkeypatch.setattr(registry_module, 'winreg', mock_winreg)
 
-        with patch('shared.registry.subprocess.run'):
+        monkeypatch.setattr(registry_module, "winreg", mock_winreg)
+
+        with patch("shared.registry.run"):
             result = registry_module.disable_autostart()
             assert result is True
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows only")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
     def test_disable_autostart_windows_error(self, monkeypatch):
         """Test disable_autostart handles WindowsError but still cleans task."""
         mock_winreg = MagicMock()
@@ -168,9 +177,10 @@ class TestDisableAutostart:
         mock_winreg.KEY_SET_VALUE = 2
 
         import shared.registry as registry_module
-        monkeypatch.setattr(registry_module, 'winreg', mock_winreg)
 
-        with patch('shared.registry.subprocess.run'):
+        monkeypatch.setattr(registry_module, "winreg", mock_winreg)
+
+        with patch("shared.registry.run"):
             result = registry_module.disable_autostart()
             assert result is False
 
@@ -181,12 +191,13 @@ class TestIsAutostartEnabled:
     def test_is_autostart_enabled_no_winreg(self, monkeypatch):
         """Test is_autostart_enabled returns False when winreg is None."""
         import shared.registry as registry_module
-        monkeypatch.setattr(registry_module, 'winreg', None)
+
+        monkeypatch.setattr(registry_module, "winreg", None)
 
         result = registry_module.is_autostart_enabled()
         assert result is False
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows only")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
     def test_is_autostart_enabled_true(self, monkeypatch):
         """Test is_autostart_enabled returns True when key exists."""
         mock_winreg = MagicMock()
@@ -197,14 +208,15 @@ class TestIsAutostartEnabled:
         mock_winreg.KEY_READ = 2
 
         import shared.registry as registry_module
-        monkeypatch.setattr(registry_module, 'winreg', mock_winreg)
+
+        monkeypatch.setattr(registry_module, "winreg", mock_winreg)
 
         result = registry_module.is_autostart_enabled()
 
         assert result is True
         mock_winreg.CloseKey.assert_called_once_with(mock_key)
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows only")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
     def test_is_autostart_enabled_not_found(self, monkeypatch):
         """Test is_autostart_enabled returns False when key doesn't exist."""
         mock_winreg = MagicMock()
@@ -215,13 +227,14 @@ class TestIsAutostartEnabled:
         mock_winreg.KEY_READ = 2
 
         import shared.registry as registry_module
-        monkeypatch.setattr(registry_module, 'winreg', mock_winreg)
+
+        monkeypatch.setattr(registry_module, "winreg", mock_winreg)
 
         result = registry_module.is_autostart_enabled()
 
         assert result is False
 
-    @pytest.mark.skipif(sys.platform != 'win32', reason="Windows only")
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")
     def test_is_autostart_enabled_windows_error(self, monkeypatch):
         """Test is_autostart_enabled handles WindowsError."""
         mock_winreg = MagicMock()
@@ -230,7 +243,8 @@ class TestIsAutostartEnabled:
         mock_winreg.KEY_READ = 2
 
         import shared.registry as registry_module
-        monkeypatch.setattr(registry_module, 'winreg', mock_winreg)
+
+        monkeypatch.setattr(registry_module, "winreg", mock_winreg)
 
         result = registry_module.is_autostart_enabled()
 
@@ -255,13 +269,13 @@ class TestScheduledTaskFallback:
         """Test _create_scheduled_task succeeds when schtasks works."""
         from shared.registry import _create_scheduled_task
 
-        with patch('shared.registry.subprocess.run') as mock_run:
+        with patch("shared.registry.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             result = _create_scheduled_task()
             assert result is True
             args = mock_run.call_args
             cmd = args[0][0]
-            assert "schtasks" in cmd
+            assert Path(cmd[0]).name.lower() == "schtasks.exe"
             assert "/create" in cmd
             assert "CleanBox" in cmd
             assert "/sc" in cmd
@@ -271,7 +285,7 @@ class TestScheduledTaskFallback:
         """Test _create_scheduled_task returns False on subprocess error."""
         from shared.registry import _create_scheduled_task
 
-        with patch('shared.registry.subprocess.run') as mock_run:
+        with patch("shared.registry.run") as mock_run:
             mock_run.side_effect = subprocess.CalledProcessError(1, "schtasks")
             result = _create_scheduled_task()
             assert result is False
@@ -280,7 +294,7 @@ class TestScheduledTaskFallback:
         """Test _create_scheduled_task returns False when schtasks not found."""
         from shared.registry import _create_scheduled_task
 
-        with patch('shared.registry.subprocess.run') as mock_run:
+        with patch("shared.registry.run") as mock_run:
             mock_run.side_effect = OSError("schtasks not found")
             result = _create_scheduled_task()
             assert result is False
@@ -289,13 +303,13 @@ class TestScheduledTaskFallback:
         """Test _delete_scheduled_task succeeds."""
         from shared.registry import _delete_scheduled_task
 
-        with patch('shared.registry.subprocess.run') as mock_run:
+        with patch("shared.registry.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0)
             result = _delete_scheduled_task()
             assert result is True
             args = mock_run.call_args
             cmd = args[0][0]
-            assert "schtasks" in cmd
+            assert Path(cmd[0]).name.lower() == "schtasks.exe"
             assert "/delete" in cmd
             assert "CleanBox" in cmd
 
@@ -303,7 +317,7 @@ class TestScheduledTaskFallback:
         """Test _delete_scheduled_task returns False when task doesn't exist."""
         from shared.registry import _delete_scheduled_task
 
-        with patch('shared.registry.subprocess.run') as mock_run:
+        with patch("shared.registry.run") as mock_run:
             mock_run.side_effect = subprocess.CalledProcessError(1, "schtasks")
             result = _delete_scheduled_task()
             assert result is False

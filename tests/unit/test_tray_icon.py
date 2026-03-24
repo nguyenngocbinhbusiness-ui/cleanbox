@@ -1,7 +1,5 @@
-
 import pytest
 from unittest.mock import MagicMock, patch
-import threading
 
 from ui.tray_icon import TrayIcon, load_icon
 
@@ -10,24 +8,22 @@ class TestTrayIcon:
 
     @pytest.fixture
     def mock_callbacks(self):
-        return {
-            "cleanup": MagicMock(),
-            "settings": MagicMock(),
-            "exit": MagicMock()
-        }
+        return {"cleanup": MagicMock(), "settings": MagicMock(), "exit": MagicMock()}
 
     @pytest.fixture
     def tray_icon(self, mock_callbacks):
         return TrayIcon(
             on_cleanup=mock_callbacks["cleanup"],
             on_settings=mock_callbacks["settings"],
-            on_exit=mock_callbacks["exit"]
+            on_exit=mock_callbacks["exit"],
         )
 
     def test_load_icon_success(self):
         """Test loading icon from file."""
-        with patch("ui.tray_icon.ICON_PATH") as mock_path, \
-             patch("ui.tray_icon.Image.open") as mock_open:
+        with (
+            patch("ui.tray_icon.ICON_PATH") as mock_path,
+            patch("ui.tray_icon.Image.open") as mock_open,
+        ):
             mock_path.exists.return_value = True
 
             icon = load_icon()
@@ -37,8 +33,10 @@ class TestTrayIcon:
 
     def test_load_icon_fallback(self):
         """Test fallback icon creation."""
-        with patch("ui.tray_icon.ICON_PATH") as mock_path, \
-             patch("ui.tray_icon.Image.new") as mock_new:
+        with (
+            patch("ui.tray_icon.ICON_PATH") as mock_path,
+            patch("ui.tray_icon.Image.new") as mock_new,
+        ):
             # Case 1: File doesn't exist
             mock_path.exists.return_value = False
             load_icon()
@@ -70,16 +68,21 @@ class TestTrayIcon:
 
     def test_create_menu_error(self, tray_icon):
         """Test safe menu creation on error."""
-        with patch("ui.tray_icon.pystray.Menu", side_effect=[Exception("Menu Error"), MagicMock()]) as mock_menu:
-            menu = tray_icon._create_menu()
+        with patch(
+            "ui.tray_icon.pystray.Menu",
+            side_effect=[Exception("Menu Error"), MagicMock()],
+        ) as mock_menu:
+            tray_icon._create_menu()
             # Should retry with simple menu (Exit only)
             assert mock_menu.call_count == 2
 
     def test_start_success(self, tray_icon):
         """Test starting the tray icon."""
-        with patch("ui.tray_icon.Icon") as MockIcon, \
-             patch("ui.tray_icon.load_icon"), \
-             patch("ui.tray_icon.threading.Thread") as MockThread:
+        with (
+            patch("ui.tray_icon.Icon") as MockIcon,
+            patch("ui.tray_icon.load_icon"),
+            patch("ui.tray_icon.threading.Thread") as MockThread,
+        ):
 
             tray_icon.start()
 
@@ -90,8 +93,10 @@ class TestTrayIcon:
 
     def test_start_error(self, tray_icon):
         """Test start error handling."""
-        with patch("ui.tray_icon.load_icon", side_effect=Exception("Start Error")), \
-             patch("ui.tray_icon.logger") as mock_logger:
+        with (
+            patch("ui.tray_icon.load_icon", side_effect=Exception("Start Error")),
+            patch("ui.tray_icon.logger") as mock_logger,
+        ):
             tray_icon.start()
             mock_logger.error.assert_called()
             assert tray_icon._icon is None

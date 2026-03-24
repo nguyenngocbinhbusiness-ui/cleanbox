@@ -1,14 +1,11 @@
 """Storage monitor service - Poll disk space and detect low space."""
-import gc
 import logging
-import os
-import threading
-import time
 from typing import Dict, List, Optional
 
 import psutil
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
+from features.storage_monitor.polling import check_drives, periodic_maintenance
 from features.storage_monitor.utils import DriveInfo, get_all_drives
 
 logger = logging.getLogger(__name__)
@@ -121,49 +118,10 @@ class StorageMonitor(QObject):
     def _check_drives(self) -> None:
         """Check all drives for low space."""
         try:
-            drives = get_all_drives()
-
-            for drive in drives:
-                if drive.free_gb < self._threshold_gb:
-                    last_notified = self._notified_drives.get(drive.letter)
-                    now = time.time()
-                    if last_notified is None or (now - last_notified) >= self._COOLDOWN_SECONDS:
-                        logger.warning(
-                            "Low space detected on %s: %.1f GB free",
-                            drive.letter,
-                            drive.free_gb,
-                        )
-                        self._notified_drives[drive.letter] = now
-                        self.low_space_detected.emit(drive)
-                else:
-                    # Drive has enough space, remove from notified list
-                    if drive.letter in self._notified_drives:
-                        del self._notified_drives[drive.letter]
-                        self.low_space_cleared.emit(drive.letter)
-                        logger.info(
-                            "Drive %s now has sufficient space: %.1f GB",
-                            drive.letter,
-                            drive.free_gb,
-                        )
-
-            del drives  # Explicit cleanup (D-CB-016)
-
-            # Periodic GC and self-monitoring (D-CB-015/017)
-            self._poll_cycle_count += 1
-            if self._poll_cycle_count >= self._GC_INTERVAL:
-                self._poll_cycle_count = 0
-                self._periodic_maintenance()
+            check_drives(self, get_all_drives, logger)
         except Exception as e:
             logger.error("Error checking drives: %s", e)
 
     def _periodic_maintenance(self) -> None:
         """Run gc.collect off main thread and log RSS (D-CB-015/017)."""
-        def _maintenance() -> None:
-            try:
-                gc.collect()
-                rss_mb = psutil.Process(os.getpid()).memory_info().rss / (1024 ** 2)
-                logger.info("StorageMonitor maintenance: gc.collect() done, RSS=%.1f MB", rss_mb)
-            except Exception as e:
-                logger.error("Periodic maintenance error: %s", e)
-
-        threading.Thread(target=_maintenance, daemon=True).start()
+        periodic_maintenance(logger, psutil)

@@ -3,11 +3,10 @@ Unit tests for shared/constants.py module.
 Tests the _get_assets_dir() function in both frozen (PyInstaller) and script modes,
 and validates all constant values.
 """
+
 import sys
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-
-import pytest
+from unittest.mock import patch
 
 
 class TestGetAssetsDir:
@@ -16,12 +15,13 @@ class TestGetAssetsDir:
     def test_get_assets_dir_script_mode(self):
         """Test _get_assets_dir returns correct path when running as script."""
         # Ensure we're not in frozen mode
-        if hasattr(sys, 'frozen'):
-            delattr(sys, 'frozen')
+        if hasattr(sys, "frozen"):
+            delattr(sys, "frozen")
 
         # Re-import to get fresh module state
         import importlib
         import shared.constants as constants_module
+
         importlib.reload(constants_module)
 
         assets_dir = constants_module._get_assets_dir()
@@ -36,10 +36,11 @@ class TestGetAssetsDir:
         # Simulate PyInstaller frozen mode
         mock_meipass = Path("C:/fake/meipass")
 
-        with patch.object(sys, 'frozen', True, create=True):
-            with patch.object(sys, '_MEIPASS', str(mock_meipass), create=True):
+        with patch.object(sys, "frozen", True, create=True):
+            with patch.object(sys, "_MEIPASS", str(mock_meipass), create=True):
                 # Need to call the function directly since module-level constant is already set
                 from shared.constants import _get_assets_dir
+
                 assets_dir = _get_assets_dir()
 
                 expected = mock_meipass / "assets"
@@ -47,8 +48,9 @@ class TestGetAssetsDir:
 
     def test_get_assets_dir_frozen_false_explicitly(self):
         """Test _get_assets_dir when frozen attribute exists but is False."""
-        with patch.object(sys, 'frozen', False, create=True):
+        with patch.object(sys, "frozen", False, create=True):
             from shared.constants import _get_assets_dir
+
             assets_dir = _get_assets_dir()
 
             # Should use script path, not MEIPASS
@@ -115,6 +117,20 @@ class TestConstantValues:
         assert len(RECYCLE_BIN_MARKER) > 0
         # Should be a special marker, not a real path
         assert "__" in RECYCLE_BIN_MARKER
+
+    def test_protected_path_collections_are_frozensets(self):
+        """Test protected path collections are immutable sets."""
+        from shared.constants import PROTECTED_PATHS, PROTECTED_PATH_PREFIXES
+
+        assert isinstance(PROTECTED_PATHS, frozenset)
+        assert isinstance(PROTECTED_PATH_PREFIXES, frozenset)
+        assert PROTECTED_PATH_PREFIXES.issubset(PROTECTED_PATHS)
+
+    def test_protected_prefixes_do_not_block_user_profile_roots(self):
+        """Test recursive protection excludes user profile roots like Users."""
+        from shared.constants import PROTECTED_PATH_PREFIXES
+
+        assert not any(str(path).lower().endswith("\\users") for path in PROTECTED_PATH_PREFIXES)
 
 
 class TestAssetPaths:

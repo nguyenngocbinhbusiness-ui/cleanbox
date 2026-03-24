@@ -1,7 +1,6 @@
 """Tests for DirectoryDetector coverage - targeting exception paths."""
-import pytest
-from unittest.mock import patch, MagicMock
-from pathlib import Path
+
+from unittest.mock import patch
 
 
 class TestDirectoryDetectorCoverage:
@@ -11,7 +10,7 @@ class TestDirectoryDetectorCoverage:
         """Test get_downloads_folder when folder exists."""
         from features.cleanup.directory_detector import get_downloads_folder
 
-        with patch('features.cleanup.directory_detector.Path.home') as mock_home:
+        with patch("features.cleanup.directory_detector.Path.home") as mock_home:
             mock_home.return_value = tmp_path
             downloads = tmp_path / "Downloads"
             downloads.mkdir()
@@ -23,7 +22,7 @@ class TestDirectoryDetectorCoverage:
         """Test get_downloads_folder when folder doesn't exist."""
         from features.cleanup.directory_detector import get_downloads_folder
 
-        with patch('features.cleanup.directory_detector.Path.home') as mock_home:
+        with patch("features.cleanup.directory_detector.Path.home") as mock_home:
             mock_home.return_value = tmp_path
             # Don't create Downloads folder
 
@@ -34,7 +33,10 @@ class TestDirectoryDetectorCoverage:
         """Test get_downloads_folder exception handling."""
         from features.cleanup.directory_detector import get_downloads_folder
 
-        with patch('features.cleanup.directory_detector.Path.home', side_effect=Exception("Home error")):
+        with patch(
+            "features.cleanup.directory_detector.Path.home",
+            side_effect=Exception("Home error"),
+        ):
             result = get_downloads_folder()
             assert result == ""
 
@@ -43,7 +45,9 @@ class TestDirectoryDetectorCoverage:
         from features.cleanup.directory_detector import get_default_directories
         from shared.constants import RECYCLE_BIN_MARKER
 
-        with patch('features.cleanup.directory_detector.get_downloads_folder') as mock_dl:
+        with patch(
+            "features.cleanup.directory_detector.get_downloads_folder"
+        ) as mock_dl:
             mock_dl.return_value = str(tmp_path / "Downloads")
 
             result = get_default_directories()
@@ -55,7 +59,9 @@ class TestDirectoryDetectorCoverage:
         from features.cleanup.directory_detector import get_default_directories
         from shared.constants import RECYCLE_BIN_MARKER
 
-        with patch('features.cleanup.directory_detector.get_downloads_folder') as mock_dl:
+        with patch(
+            "features.cleanup.directory_detector.get_downloads_folder"
+        ) as mock_dl:
             mock_dl.return_value = ""
 
             result = get_default_directories()
@@ -67,6 +73,9 @@ class TestDirectoryDetectorCoverage:
         from features.cleanup.directory_detector import get_default_directories
         from shared.constants import RECYCLE_BIN_MARKER
 
-        with patch('features.cleanup.directory_detector.get_downloads_folder', side_effect=Exception("Error")):
+        with patch(
+            "features.cleanup.directory_detector.get_downloads_folder",
+            side_effect=Exception("Error"),
+        ):
             result = get_default_directories()
             assert result == [RECYCLE_BIN_MARKER]

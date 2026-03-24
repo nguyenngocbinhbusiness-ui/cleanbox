@@ -36,7 +36,7 @@ def build_checks(include_flake8: bool = False) -> list[CheckCommand]:
     if include_flake8:
         checks.insert(
             1,
-            CheckCommand("flake8", [sys.executable, "-m", "flake8", "src", "tests"]),
+            CheckCommand("flake8", [sys.executable, "-m", "flake8", "src", "tests", "--count", "--statistics"]),
         )
     return checks
 
@@ -56,9 +56,14 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     """Parse CLI arguments."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
+        "--skip-flake8",
+        action="store_true",
+        help="Skip flake8 when lint is already enforced in a separate step.",
+    )
+    parser.add_argument(
         "--include-flake8",
         action="store_true",
-        help="Run flake8 in addition to pytest, bandit, compileall, and PyInstaller smoke.",
+        help=argparse.SUPPRESS,
     )
     return parser.parse_args(argv)
 
@@ -66,7 +71,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry for CI and local release verification."""
     args = parse_args(argv)
-    return run_checks(include_flake8=args.include_flake8)
+    include_flake8 = args.include_flake8 or not args.skip_flake8
+    return run_checks(include_flake8=include_flake8)
 
 
 if __name__ == "__main__":

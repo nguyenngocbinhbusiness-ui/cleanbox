@@ -50,7 +50,7 @@ flowchart TD
 - `src/ui/main_window.py`: shell UI, sidebar, view switching, signal forwarding.
 - `src/ui/views/storage_view.py`: Storage Analyzer (tree, realtime scan, lazy expand, context actions).
 - `src/ui/views/cleanup_view.py`: quản lý danh sách cleanup, nút Clean Now, progress bar.
-- `src/ui/views/settings_view.py`: auto-start, threshold, interval, restart as admin.
+- `src/ui/views/settings_view.py`: auto-start, threshold, interval, restart as admin, version footer.
 
 ## Luồng chính
 
@@ -91,4 +91,4 @@ flowchart TD
 
 ## Vấn đề kỹ thuật còn mở
 
-- Footer trong Settings đang hardcode `CleanBox v1.0.0`, chưa lấy từ `VERSION`/metadata hiện hành (`1.0.18`).
+- Footer trong Settings lấy trực tiếp từ `VERSION` (`1.0.19`), không còn hardcode.
